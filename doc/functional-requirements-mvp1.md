@@ -8,11 +8,11 @@
 
 ## 1. Obiettivo del prodotto
 
-L'applicazione ha lo scopo di analizzare una raccolta di fotografie conservata su un NAS Synology e trasformare i dati GPS presenti negli EXIF in un catalogo di **località visitate** e **viaggi/vacanze**.
+L'applicazione ha lo scopo di analizzare una raccolta di fotografie conservata su un NAS e trasformare i dati GPS presenti negli EXIF in un catalogo di **località visitate** e **viaggi/vacanze**.
 
 L'app deve permettere all'utente di:
 
-- importare le fotografie dal NAS;
+- leggere le fotografie dal NAS;
 - estrarre data/ora dello scatto e coordinate GPS;
 - associare le coordinate a una gerarchia amministrativa internazionale;
 - escludere determinate aree geografiche, tipicamente la zona di casa;
@@ -22,8 +22,6 @@ L'app deve permettere all'utente di:
 - consultare i dati in una scheda dettagliata;
 - mantenere uno storico delle scansioni.
 
-La **heatmap geografica** è prevista per **MVP2**, non per MVP1.
-
 ---
 
 # 2. Contesto e vincoli
@@ -31,7 +29,7 @@ La **heatmap geografica** è prevista per **MVP2**, non per MVP1.
 ## 2.1 Deployment
 
 - L'app è una **web app self-hosted**.
-- Gira su un **server Debian**.
+- Gira su un **server Linux Debian**.
 - È accessibile tramite browser nella rete locale.
 - L'app e il NAS si trovano nella stessa rete.
 - L'app è inizialmente progettata per **single-user**.
