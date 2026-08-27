@@ -72,6 +72,9 @@ L'utente deve poter:
 
 Non è prevista una scansione automatica periodica.
 
+- La scansione viene eseguita come **Background Job asincrono** sul server Debian.
+- Se l'utente chiude il browser o naviga altrove, la scansione prosegue in background.
+
 ## 3.2 Scansione ricorsiva
 
 La cartella indicata viene analizzata ricorsivamente, incluse le sottocartelle.
@@ -86,6 +89,8 @@ Ad ogni scansione:
 - non devono essere create duplicazioni.
 
 La struttura del NAS è considerata stabile; MVP1 non deve necessariamente gestire il caso di file spostati o rinominati.
+
+**Architettura Append-Only:** se una foto precedentemente importata viene successivamente eliminata o spostata sul NAS, l'app **conserva intatti i dati e i metadati già salvati nel DB**, evitando di alterare i viaggi storici consolidati.
 
 ## 3.4 Pipeline di importazione
 
@@ -129,6 +134,14 @@ Errori di lettura/processing:  8
 ```
 
 I valori sopra sono solo esemplificativi.
+
+## 3.6 Feedback visivo in tempo reale
+
+Durante la scansione, la Web App mostra una **Progress Bar in tempo reale** con:
+
+- percentuale di avanzamento;
+- numero di file analizzati;
+- eventuali errori riscontrati.
 
 ---
 
@@ -176,6 +189,8 @@ La data utilizzata dall'app è la **data/ora originale dello scatto** presente n
 La sorgente primaria è `EXIF DateTimeOriginal`.
 
 La data di creazione/modifica del file **non deve essere usata come fallback**.
+
+**Principio Naive Local Time:** la data e l'ora estratte dall'EXIF vengono considerate "così come sono", cioè riferite all'ora locale del luogo in cui è stata scattata la foto, **senza applicare conversioni UTC o basate sulla timezone del server**.
 
 ## 5.3 Metadati minimi
 
@@ -285,6 +300,8 @@ Esempi:
 
 Una foto scattata in campagna viene associata all'unità amministrativa che contiene geograficamente il punto.
 
+**Gestione Gerarchia Incompleta:** se il livello più basso (ad es. Comune) manca o non è definito (ad es. zone marittime o aree rurali), l'app **risale automaticamente al livello amministrativo immediatamente superiore** disponibile (ad es. Provincia o Regione).
+
 ## 6.4 Geocoding locale
 
 La preferenza architetturale è per un reverse geocoding **locale**, senza inviare le coordinate fotografiche a servizi esterni.
@@ -348,6 +365,8 @@ Esempio:
 ```
 
 Due località diverse nello stesso giorno generano quindi due presenze distinte.
+
+**Anomalie Spaziotemporali:** se nello stesso giorno solare sono presenti foto scattate in località geograficamente molto distanti (es. Roma e New York stesso giorno, a causa di un errore di sincronizzazione), **entrambe le località vengono regolarmente registrate** nell'elenco presenze di quel giorno.
 
 ## 7.3 Conteggio delle foto
 
@@ -450,6 +469,8 @@ Se una giornata contiene esclusivamente foto in zone escluse:
 
 > la giornata non è una giornata di viaggio.
 
+**Rientro a casa / chiusura:** se una giornata contiene **esclusivamente** foto in zona di esclusione, il viaggio in corso **si chiude immediatamente al giorno dell'ultima foto valida scattata fuori zona**.
+
 ---
 
 # 10. Generazione automatica dei viaggi
@@ -495,6 +516,8 @@ Anche il rientro in una zona di esclusione può determinare la chiusura del viag
 La data fine del viaggio è sempre:
 
 > **la data dell'ultima foto appartenente al viaggio.**
+
+La data fine corrisponde quindi **alla data dell'ultima foto valida scattata fuori zona di esclusione**.
 
 I giorni senza foto utilizzati per determinare la chiusura non vengono quindi inclusi nella data fine.
 
@@ -593,6 +616,8 @@ L'utente può modificare:
 - data inizio;
 - data fine.
 
+**Regola di Validazione Temporale:** il sistema **impedisce e blocca rigorosamente qualsiasi sovrapposizione temporale** tra viaggi attivi, mostrando un messaggio di errore se l'utente tenta di impostare date in sovrapposizione ad altri viaggi.
+
 ## 13.3 Dividere
 
 L'utente può dividere un viaggio scegliendo una **data di divisione**.
@@ -676,6 +701,12 @@ La durata è derivata dall'intervallo del viaggio.
 
 L'elenco deve permettere di selezionare/aprire un viaggio.
 
+Dettagli aggiuntivi della vista:
+
+- **Ordinamento di default:** cronologico inverso (dal viaggio più recente al più antico).
+- **Filtro visivo viaggi attivi:** l'elenco mostra di default **solo i viaggi attivi e validi**; un filtro/toggle opzionale (*"Mostra viaggi archiviati/superati"*) permette di consultare lo storico dell'audit trail.
+- **Ricerca rapida:** barra di ricerca testuale per filtrare la lista per **Nome viaggio** o **Anno/Mese**.
+
 ---
 
 # 16. Scheda dettaglio viaggio — MVP1
@@ -693,6 +724,7 @@ Devono essere disponibili almeno:
 - gerarchia amministrativa delle località;
 - numero di foto per giornata/località;
 - informazioni utili alla ricostruzione del viaggio.
+- **Visualizzazione giorni vuoti:** se all'interno del viaggio sono presenti 1 o 2 giorni senza foto, la scheda elenca comunque quelle date specificando la dicitura **"Nessuna foto"**.
 
 Le foto non vengono visualizzate in MVP1.
 
@@ -830,6 +862,9 @@ L'MVP1 deve rispettare i seguenti principi:
 13. **Le modifiche alle soglie non sono retroattive senza un'azione esplicita di ricalcolo.**
 14. **MVP1 è single-user.**
 15. **Il modello geografico è internazionale e non assume la gerarchia amministrativa italiana.**
+16. **Il modello è Append-Only (i file eliminati dal NAS restano nel DB dell'app).**
+17. **Divieto di sovrapposizione temporale tra viaggi attivi.**
+18. **Le date EXIF sono interpretate come Naive Local Time.**
 
 ---
 
