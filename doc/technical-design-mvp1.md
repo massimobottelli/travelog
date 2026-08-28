@@ -145,6 +145,29 @@ La soluzione MVP1 utilizza:
 
 Il runtime applicativo non scarica dati geografici da Internet.
 
+### Geographic datasets
+
+MVP1 stores the geographic datasets under:
+
+```
+data/geodata/
+```
+
+The path is relative to the Travelog project and is not configurable
+through an environment variable.
+
+Geographic datasets are imported and updated offline through dedicated
+scripts or tools.
+
+Runtime application code consumes the locally available datasets and
+does not download, update, or synchronize geographic datasets
+automatically.
+
+The geographic dataset files are considered application data and do not
+need to be versioned in Git. If required because of their size, the
+dataset files may be excluded from the repository while the expected
+directory structure and import tooling remain versioned.
+
 ---
 
 ## 3.5 Sistema operativo e deployment
@@ -411,6 +434,33 @@ Database
     +-- zone di esclusione
     +-- altre impostazioni funzionali
 ```
+
+### Environment configuration
+
+Environment variables are limited to deployment and runtime configuration.
+Functional application settings are not configured through environment
+variables; they are persisted in the database and managed through the
+application.
+
+The MVP1 environment configuration is:
+
+| Variable              | Purpose                                                  | Example                                                  |
+| --------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
+| `DATABASE_URL`        | PostgreSQL connection string                             | `postgresql://travelog:password@localhost:5432/travelog` |
+| `DATABASE_POOL_MAX`   | Maximum PostgreSQL connection pool size                  | `10`                                                     |
+| `TRAVELOG_PHOTO_ROOT` | Root directory of the photo archive mounted from the NAS | `/path/to/photo/archive`                                 |
+| `HOST`                | HTTP server bind address                                 | `0.0.0.0`                                                |
+| `PORT`                | HTTP server port                                         | `3000`                                                   |
+| `API_PREFIX`          | REST API path prefix                                     | `/api`                                                   |
+| `CORS_ORIGIN`         | Allowed frontend origin                                  | `http://localhost:5173`                                  |
+| `NODE_ENV`            | Node.js runtime environment                              | `development`                                            |
+| `LOG_LEVEL`           | Application log level                                    | `info`                                                   |
+| `EXIFTOOL_PATH`       | Path/name of the `exiftool` executable                   | `exiftool`                                               |
+
+No environment variables are used for trip-detection thresholds or other
+functional settings.
+
+The canonical example configuration is stored in `.env.example`.
 
 ---
 
@@ -691,6 +741,23 @@ Non viene calcolato un hash del contenuto durante la normale scansione MVP1.
 Non viene implementato un meccanismo per riconoscere automaticamente un file dopo rename/spostamento.
 
 La scelta è coerente con il requisito che considera stabile la struttura del NAS.
+
+### Scan processing model
+
+The MVP1 scanner processes photos sequentially, one photo at a time.
+
+Scan concurrency is not configurable.
+
+This choice keeps the scanner implementation simple and predictable while
+supporting the required properties:
+
+* idempotent processing;
+* restartability;
+* isolation of individual file errors;
+* prevention of concurrent scans.
+
+No `SCAN_BATCH_SIZE` or `SCAN_CONCURRENCY` environment variables are
+defined for MVP1.
 
 ---
 
