@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Generated files
+**/__generated__/**
+
+# Database migrations (auto-generated)
+database/migrations/*.sql

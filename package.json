@@ -1,0 +1,18 @@
+{
+  "name": "travelog",
+  "private": true,
+  "workspaces": ["backend", "frontend"],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=@travelog/backend\" \"npm run dev --workspace=@travelog/frontend\"",
+    "build": "npm run build --workspace=@travelog/backend && npm run build --workspace=@travelog/frontend",
+    "test": "npm run test --workspace=@travelog/backend && npm run test --workspace=@travelog/frontend",
+    "lint": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
+  }
+}
