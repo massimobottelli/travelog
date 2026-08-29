@@ -87,6 +87,9 @@ fi
 echo "✅ PostGIS ready"
 echo ""
 
+# ----------------------------------------------------------
+# 2b. Start PostgreSQL service
+# ----------------------------------------------------------
 systemctl enable postgresql
 systemctl start postgresql
 echo "⏳ Waiting for PostgreSQL to be ready…"
@@ -112,6 +115,25 @@ for DB_NAME in travelog_dev travelog_test; do
     fi
 done
 echo "✅ Databases created with PostGIS enabled"
+echo ""
+
+# ----------------------------------------------------------
+# 2c. Dedicated PostgreSQL user
+# ----------------------------------------------------------
+PG_USER="travelog"
+if su - postgres -c "psql -tc \"SELECT 1 FROM pg_roles WHERE rolname='$PG_USER';\"" | grep -q 1; then
+    echo "ℹ️  Database user '$PG_USER' already exists"
+else
+    echo "📦 Creating database user '$PG_USER'…"
+    su - postgres -c "psql -c \"CREATE USER \\\"$PG_USER\\\" WITH PASSWORD 'travelog';\""
+    for DB_NAME in travelog_dev travelog_test; do
+        su - postgres -c "psql -c \"GRANT CONNECT ON DATABASE \\\"$DB_NAME\\\" TO \\\"$PG_USER\\\";\""
+        su - postgres -c "psql -c \"GRANT USAGE ON SCHEMA public TO \\\"$PG_USER\\\";\""
+        su - postgres -c "psql -d \"$DB_NAME\" -c \"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO \\\"$PG_USER\\\";\""
+        su - postgres -c "psql -d \"$DB_NAME\" -c \"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO \\\"$PG_USER\\\";\""
+    done
+    echo "✅ User '$PG_USER' created and granted access"
+fi
 echo ""
 
 # ----------------------------------------------------------
@@ -151,9 +173,32 @@ nginx -t && systemctl reload nginx 2>/dev/null || echo "⚠️  Nginx config tes
 echo ""
 
 # ----------------------------------------------------------
+# 4b. Service user + photo root
+# ----------------------------------------------------------
+if id -u travelog-service &>/dev/null; then
+    echo "ℹ️  Service user 'travelog-service' already exists"
+else
+    echo "📦 Creating system user 'travelog-service'…"
+    useradd --system --no-create-home --shell /usr/sbin/nologin travelog-service
+    echo "✅ User 'travelog-service' created"
+fi
+
+PHOTO_ROOT="${TRAVELOG_PHOTO_ROOT:-/opt/travelog/photos}"
+if [[ ! -d "$PHOTO_ROOT" ]]; then
+    echo "⚠️  Photo root directory not found at $PHOTO_ROOT — creating it."
+    mkdir -p "$PHOTO_ROOT"
+    chown travelog-service:root "$PHOTO_ROOT"
+    chmod 750 "$PHOTO_ROOT"
+    echo "✅ Directory '$PHOTO_ROOT' created"
+else
+    echo "ℹ️  Photo root directory '$PHOTO_ROOT' already exists"
+fi
+echo ""
+
+# ----------------------------------------------------------
 # 5. Systemd service
 # ----------------------------------------------------------
-cat > /etc/systemd/system/travelog.service << 'SVCEOF'
+cat > /etc/systemd/system/travelog.service << SVCEOF
 [Unit]
 Description=Travelog Backend Service
 After=network.target postgresql.service
@@ -161,21 +206,34 @@ Wants=postgresql.service
 
 [Service]
 Type=simple
-User=root
-WorkingDirectory=/opt/travelog/backend
-ExecStart=/usr/bin/node dist/index.js
+User=travelog-service
+WorkingDirectory=/opt/travelog
+ExecStart=/usr/bin/node backend/dist/index.js
 Restart=on-failure
 RestartSec=10
 Environment=NODE_ENV=production
 Environment=LOG_LEVEL=warn
+Environment=TRAVELOG_PHOTO_ROOT=$PHOTO_ROOT
 
 [Install]
 WantedBy=multi-user.target
 SVCEOF
 
+# Ensure /opt/travelog ownership for service user
+chown -R travelog-service:root /opt/travelog/backend /opt/travelog/frontend
+
 systemctl daemon-reload
 systemctl enable travelog
 echo "✅ Systemd service configured"
+echo ""
+
+# ----------------------------------------------------------
+# 6. Project dependencies
+# ----------------------------------------------------------
+echo "📦 Running 'npm install' at workspace root…"
+cd /opt/travelog || { echo "❌ Directory /opt/travelog not found"; exit 1; }
+npm install --prefer-offline
+echo "✅ Node.js dependencies installed"
 echo ""
 
 # ----------------------------------------------------------
@@ -186,11 +244,9 @@ echo " Setup complete!"
 echo "========================================================"
 echo ""
 echo "Next steps:"
-echo "  1. Deploy project to /opt/travelog"
-echo "  2. cp .env.example .env"
-echo "  3. sed -i 's/NODE_ENV=development/NODE_ENV=production/' .env"
-echo "  4. Edit .env with your configuration"
-echo "  5. npm install && npm run build"
-echo "  6. systemctl start travelog"
-echo "  7. journalctl -u travelog -f"
+echo "  1. cp .env.example .env"
+echo "  2. Edit .env with your configuration (set DATABASE_URL password, TRAVELOG_PHOTO_ROOT)"
+echo "  3. npm run build             # compile TypeScript + Vite production build"
+echo "  4. systemctl start travelog   # start backend service"
+echo "  5. journalctl -u travelog -f  # watch logs"
 echo ""
