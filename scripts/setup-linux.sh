@@ -34,8 +34,11 @@ DEPS=(
     ca-certificates
     wget
     unzip
-    software-properties-common
 )
+# software-properties-common is only available on Ubuntu; skip on Debian
+if [[ "$DISTRO" == "ubuntu" ]]; then
+    DEPS+=("software-properties-common")
+fi
 echo "📦 Installing system dependencies…"
 apt-get install -y "${DEPS[@]}"
 echo "✅ System dependencies installed"
@@ -68,7 +71,13 @@ else
     apt-get install -y postgresql postgresql-contrib
 fi
 
-PG_VERSION=$(postgres --version | grep -oP '\d+' | head -1)
+# Detect PostgreSQL version from installed packages (no postgres binary needed)
+PG_VERSION=$(pg_lsclusters 2>/dev/null | awk '/active/{print $1}' | head -1)
+if [[ -z "$PG_VERSION" ]]; then
+    PG_VERSION=$(dpkg -l postgresql-* 2>/dev/null | grep '^ii' | grep -oP 'postgresql-\K\d+' | tail -1 || echo "")
+    [[ -z "$PG_VERSION" ]] && PG_VERSION="17"
+fi
+echo "ℹ️  Detected PostgreSQL version: $PG_VERSION"
 POSTGIS_PKG="postgresql-${PG_VERSION}-postgis-3"
 
 if dpkg -l "$POSTGIS_PKG" 2>/dev/null | grep -q '^ii'; then
