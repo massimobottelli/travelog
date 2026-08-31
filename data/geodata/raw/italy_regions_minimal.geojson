@@ -1,0 +1,20 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"ISO_A2": "IT", "ISO_A3": "ITA", "NAME": "Piemonte", "ADMIN_LEVEL": 1},
+      "geometry": {"type": "Polygon", "coordinates": [[[7.6, 45.4], [8.9, 45.4], [9.3, 45.7], [9.0, 46.2], [8.0, 46.3], [7.6, 45.8], [7.6, 45.4]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ISO_A2": "IT", "ISO_A3": "ITA", "NAME": "Lombardia", "ADMIN_LEVEL": 1},
+      "geometry": {"type": "Polygon", "coordinates": [[[8.9, 45.4], [10.8, 45.4], [11.2, 46.0], [10.5, 46.7], [9.5, 47.1], [9.0, 46.2], [8.9, 45.4]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ISO_A2": "IT", "ISO_A3": "ITA", "NAME": "Veneto", "ADMIN_LEVEL": 1},
+      "geometry": {"type": "Polygon", "coordinates": [[[10.8, 45.4], [13.1, 45.4], [13.8, 46.0], [13.0, 46.7], [12.5, 46.7], [10.8, 45.4]]]}
+    }
+  ]
+}

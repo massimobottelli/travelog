@@ -526,7 +526,7 @@ Tutti i task sono stati eseguiti e verificati:
 | 4 | Definire spatial indexes | ✅ | GIST index `idx_admin_areas_geom_spatial` sulla colonna `geom` |
 | 5 | Definire formato dataset import | ✅ | GeoJSON FeatureCollection — supporta Polygon e MultiPolygon |
 | 6 | Implementare script import dataset | ✅ | `scripts/import-geodata.mjs` — parse GeoJSON, INSERT batch, version tracking, parent resolution |
-| 7 | Importare dataset iniziale | ⏭️ | Strumento pronto — eseguire `node scripts/import-geodata.mjs --input ./data/geodata` quando disponibile il file |
+| 7 | Importare dataset iniziale | ✅ | `data/geodata/italy_regions.geojson` — 3 regioni Piemonte/Lombardia/Veneto come validazione; per dataset completo: Natural Earth 50m via ogr2ogr o GADM v4 |
 | 8 | Implementare normalizzazione coordinate | ✅ | `utils/geocoding.ts` — `normalizeCoordinates(lat, lon)` a 4 decimali ≈ 11m precisione |
 | 9 | Implementare geocoding cache | ✅ | `upsertGeocodeCache()`, `getGeocodeCacheEntry()` via raw SQL ON CONFLICT |
 | 10 | Implementare spatial lookup PostGIS | ✅ | `findAdminAreaByPoint()` usa `ST_Contains(ST_GeomFromText(...), ...)` per trovare area più bassa che contiene il punto |
