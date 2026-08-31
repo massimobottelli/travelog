@@ -1,140 +1,196 @@
 /**
- * Travelog MVP1 — Geocoding Repository (Phase 4)
+ * Travelog MVP1 — Geocoding Repository (Phase 4 — Geoapify)
+ *
+ * CRUD for localities and geocoding cache using native SQL.
+ * No longer depends on administrative_areas or PostGIS spatial functions.
  */
 
 import { pool as pgPool } from "../db/client.js";
 
-export interface AdminAreaRow {
+export interface LocalityRow {
   id: number;
-  datasetSource: string;
+  localityHash: string;
   countryCode: string;
-  adminLevel: number;
   name: string;
-  parentId: number | null;
+  adminLevel: number;
+  street: string | null;
+  county: string | null;
+  region: string | null;
+  country: string | null;
 }
 
-export interface GeocodeResult {
-  adminAreaId: number | null;
-  name: string | null;
-  countryCode: string | null;
-  adminLevel: number | null;
-}
-
-export async function findAdminAreaByPoint(lat: number, lon: number): Promise<AdminAreaRow | null> {
+/**
+ * Upsert a locality. Returns the row (inserted or existing).
+ */
+export async function upsertLocality(params: {
+  localityHash: string;
+  countryCode: string;
+  name: string;
+  adminLevel: number;
+  street?: string | null;
+  county?: string | null;
+  region?: string | null;
+  country?: string | null;
+}): Promise<LocalityRow> {
   const result = await pgPool.query(
-    `SELECT id, dataset_source, country_code, admin_level, name, parent_id
-     FROM administrative_areas
-     WHERE ST_Contains(ST_GeomFromText("geometry", 4326), ST_SetSRID(ST_MakePoint($1, $2), 4326))
-     ORDER BY admin_level DESC
-     LIMIT 1`,
-    [lon, lat],
+    `INSERT INTO localities (locality_hash, country_code, name, admin_level, street, county, region, country)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (locality_hash) DO UPDATE SET
+       name             = EXCLUDED.name,
+       admin_level      = EXCLUDED.admin_level,
+       street           = COALESCE(EXCLUDED.street, localities.street),
+       county           = COALESCE(EXCLUDED.county, localities.county),
+       region           = COALESCE(EXCLUDED.region, localities.region),
+       country          = COALESCE(EXCLUDED.country, localities.country)
+     RETURNING id, locality_hash, country_code, name, admin_level, street, county, region, country`,
+    [
+      params.localityHash,
+      params.countryCode,
+      params.name,
+      params.adminLevel,
+      params.street ?? null,
+      params.county ?? null,
+      params.region ?? null,
+      params.country ?? null,
+    ],
   );
-  if (result.rows.length === 0) return null;
   const r = result.rows[0];
   return {
     id: Number(r.id),
-    datasetSource: r.dataset_source,
+    localityHash: r.locality_hash,
     countryCode: r.country_code,
+    name: r.name,
     adminLevel: r.admin_level,
-    name: r.name,
-    parentId: r.parent_id ? Number(r.parent_id) : null,
+    street: r.street,
+    county: r.county,
+    region: r.region,
+    country: r.country,
   };
 }
 
-export async function resolveHierarchy(areaId: number): Promise<{name: string; adminLevel: number; countryCode: string}[]> {
-  const tgt = await pgPool.query(`SELECT id, name, admin_level, country_code, parent_id FROM administrative_areas WHERE id=$1`, [areaId]);
-  if (tgt.rows.length === 0) return [];
-  const t = tgt.rows[0];
-  const chain: {name: string; adminLevel: number; countryCode: string}[] = [{ name: t.name, adminLevel: t.admin_level, countryCode: t.country_code }];
-  let currentParentId: number | null = t.parent_id ? Number(t.parent_id) : null;
-  while (currentParentId !== null) {
-    const res = await pgPool.query(`SELECT id, name, admin_level, country_code, parent_id FROM administrative_areas WHERE id=$1`, [currentParentId]);
-    if (res.rows.length === 0) break;
-    const p = res.rows[0];
-    chain.unshift({ name: p.name, adminLevel: p.admin_level, countryCode: p.country_code });
-    currentParentId = p.parent_id ? Number(p.parent_id) : null;
-  }
-  return chain;
-}
-
-export async function getGeocodeCacheEntry(
-  normalizedLat: number,
-  normalizedLon: number,
-): Promise<{ adminAreaId: number | null; name: string | null; countryCode: string | null; adminLevel: number | null } | null> {
+/**
+ * Look up a locality by hash.
+ */
+export async function getLocalityByHash(localityHash: string): Promise<LocalityRow | null> {
   const result = await pgPool.query(
-    `SELECT admin_area_id, name, country_code, admin_level FROM geocoding_cache WHERE normalized_latitude=$1 AND normalized_longitude=$2`,
-    [normalizedLat, normalizedLon],
-  );
-  if (result.rows.length === 0) return null;
-  const r = result.rows[0];
-  return {
-    adminAreaId: r.admin_area_id ? Number(r.admin_area_id) : null,
-    name: r.name,
-    countryCode: r.country_code,
-    adminLevel: r.admin_level ? Number(r.admin_level) : null,
-  };
-}
-
-export interface UpsertGeocodeInput {
-  normalizedLatitude: number;
-  normalizedLongitude: number;
-}
-
-export async function upsertGeocodeCache(
-  input: UpsertGeocodeInput & {
-    adminAreaId: number | null;
-    countryCode: string | null;
-    adminLevel: number | null;
-    name: string | null;
-    geoVersion: string;
-  },
-): Promise<void> {
-  const nlat = input.normalizedLatitude;
-  const nlon = input.normalizedLongitude;
-  await pgPool.query(
-    `INSERT INTO geocoding_cache (normalized_latitude, normalized_longitude, admin_area_id, country_code, admin_level, name, geo_version)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     ON CONFLICT (normalized_latitude, normalized_longitude) DO UPDATE SET
-       admin_area_id = EXCLUDED.admin_area_id,
-       country_code = EXCLUDED.country_code,
-       admin_level = EXCLUDED.admin_level,
-       name = EXCLUDED.name,
-       geo_version = EXCLUDED.geo_version`,
-    [nlat, nlon, input.adminAreaId, input.countryCode, input.adminLevel, input.name, input.geoVersion],
-  );
-}
-
-export async function recordDatasetVersion(input: { name: string; version: string; description?: string; rowCount: number }): Promise<number> {
-  const result = await pgPool.query(
-    `INSERT INTO dataset_versions (name, version, description, row_count) VALUES ($1, $2, $3, $4) RETURNING id`,
-    [input.name, input.version, input.description ?? null, input.rowCount],
-  );
-  return Number(result.rows[0].id);
-}
-
-export async function getLatestDatasetVersion(
-  name: string,
-): Promise<{ id: number; version: string; description: string | null; importedAt: Date; rowCount: number | null } | null> {
-  const result = await pgPool.query(
-    `SELECT id, version, description, imported_at, row_count FROM dataset_versions WHERE name=$1 ORDER BY imported_at DESC LIMIT 1`,
-    [name],
+    `SELECT id, locality_hash, country_code, name, admin_level, street, county, region, country
+     FROM localities WHERE locality_hash = $1`,
+    [localityHash],
   );
   if (result.rows.length === 0) return null;
   const r = result.rows[0];
   return {
     id: Number(r.id),
-    version: r.version,
-    description: r.description,
-    importedAt: r.imported_at,
-    rowCount: r.row_count,
+    localityHash: r.locality_hash,
+    countryCode: r.country_code,
+    name: r.name,
+    adminLevel: r.admin_level,
+    street: r.street,
+    county: r.county,
+    region: r.region,
+    country: r.country,
   };
+}
+
+/**
+ * Search localities by name substring (case-insensitive).
+ */
+export async function searchLocalities(q: string, limit: number): Promise<Array<{
+  id: number;
+  countryCode: string;
+  name: string;
+  adminLevel: number;
+  region?: string | null;
+  county?: string | null;
+}>> {
+  const pattern = `%${q}%`;
+  const result = await pgPool.query(
+    `SELECT id, country_code, name, admin_level, region, county
+     FROM localities
+     WHERE name ILIKE $1
+        OR region ILIKE $1
+        OR county ILIKE $1
+     ORDER BY name
+     LIMIT $2`,
+    [pattern, limit],
+  );
+  return result.rows.map((r) => ({
+    id: Number(r.id),
+    countryCode: r.country_code,
+    name: r.name,
+    adminLevel: r.admin_level,
+    region: r.region,
+    county: r.county,
+  }));
+}
+
+/**
+ * Get cached geocode entry for exact original coordinates.
+ */
+export async function getGeocodeCacheEntry(
+  latitude: number,
+  longitude: number,
+): Promise<{
+  localityId: number | null;
+  countryCode: string | null;
+  name: string | null;
+  adminLevel: number | null;
+} | null> {
+  const result = await pgPool.query(
+    `SELECT locality_id, country_code, name, admin_level
+     FROM geocoding_cache
+     WHERE original_latitude = $1 AND original_longitude = $2`,
+    [latitude, longitude],
+  );
+  if (result.rows.length === 0) return null;
+  const r = result.rows[0];
+  return {
+    localityId: r.locality_id ? Number(r.locality_id) : null,
+    countryCode: r.country_code,
+    name: r.name,
+    adminLevel: r.admin_level,
+  };
+}
+
+/**
+ * Upsert a geocoding cache entry.
+ */
+export async function upsertGeocodeCache(params: {
+  latitude: number;
+  longitude: number;
+  localityHash: string;
+  localityId: number | null;
+  countryCode: string | null;
+  name: string | null;
+  adminLevel: number | null;
+}): Promise<void> {
+  await pgPool.query(
+    `INSERT INTO geocoding_cache (original_latitude, original_longitude, locality_hash, locality_id, country_code, name, admin_level, geo_applied)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+     ON CONFLICT (original_latitude, original_longitude) DO UPDATE SET
+       locality_hash   = EXCLUDED.locality_hash,
+       locality_id     = EXCLUDED.locality_id,
+       country_code    = EXCLUDED.country_code,
+       name            = EXCLUDED.name,
+       admin_level     = EXCLUDED.admin_level,
+       geo_applied     = EXCLUDED.geo_applied`,
+    [
+      params.latitude,
+      params.longitude,
+      params.localityHash,
+      params.localityId,
+      params.countryCode,
+      params.name,
+      params.adminLevel,
+    ],
+  );
 }
 
 export default {
-  findAdminAreaByPoint,
-  resolveHierarchy,
+  upsertLocality,
+  getLocalityByHash,
+  searchLocalities,
   getGeocodeCacheEntry,
   upsertGeocodeCache,
-  recordDatasetVersion,
-  getLatestDatasetVersion,
 };
+

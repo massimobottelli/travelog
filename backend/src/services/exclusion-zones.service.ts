@@ -1,9 +1,9 @@
 /**
- * Travelog MVP1 — Exclusion Zones Service
+ * Travelog MVP1 — Exclusion Zones Service (Phase 4)
  */
 
 import { db } from "../db/client.js";
-import { exclusionZones as ezTable, administrativeAreas as aaTable } from "../db/schema.js";
+import { exclusionZones as ezTable, localities as locTable } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { NotFoundError } from "../models/errors.js";
 
@@ -12,24 +12,23 @@ const exclusionZonesService = {
     const rows = await db
       .select({
         id: ezTable.id,
-        adminAreaId: ezTable.adminAreaId,
+        localityId: ezTable.localityId,
         createdAt: ezTable.createdAt,
-        datasetSource: aaTable.datasetSource,
-        countryCode: aaTable.countryCode,
-        name: aaTable.name,
-        adminLevel: aaTable.adminLevel,
-        parentId: aaTable.parentId,
+        countryCode: locTable.countryCode,
+        name: locTable.name,
+        adminLevel: locTable.adminLevel,
+        region: locTable.region,
       })
       .from(ezTable)
-      .leftJoin(aaTable, eq(ezTable.adminAreaId, aaTable.id));
+      .leftJoin(locTable, eq(ezTable.localityId, locTable.id));
     return rows;
   },
 
-  async create(adminAreaId: number) {
-    const [aa] = await db.select().from(aaTable).where(eq(aaTable.id, adminAreaId));
-    if (!aa) throw new NotFoundError("Administrative area", adminAreaId);
+  async create(localityId: number) {
+    const [loc] = await db.select().from(locTable).where(eq(locTable.id, localityId));
+    if (!loc) throw new NotFoundError("Locality", localityId);
 
-    const result = await db.insert(ezTable).values({ adminAreaId }).returning();
+    const result = await db.insert(ezTable).values({ localityId }).returning();
     return result[0];
   },
 
@@ -41,3 +40,4 @@ const exclusionZonesService = {
 };
 
 export default exclusionZonesService;
+

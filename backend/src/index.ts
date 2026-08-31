@@ -10,10 +10,9 @@ import { createApp } from "./app.js";
 const app = createApp();
 const PORT = Number(process.env.PORT) || 3000;
 
-if (process.argv[1]?.endsWith("dist/index.js")) {
-  app.listen(PORT, () => {
-    console.log(`[server] Travelog backend listening on port ${PORT}`);
-  });
-}
+// Always listen when started directly (dev via tsx or prod via dist/)
+app.listen(PORT, () => {
+  console.log(`[server] Travelog backend listening on port ${PORT}`);
+});
 
 export default app;

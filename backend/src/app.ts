@@ -16,7 +16,7 @@ import scansRoutes from "./routes/scans.routes.js";
 import tripsRoutes from "./routes/trips.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import exclusionZonesRoutes from "./routes/exclusion-zones.routes.js";
-import adminAreasRoutes from "./routes/admin-areas.routes.js";
+import localitiesRoutes from "./routes/localities.routes.js";
 import operationsRoutes from "./routes/operations.routes.js";
 
 export function createApp(): ReturnType<typeof express> {
@@ -44,7 +44,7 @@ export function createApp(): ReturnType<typeof express> {
   app.use(`${API_PREFIX}/trips`, tripsRoutes);
   app.use(`${API_PREFIX}/settings`, settingsRoutes);
   app.use(`${API_PREFIX}/exclusion-zones`, exclusionZonesRoutes);
-  app.use(`${API_PREFIX}/admin-areas`, adminAreasRoutes);
+  app.use(`${API_PREFIX}/localities`, localitiesRoutes);
   app.use(`${API_PREFIX}/operations`, operationsRoutes);
 
   // ── Error handler (MUST be last) ─────────────────────────────

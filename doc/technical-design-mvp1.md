@@ -899,33 +899,99 @@ Non è prevista modifica manuale delle coordinate da parte dell'utente.
 
 # 24. Reverse geocoding
 
-Il reverse geocoding è locale.
+Il reverse geocoding utilizza **Geoapify Reverse Geocoding API** (o provider simile).
 
-Non vengono inviate coordinate fotografiche a servizi esterni durante il normale funzionamento.
-
-I dati geografici vengono importati offline in PostgreSQL/PostGIS.
+Invece di importare dataset geografici localmente e fare spatial queries PostGIS, si effettua una chiamata HTTP a un servizio esterno che restituisce i dati amministrativi per coordinate GPS.
 
 La pipeline è:
 
 ```text
-GPS
- |
- v
-coordinate normalizzate
- |
- v
-geocoding cache
- |
- +---- hit ----> risultato persistito
- |
- +---- miss ---> PostGIS spatial query
-                     |
-                     v
-              administrative area
-                     |
-                     v
-              risultato persistito
+GPS lat/lon
+    ↓
+normalizzazione (rounding a 2 decimali ≈ 1km)
+    ↓
+geocoding_cache.lookup(original coordinates)
+    ├─ hit → risultato restituito
+    └─ miss → Geoapify API call
+                 ↓
+          parsing & normalizzazione risposta
+                 ↓
+          salvataggio in localities + cache
+                 ↓
+          risultato restituito
 ```
+
+## 24.1 Normalizzazione delle coordinate
+
+Le coordinate vengono arrotondate a **2 decimali** invece di 4.
+
+```text
+45.5621 → 45.56
+9.1742  → 9.17
+```
+
+Questo riduce drasticamente il numero di chiamate API distinte:
+- ~500 foto nella stessa area metropolitana
+- → ~30 coordinate uniche dopo deduplicazione
+- → ~30 chiamate API al massimo per scansione completa
+
+## 24.2 Tabella localities
+
+Non esiste più `administrative_areas` con geometrie PostGIS. Esiste `localities`, una tabella piatta con i dati strutturati del provider:
+
+```sql
+localities (
+    id              serial PRIMARY KEY,
+    locality_hash   varchar(100) NOT NULL UNIQUE,  -- "45.56:9.17"
+    country_code    varchar(5) NOT NULL,
+    name            text NOT NULL,                  -- es. "Monza"
+    admin_level     integer NOT NULL,               -- tipo da Geoapify
+    street          varchar(200),                   -- via/frazione
+    county          varchar(200),                   -- provincia
+    region          varchar(200),                   -- regione/stato
+    country         varchar(200),                   -- nome paese completo
+    raw_response    jsonb,                          -- risposta grezza
+    source          varchar(20) DEFAULT 'geoapify',
+    created_at      timestamp NOT NULL DEFAULT now()
+);
+```
+
+La gerarchia amministrativa è conservata come campi piatti — nessun `parent_id` ricorsivo, nessuna query spaziale.
+
+## 24.3 Interfaccia ReverseGeocoder
+
+Il codice usa un'interfaccia astratta che permette di cambiare provider in futuro senza modificare chiamanti:
+
+```typescript
+interface ReverseGeocoder {
+  resolve(latitude: number, longitude: number): Promise<Locality | null>;
+}
+```
+
+Implementazioni disponibili:
+
+- `GeoapifyReverseGeocoder` — principale
+- In futuro: `NominatimReverseGeocoder`, `GoogleReverseGeocoder`, ecc.
+
+## 24.4 Cache
+
+La tabella `geocoding_cache` mappa ogni foto alla sua località:
+
+```sql
+geocoding_cache (
+    original_latitude       double precision NOT NULL,
+    original_longitude      double precision NOT NULL,
+    locality_hash           varchar(100) NOT NULL,
+    locality_id             integer REFERENCES localities(id),
+    ...
+);
+```
+
+I **coordinate originali** sono preservati così come compaiono negli EXIF della foto. La `locality_hash` deriva dalle coordinate normalizzate.
+
+## 24.5 Exclusion zones
+
+Le zone di esclusione puntano ora a `localities.id` invece che a `administrative_areas.id`. Quando l'utente crea un'esclusione per una località, può scegliere di escludere anche la regione o la provincia per coprire un'area più ampia.
 
 ---
 

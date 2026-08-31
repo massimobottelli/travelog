@@ -1,5 +1,5 @@
 /**
- * Travelog MVP1 — Exclusion Zones Controller
+ * Travelog MVP1 — Exclusion Zones Controller (Phase 4)
  */
 
 import type { Request, Response } from "express";
@@ -12,8 +12,8 @@ class ExclusionZonesController {
   }
 
   async createExclusionZone(req: Request, res: Response): Promise<void> {
-    const { administrativeAreaId } = req.body as { administrativeAreaId: number };
-    const zone = await exclusionZonesService.create(administrativeAreaId);
+    const { localityId } = req.body as { localityId: number };
+    const zone = await exclusionZonesService.create(localityId);
     res.status(201).json(zone);
   }
 
@@ -25,3 +25,4 @@ class ExclusionZonesController {
 }
 
 export default new ExclusionZonesController();
+

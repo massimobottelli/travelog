@@ -1,5 +1,5 @@
 /**
- * Travelog MVP1 — Exclusion Zones Repository
+ * Travelog MVP1 — Exclusion Zones Repository (Phase 4)
  */
 
 import { db } from "../db/client.js";
@@ -11,14 +11,14 @@ class ExclusionZonesRepository {
     return db
       .select({
         id: ezTable.id,
-        adminAreaId: ezTable.adminAreaId,
+        localityId: ezTable.localityId,
         createdAt: ezTable.createdAt,
       })
       .from(ezTable);
   }
 
-  async create(adminAreaId: number) {
-    const result = await db.insert(ezTable).values({ adminAreaId }).returning();
+  async create(localityId: number) {
+    const result = await db.insert(ezTable).values({ localityId }).returning();
     return result[0];
   }
 
@@ -29,3 +29,4 @@ class ExclusionZonesRepository {
 }
 
 export default new ExclusionZonesRepository();
+

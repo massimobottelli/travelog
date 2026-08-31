@@ -7,7 +7,6 @@ import {
   boolean,
   date,
   doublePrecision,
-  geometry,
   index,
   integer,
   jsonb,
@@ -136,20 +135,26 @@ export const scanErrors = pgTable(
   }),
 );
 
-// ── 4. Administrative Areas ────────────────────────────────────────
+// ── 4. Localities ─────────────────────────────────────────────────
+// Flat locality resolved from reverse-geocoding API (Geoapify).
+// No geometries, no borders — just structured place data.
+// The locality_hash enables fast deduplication for nearby coordinates.
 
-export const administrativeAreas = pgTable(
-  "administrative_areas",
+export const localities = pgTable(
+  "localities",
   {
     id: serial("id").primaryKey(),
-    datasetSource: varchar("dataset_source", { length: 50 }).notNull(),
+    /** Cache key derived from rounded coordinates, e.g. "45.56:9.17" */
+    localityHash: varchar("locality_hash", { length: 100 }).notNull(),
     countryCode: varchar("country_code", { length: 5 }).notNull(),
-    adminLevel: integer("admin_level").notNull(),
     name: text("name").notNull(),
-    parentId: integer("parent_id"),
-    geometry: text("geometry"), // WKT consumed by PostGIS queries
-    geom: geometry("geom", { srid: 4326, type: "Polygon" }), // for spatial index
-    geoVersion: varchar("geo_version"),
+    adminLevel: integer("admin_level").notNull(),
+    street: varchar("street", { length: 200 }),
+    county: varchar("county", { length: 200 }),
+    region: varchar("region", { length: 200 }),
+    country: varchar("country", { length: 200 }),
+    rawResponse: jsonb("raw_response"),
+    source: varchar("source", { length: 20 }).default("geoapify"),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: false,
@@ -158,27 +163,26 @@ export const administrativeAreas = pgTable(
       .defaultNow(),
   },
   (t) => ({
-    idxAdminAreaCountryLevel: index("idx_administrative_areas_country_level").on(
-      t.countryCode,
-      t.adminLevel,
-    ),
-    idxAdminAreaParent: index("idx_admin_areas_parent_id").on(t.parentId),
+    uniqueLocalityHash: unique().on(t.localityHash),
   }),
 );
 
 // ── 5. Geocoding Cache ─────────────────────────────────────────────
+// Maps every scanned photo coordinate to a locality via hash lookup.
+// Original (unrounded) coordinates are preserved so photos keep their EXIF GPS.
 
 export const geocodingCache = pgTable(
   "geocoding_cache",
   {
     id: serial("id").primaryKey(),
-    normalizedLatitude: doublePrecision("normalized_latitude").notNull(),
-    normalizedLongitude: doublePrecision("normalized_longitude").notNull(),
-    adminAreaId: integer("admin_area_id").references(() => administrativeAreas.id),
+    originalLatitude: doublePrecision("original_latitude").notNull(),
+    originalLongitude: doublePrecision("original_longitude").notNull(),
+    localityHash: varchar("locality_hash", { length: 100 }).notNull(),
+    localityId: integer("locality_id").references(() => localities.id),
     countryCode: varchar("country_code", { length: 5 }),
-    adminLevel: integer("admin_level"),
     name: text("name"),
-    geoVersion: varchar("geo_version").notNull(),
+    adminLevel: integer("admin_level"),
+    geoApplied: boolean("geo_applied").default(false),
     createdAt: timestamp("created_at", {
       mode: "date",
       withTimezone: false,
@@ -187,7 +191,10 @@ export const geocodingCache = pgTable(
       .defaultNow(),
   },
   (t) => ({
-    uniqueGeocodeKey: unique().on(t.normalizedLatitude, t.normalizedLongitude),
+    uniqueCoord: unique("unique_coord_on_original_lat_lon").on(
+      t.originalLatitude,
+      t.originalLongitude,
+    ),
   }),
 );
 
@@ -198,7 +205,7 @@ export const presences = pgTable(
   {
     id: serial("id").primaryKey(),
     photoDate: date("photo_date", { mode: "date" }).notNull(),
-    adminAreaId: integer("admin_area_id").references(() => administrativeAreas.id),
+    localityId: integer("locality_id").references(() => localities.id),
     photoCount: integer("photo_count").default(1).notNull(),
     createdAt: timestamp("created_at", {
       mode: "date",
@@ -214,7 +221,7 @@ export const presences = pgTable(
       .defaultNow(),
   },
   (t) => ({
-    uniquePresence: unique().on(t.photoDate, t.adminAreaId),
+    uniquePresence: unique().on(t.photoDate, t.localityId),
   }),
 );
 
@@ -288,7 +295,7 @@ export const settings = pgTable("settings", {
 
 export const exclusionZones = pgTable("exclusion_zones", {
   id: serial("id").primaryKey(),
-  adminAreaId: integer("admin_area_id").references(() => administrativeAreas.id),
+  localityId: integer("locality_id").references(() => localities.id),
   createdAt: timestamp("created_at", {
     mode: "date",
     withTimezone: false,
@@ -297,18 +304,4 @@ export const exclusionZones = pgTable("exclusion_zones", {
     .defaultNow(),
 });
 
-// ── 11. Dataset Versions (Phase 4) ─────────────────────────────────
 
-export const datasetVersions = pgTable("dataset_versions", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 50 }).notNull(),
-  version: varchar("version", { length: 50 }).notNull(),
-  description: text("description"),
-  importedAt: timestamp("imported_at", {
-    mode: "date",
-    withTimezone: false,
-  })
-    .notNull()
-    .defaultNow(),
-  rowCount: integer("row_count").default(0),
-});

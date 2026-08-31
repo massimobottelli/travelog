@@ -17,6 +17,7 @@ export const env = {
   get nodeEnv() { return process.env.NODE_ENV ?? "development"; },
   get logLevel() { return (process.env.LOG_LEVEL ?? "info") as "debug" | "info" | "warn" | "error"; },
   get exiftoolPath() { return process.env.EXIFTOOL_PATH ?? "exiftool"; },
+  get geoapifyApiKey() { return process.env.GEOCOAPIFY_API_KEY; },
 } as const;
 
 function required(name: string): string {

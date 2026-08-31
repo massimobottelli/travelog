@@ -21,7 +21,7 @@ tags:
   - name: Scans
   - name: Trips
   - name: Trip Operations
-  - name: Administrative Areas
+  - name: Localities
   - name: Exclusion Zones
   - name: Settings
 
@@ -476,11 +476,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
-  /admin-areas/search:
+  /localities/search:
     get:
-      tags: [Administrative Areas]
-      operationId: searchAdministrativeAreas
-      summary: Search administrative areas
+      tags: [Localities]
+      operationId: searchLocalities
+      summary: Search localities by name, region or county
       parameters:
         - name: q
           in: query
@@ -488,7 +488,7 @@ paths:
           schema:
             type: string
             minLength: 1
-          description: Search query
+          description: Search query (matches name, region, county)
         - name: limit
           in: query
           required: false
@@ -511,7 +511,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: "#/components/schemas/AdministrativeArea"
+                      $ref: "#/components/schemas/Locality"
         "400":
           description: Invalid query parameter
           content:
@@ -771,43 +771,56 @@ components:
     ExclusionZone:
       type: object
       additionalProperties: false
-      required: [id, administrativeArea]
+      required: [id, locality]
       properties:
         id:
           type: integer
           format: int64
-        administrativeArea:
-          $ref: "#/components/schemas/AdministrativeArea"
+        locality:
+          $ref: "#/components/schemas/Locality"
 
     CreateExclusionZoneRequest:
       type: object
       additionalProperties: false
-      required: [administrativeAreaId]
+      required: [localityId]
       properties:
-        administrativeAreaId:
+        localityId:
           type: integer
           format: int64
           minimum: 1
 
-    AdministrativeArea:
+    Locality:
       type: object
       additionalProperties: false
-      required: [id, datasetSource, countryCode, name, adminLevel]
+      required: [id, source, countryCode, name, adminLevel, localityHash]
       properties:
         id:
           type: integer
           format: int64
-        datasetSource:
+        localityHash:
           type: string
+          description: Coordinate hash key, e.g. "45.56:9.17"
+        source:
+          type: string
+          description: Provider name (e.g. "geoapify")
         countryCode:
           type: string
         name:
           type: string
         adminLevel:
           type: integer
-        parentId:
-          type: integer
-          format: int64
+          description: Administrative level (0=highest, higher=more specific)
+        region:
+          type: string
+          nullable: true
+          description: Region/state, e.g. "Lombardia"
+        county:
+          type: string
+          nullable: true
+          description: County/province, e.g. "Monza e Brianza"
+        createdAt:
+          type: string
+          format: date-time
 
     TripListStatus:
       type: string

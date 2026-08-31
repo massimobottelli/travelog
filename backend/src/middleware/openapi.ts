@@ -24,7 +24,7 @@ const ROUTE_OPS: Record<string, Record<string, string>> = {
     post: "createExclusionZone",
     delete: "deleteExclusionZone",
   },
-  "/admin-areas/search": { get: "searchAdministrativeAreas" },
+  "/localities/search": { get: "searchLocalities" },
 };
 
 function resolveOperationId(path: string, method: string): string | null {

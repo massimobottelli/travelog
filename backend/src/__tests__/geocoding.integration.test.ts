@@ -1,97 +1,118 @@
 /**
- * Travelog MVP1 — Geocoding Integration Tests (Phase 4)
+ * Travelog MVP1 — Geocoding Integration Tests (Phase 4 — Geoapify)
  */
 
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { pool as pgPool } from "../db/client.js";
 import geocodingRepo from "../repositories/geocoding.repository.js";
 
 describe("Geocoding Repository", () => {
   beforeEach(async () => {
-    // Clean up any existing test data first
     await pgPool.query("DELETE FROM geocoding_cache");
-    await pgPool.query(`DELETE FROM administrative_areas WHERE name = 'Test Area' AND dataset_source = 'test'`);
+    await pgPool.query(`DELETE FROM localities WHERE region = 'Test Region X'`);
   });
 
-  afterAll(async () => {
-    await pgPool.query(`DELETE FROM administrative_areas WHERE dataset_source = 'test'`);
+  it("should insert and retrieve locality by hash", async () => {
+    const result = await geocodingRepo.upsertLocality({
+      localityHash: "45.46:9.18",
+      countryCode: "IT",
+      name: "Milano Test",
+      adminLevel: 4,
+      region: "Test Region X",
+    });
+
+    expect(result).toBeDefined();
+    expect(result.id > 0).toBe(true);
+    expect(result.countryCode).toBe("IT");
+    expect(result.name).toBe("Milano Test");
+
+    // Retrieve same locality
+    const found = await geocodingRepo.getLocalityByHash("45.46:9.18");
+    expect(found).not.toBeNull();
+    if (found) {
+      expect(found.id).toBe(result.id);
+      expect(found.region).toBe("Test Region X");
+    }
+
+    // Cleanup
+    await pgPool.query(`DELETE FROM localities WHERE region = 'Test Region X'`);
   });
 
-  it.each([
-    [45.4642, 9.1897],  // Milan area
-    [41.9028, 12.4964], // Rome area
-  ])("should return null when no admin areas exist", async (lat: number, lon: number) => {
-    const result = await geocodingRepo.findAdminAreaByPoint(lat, lon);
-    expect(result).toBeNull();
+  it("should upsert return existing row on duplicate hash", async () => {
+    const first = await geocodingRepo.upsertLocality({
+      localityHash: "45.00:9.00",
+      countryCode: "IT",
+      name: "Original Name",
+      adminLevel: 4,
+    });
+
+    const second = await geocodingRepo.upsertLocality({
+      localityHash: "45.00:9.00",
+      countryCode: "FR",
+      name: "Updated Name",
+      adminLevel: 6,
+    });
+
+    // Same ID returned for conflict resolution
+    expect(second.id).toBe(first.id);
+
+    // Cleanup
+    await pgPool.query(`DELETE FROM localities WHERE locality_hash = '45.00:9.00'`);
   });
 
-  it("should insert and retrieve a cached geocode result", async () => {
-    // Insert a test admin area with known geometry covering Milan
-    const milanWkt = "POLYGON((9.0 45.3, 9.3 45.3, 9.3 45.5, 9.0 45.5, 9.0 45.3))";
+  it("should cache geocode result by original coordinates", async () => {
     const { rows: inserted } = await pgPool.query(
-      `INSERT INTO administrative_areas (dataset_source, country_code, admin_level, name, geometry, geom, parent_id, geo_version) 
-       VALUES ('test', 'IT', 4, 'Test Area', $1, ST_GeomFromText($1, 4326), NULL, 'test-v1') RETURNING id`,
-      [milanWkt],
+      `INSERT INTO localities (locality_hash, country_code, name, admin_level)
+       VALUES ('45.46:9.18', 'IT', 'Cache City', 4) RETURNING id`,
     );
-    const areaId = Number(inserted[0].id);
+    const localityId = Number(inserted[0].id);
 
     try {
-      // Spatial lookup should find the area
-      const result = await geocodingRepo.findAdminAreaByPoint(45.4642, 9.1897);
-      expect(result).not.toBeNull();
-      if (result) {
-        expect(result.name).toBe("Test Area");
-        expect(result.countryCode).toBe("IT");
-        expect(result.adminLevel).toBe(4);
-      }
-
-      // Cache should be empty initially
-      const cacheBefore = await geocodingRepo.getGeocodeCacheEntry(45.4642, 9.1897);
-      expect(cacheBefore).toBeNull();
-
-      // Upsert cache entry manually
       await geocodingRepo.upsertGeocodeCache({
-        normalizedLatitude: 45.4642,
-        normalizedLongitude: 9.1897,
-        adminAreaId: areaId,
+        latitude: 45.4642,
+        longitude: 9.1897,
+        localityHash: "45.46:9.18",
+        localityId,
         countryCode: "IT",
+        name: "Cache City",
         adminLevel: 4,
-        name: "Test Area",
-        geoVersion: "test-v1",
       });
 
-      // Should now retrieve from cache
-      const cacheAfter = await geocodingRepo.getGeocodeCacheEntry(45.4642, 9.1897);
-      expect(cacheAfter).not.toBeNull();
-      if (cacheAfter) {
-        expect(cacheAfter.adminAreaId).toBe(areaId);
-        expect(cacheAfter.name).toBe("Test Area");
+      const cached = await geocodingRepo.getGeocodeCacheEntry(45.4642, 9.1897);
+      expect(cached).not.toBeNull();
+      if (cached) {
+        expect(cached.localityId).toBe(localityId);
+        expect(cached.countryCode).toBe("IT");
       }
-
-      // Second call to same coordinates should still return cache
-      const cacheAgain = await geocodingRepo.getGeocodeCacheEntry(45.4642, 9.1897);
-      expect(cacheAgain?.adminAreaId).toBe(areaId);
     } finally {
-      // Cleanup
-      await pgPool.query(`DELETE FROM geocoding_cache WHERE normalized_latitude = 45.4642 AND normalized_longitude = 9.1897`);
-      await pgPool.query(`DELETE FROM administrative_areas WHERE id = $1`, [areaId]);
+      await pgPool.query(`DELETE FROM geocoding_cache WHERE locality_id = $1`, [localityId]);
     }
   });
 
-  it("should handle null result for point outside all areas", async () => {
-    // Point in ocean far from any land boundary
-    const cacheResult = await geocodingRepo.upsertGeocodeCache({
-      normalizedLatitude: -55.0,
-      normalizedLongitude: -70.0,
-      adminAreaId: null,
-      countryCode: null,
-      adminLevel: null,
-      name: null,
-      geoVersion: "test-v1",
+  it("should search localities by name substring", async () => {
+    await geocodingRepo.upsertLocality({
+      localityHash: "45.00:9.00",
+      countryCode: "IT",
+      name: "Lissone",
+      adminLevel: 4,
+      region: "Test Region X",
     });
 
-    // Should not throw and return nothing
-    const lookup = await geocodingRepo.getGeocodeCacheEntry(-55.0, -70.0);
-    expect(lookup).toHaveProperty("adminAreaId", null);
+    await geocodingRepo.upsertLocality({
+      localityHash: "45.01:9.01",
+      countryCode: "IT",
+      name: "Monza",
+      adminLevel: 4,
+      region: "Test Region X",
+    });
+
+    try {
+      const results = await geocodingRepo.searchLocalities("Lis", 10);
+      expect(results.length).toBe(1);
+      expect(results[0].name).toBe("Lissone");
+    } finally {
+      await pgPool.query(`DELETE FROM localities WHERE region = 'Test Region X'`);
+    }
   });
 });
+

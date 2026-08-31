@@ -1,20 +1,20 @@
 /**
  * Travelog MVP1 — Geocoding Utilities (Phase 4)
  *
- * Coordinate normalization and conversion helpers for
- * geographic reverse geocoding.
+ * Coordinate normalization and conversion helpers for geographic reverse geocoding.
  */
 
 /**
- * Round coordinates to 4 decimal places.
- * 4 decimals ≈ 11m precision at the equator.
- * This is used as the cache key so that nearby points hit the same cache entry.
+ * Round coordinates to 2 decimal places.
+ * 2 decimals ≈ 1km precision at the equator.
+ * This is used as the cache key so that nearby points hit the same locality.
+ * (~30 unique calls vs ~500 photos for a typical Milan-area scan).
  */
 export function normalizeCoordinates(
   latitude: number,
   longitude: number,
 ): { normalizedLatitude: number; normalizedLongitude: number } {
-  const scale = 10_000; // 4 decimal places
+  const scale = 100; // 2 decimal places
   return {
     normalizedLatitude: Math.round(latitude * scale) / scale,
     normalizedLongitude: Math.round(longitude * scale) / scale,
@@ -22,27 +22,10 @@ export function normalizeCoordinates(
 }
 
 /**
- * Build a PostGIS Point WKT string from raw lat/lng.
- * SRID 4326 = WGS84 (the standard GPS coordinate system).
+ * Create the locality hash key from rounded coordinates.
+ * Format: "lat:lon" → e.g. "45.56:9.17"
  */
-export function makePointWkt(
-  latitude: number,
-  longitude: number,
-): string {
-  return `POINT(${longitude} ${latitude})`;
+export function makeLocalityHash(lat: number, lon: number): string {
+  return `${lat.toFixed(2)}:${lon.toFixed(2)}`;
 }
 
-/**
- * Build a SQL WHERE clause that finds the lowest-level administrative area
- * containing the given point. Uses ST_SetSRID on the stored WKT geometry.
- * Returns the raw SQL string together with its parameters.
- */
-export function buildSpatialQueryWhereClause(
-  latitude: number,
-  longitude: number,
-): { sql: string; params: [number, number] } {
-  return {
-    sql: `ST_GeomFromText($1, 4326) @> ST_SetSRID(ST_MakePoint($2, $3), 4326)`,
-    params: [longitude, latitude],
-  };
-}
