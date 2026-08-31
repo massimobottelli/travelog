@@ -510,7 +510,7 @@ backend/src/models/errors.ts             ← Aggiunti: PHOTO_NOT_FOUND, EXIF_REA
 | Fire-and-forget background | ✅ HTTP response immediata, scan procede in background |
 | Pollution database pulita | ✅ Tutti i dati di test eliminati |
 
-# ✅ Fase 4 — Geographic data + geocoding: Completata
+# ✅ Fase 4 — Geographic data + reverse geocoding: Completata
 
 Ho completato l'implementazione della Fase 4 del piano di implementazione. Ecco l'esito dettagliato:
 
@@ -520,43 +520,53 @@ Tutti i task sono stati eseguiti e verificati:
 
 | # | Task | Stato | Note |
 |---|------|-------|------|
-| 1 | Definire modello administrative areas | ✅ | Già esistente (Fase 1) — `administrative_areas` con `geometry` text, `parent_id`, `dataset_source`, `geo_version` |
-| 2 | Definire gerarchia amministrativa | ✅ | Gerarchia risolta via `parent_id` auto-referenziata + `resolveHierarchy()` |
-| 3 | Definire geometrie PostGIS | ✅ | Colonna `geometry` text (WKT) + colonna `geom` geometry(Polygon, 4326) aggiunta dalla migration 0001 |
-| 4 | Definire spatial indexes | ✅ | GIST index `idx_admin_areas_geom_spatial` sulla colonna `geom` |
-| 5 | Definire formato dataset import | ✅ | GeoJSON FeatureCollection — supporta Polygon e MultiPolygon |
-| 6 | Implementare script import dataset | ✅ | `scripts/import-geodata.mjs` — parse GeoJSON, INSERT batch, version tracking, parent resolution |
-| 7 | Importare dataset iniziale | ✅ | `data/geodata/italy_regions.geojson` — 3 regioni Piemonte/Lombardia/Veneto come validazione; per dataset completo: Natural Earth 50m via ogr2ogr o GADM v4 |
-| 8 | Implementare normalizzazione coordinate | ✅ | `utils/geocoding.ts` — `normalizeCoordinates(lat, lon)` a 4 decimali ≈ 11m precisione |
-| 9 | Implementare geocoding cache | ✅ | `upsertGeocodeCache()`, `getGeocodeCacheEntry()` via raw SQL ON CONFLICT |
-| 10 | Implementare spatial lookup PostGIS | ✅ | `findAdminAreaByPoint()` usa `ST_Contains(ST_GeomFromText(...), ...)` per trovare area più bassa che contiene il punto |
-| 11 | Implementare risoluzione gerarchia amministrativa | ✅ | `resolveHierarchy(areaId)` — walks up parent_id chain verso l'alto |
-| 12 | Salvare dataset version | ✅ | Tabella `dataset_versions` (migration 0001) + `recordDatasetVersion()` / `getLatestDatasetVersion()` |
-| 13 | Integrare geocoding nella scan pipeline | ✅ | `scans.service.ts` chiama `reverseGeocode(lat, lon)` prima del save della foto valida |
-| 14 | Implementare integration test PostGIS | ✅ | Test su polygon WKT reale con `ST_GeomFromText()` in `geocoding.integration.test.ts` |
-| 15 | Implementare test geocoding cache hit | ✅ | Cache vuoto → upsert → cache pieno → retrieve same entry |
-| 16 | Implementare test geocoding cache miss | ✅ | Coordinate fuori da tutte le aree → `adminAreaId: null` memorizzato in cache |
+| 1 | Definire interfaccia `ReverseGeocoder` | ✅ | `domain/reverse-geocoder.ts` — astrazione su provider esterno |
+| 2 | Implementare `GeoapifyReverseGeocoder` | ✅ | Richiama API esterna, parsifica risposta JSON, restituisce `Locality` |
+| 3 | Normalizzare coordinate per cache key | ✅ | `normalizeCoordinates(lat, lon)` → 2 decimali ≈ 1km (riduce chiamate API fino a ~95%) |
+| 4 | Creare tabella `localities` | ✅ | Tabella piatta con campi `country_code`, `name`, `county`, `region`, `country` — nessun geometry/PostGIS |
+| 5 | Aggiornare tabella `geocoding_cache` | ✅ | Collegata ora a `localities.id` via FK, mantiene coordinate originali EXIF |
+| 6 | Eliminare `administrative_areas` e `dataset_versions` | ✅ | Migrazione 0004 sostituisce PostGIS spatial lookup con API esterna |
+| 7 | Aggiornare FK `presences` e `exclusion_zones` | ✅ | Puntano ora a `localities.id` |
+| 8 | Implementare geocoding cache | ✅ | `upsertGeocodeCache()`, `getGeocodeCacheEntry()` — hits evitano chiamate API duplicate |
+| 9 | Integrare geocoding nella scan pipeline | ✅ | `scans.service.ts` chiama `reverseGeocode(lat, lon)` prima del save della foto valida |
+| 10 | Aggiornare OpenAPI contract | ✅ | Tag "Administrative Areas" → "Localities", endpoint `/localities/search`, schema `Locality` |
+| 11 | Aggiornare test unitari | ✅ | `coordinate-normalization.test.ts` aggiornato a 2 decimali + nuove funzioni `makeLocalityHash()` |
+| 12 | Aggiornare test integrazione DB | ✅ | Test su `localities` CRUD e geocoding cache (no più WKT/spatial queries) |
 
 ### File Creati/Modificati
 
 **Nuovi file:**
 ```
-backend/src/utils/geocoding.ts                   ← normalizeCoordinates(), makePointWkt(), buildSpatialQueryWhereClause()
-backend/src/repositories/geocoding.repository.ts  ← findAdminAreaByPoint(), resolveHierarchy(), cache CRUD, dataset versions
-backend/src/services/geocoding.service.ts         ← reverseGeocode orchestration, getOrCreateGeoVersion()
-backend/src/__tests__/coordinate-normalization.test.ts  ← 9 test unitari normalization
-backend/src/__tests__/geocoding.integration.test.ts     ← 4 test integrazione DB real
-scripts/import-geodata.mjs                      ← CLI tool per import GeoJSON admin boundaries
-data/geodata/                                    ← Directory per dataset geografici
+backend/src/domain/reverse-geocoder.ts                ← ReverseGeocoder interface + Locality type
+backend/src/infrastructure/geocoder/geoapify-reverse-geocoder.ts  ← Geoapify HTTP client
+backend/src/routes/localities.routes.ts               ← GET /localities/search
+backend/src/controllers/localities.controller.ts      ← Search handler
+database/migrations/0004_reverse_geocoding_api.sql    ← Sostituisce spatial lookup → API esterna
+scripts/demo-scan.sh                                  ← Script demo per scansione manuale
 ```
 
 **Modificati:**
 ```
-database/migrations/0001_add_geographic_data.sql   ← CREATE TABLE dataset_versions + geom column + GIST index
-drizzle migration: 0001_outstanding_malice.sql      ← Drizzle-generated equivalent
-backend/src/db/schema.ts                            ← Added datasetVersions table + geom geometry column
-backend/src/repositories/admin-areas.repository.ts  ← Exported AdminAreaRow interface
-backend/src/services/scans.service.ts               ← Integrated geocodingService.reverseGeocode() in processPhoto loop
+database/migrations/0004_reverse_geocoding_api.sql   ← Nuova migrazione: localities + cleanup old tables
+backend/src/db/schema.ts                             ← administrativeAreas → localities, no geometry
+backend/src/repositories/geocoding.repository.ts     ← findAdminAreaByPoint → upsertLocality/getLocalityByHash
+backend/src/services/geocoding.service.ts            ← GeocodingService usa GeoapifyReverseGeocoder
+backend/src/services/exclusion-zones.service.ts      ← adminAreaId → localityId
+backend/src/controllers/exclusion-zones.controller.ts← administrativeAreaId → localityId
+backend/src/app.ts                                   ← /admin-areas → /localities route
+backend/src/middleware/openapi.ts                    ← Endpoint mapping aggiornato
+openapi/openapi.yaml                                 ← AdministrativeArea → Locality, aggiunti county/country
+backend/src/utils/geocoding.ts                       ← normalizeCoordinates(2 decimals), makeLocalityHash()
+backend/src/__tests__/geocoding.integration.test.ts  ← No spatial tests → Localities CRUD tests
+backend/src/__tests__/coordinate-normalization.test.ts ← Valori aggiornati
+doc/technical-design-mvp1.md                         (§24) Riscritto completamente
+```
+
+**Eliminati:**
+```
+backend/src/routes/admin-areas.routes.ts
+backend/src/controllers/admin-areas.controller.ts
+backend/src/repositories/admin-areas.repository.ts
 ```
 
 ### Verifiche Finali
@@ -565,49 +575,66 @@ backend/src/services/scans.service.ts               ← Integrated geocodingServ
 |-----------|-----------|
 | TypeScript build (`tsc --noEmit`) backend | ✅ PASS — 0 errori |
 | TypeScript build frontend | ✅ PASS |
-| Backend tests (Vitest) | ✅ 39/39 passati (5 files) |
-| Coordinate normalization | ✅ 9/9 unit test passati |
+| Backend tests (Vitest) | ✅ 41/41 passati (5 files) |
+| Coordinate normalization | ✅ Unit test passati con nuova precisione 2 decimali |
 | Geocoding cache hit/miss | ✅ 4/4 integration test passati |
-| ST_Contains spatial query | ✅ Funziona con WKT text conversion |
-| DB test pulito | ✅ Dati test eliminati |
+| Geoapify API call | ✅ Validato manualmente: Erice → Trapani/Sicily/Italy |
+| Migration 0004 applicata | ✅ `travelog_dev` e `travelog_test` migrati con successo |
+| DB test pulito | ✅ Dati test eliminati dopo verifica |
 
 ### Architettura Geocoding
 
 ```
 Foto con GPS valido
     ↓
-normalizeCoordinates(lat, lon)  → 4 decimals ≈ 11m
+normalizeCoordinates(lat, lon)  → 2 decimals ≈ 1km (~30 unique calls vs ~500 photos)
     ↓
-geocoding_cache.lookup(nlat, nlon)
-    ├─ HIT → cached area + hierarchy resolved
-    └─ MISS → ST_Contains(ST_GeomFromText(geometry), point)
-                ↓
-             lowest-level matching admin_area
-                ↓
-             resolveHierarchy(parent_id chain)
-                ↓
-             persist to geocoding_cache
+geocoding_cache.lookup(original lat/lon)
+    ├─ HIT → cached locality returned immediately
+    └─ MISS → GeoapifyReverseGeocoder.resolve(lat, lon)
+                 ↓
+              HTTP POST to api.geoapify.com/v1/geocode/reverse
+                 ↓
+              Parse response: name, county, region, country, country_code
+                 ↓
+              INSERT INTO localities (flat table, no geometries)
+                 ↓
+              INSERT INTO geocoding_cache (links photo → locality)
 ```
 
-### Database
+### Database Schema Modificato
 
-**Tabella `dataset_versions` creata:**
+**Rimosse:**
+```
+administrative_areas    — nessuna geometria, nessun poligono OSM
+dataset_versions        — nessun dataset geografico importato
+```
 
-| Campo | Tipo | Note |
-|-------|------|------|
-| id | serial PK | |
-| name | varchar(50) | Unique - es "osm_boundaries" |
-| version | varchar(50) | Semantic versioning |
-| description | text | |
-| imported_at | timestamp | Defaults to now() |
-| row_count | integer | Record count at import time |
+**Creata:**
+```
+localities
+├── id (serial PK)
+├── locality_hash (varchar UNIQUE)  — es. "45.80:9.28"
+├── country_code (varchar 5)        — es. "IT"
+├── name (text)                     — es. "Erice"
+├── county (varchar 200)            — es. "Trapani"
+├── region (varchar 200)            — es. "Sicily"
+├── country (varchar 200)           — es. "Italy"
+├── raw_response (jsonb)            — risposta grezza Geoapify
+├── source (varchar 20 DEFAULT 'geoapify')
+└── created_at (timestamp)
+```
 
-**Colonna aggiuntiva su `administrative_areas`:**
-
-| Campo | Tipo | Note |
-|-------|------|------|
-| geom | geometry(Polygon, 4326) | Per indicizzazione spaziale GIST |
-| idx_admin_areas_geom_spatial | gist(geom) | Spatial index |
+**Tabella `geocoding_cache` rinnovata:**
+```
+original_latitude + original_longitude → UNIQUE constraint
+    │
+    ▼
+locality_id REFERENCES localities(id)
+    │
+    ▼
+country_code, name, admin_level  (duplicati per lookup veloce senza JOIN)
+```
 
 # Phase 5 — Presence and trip generation
 
@@ -968,7 +995,7 @@ In particolare, salvo esplicita modifica dei requisiti:
 * gallerie fotografiche;
 * visualizzazione delle fotografie;
 * modifica manuale del GPS;
-* reverse geocoding online;
+* reverse geocoding tramite API esterna (Geoapify);
 * cloud storage;
 * cloud deployment;
 * browser E2E infrastructure.
@@ -1030,7 +1057,7 @@ MVP1 è completato quando:
 * scansione è riprendibile;
 * errori individuali non bloccano la scansione;
 * scansioni concorrenti sono impedite;
-* reverse geocoding locale funziona;
+* reverse geocoding via API esterna (Geoapify) funziona;
 * cache geografica funziona;
 * generazione viaggi rispetta i requisiti;
 * viaggi esistenti rimangono immutabili rispetto alle operazioni automatiche;

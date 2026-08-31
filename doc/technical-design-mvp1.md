@@ -42,7 +42,7 @@ L'implementazione MVP1 segue questi principi:
 3. **API REST con contratto OpenAPI.**
 4. **OpenAPI contract-first.**
 5. **PostgreSQL come source of truth persistente.**
-6. **PostGIS per le operazioni geografiche.**
+6. **Geoapify Reverse Geocoding API per il geocoding delle foto.**
 7. **Il NAS rimane read-only per Travelog.**
 8. **La scansione è incrementale, idempotente e riprendibile.**
 9. **Una fotografia viene elaborata indipendentemente dalle altre.**
@@ -112,17 +112,16 @@ La struttura applicativa non deve essere determinata dalle convenzioni del frame
 | Componente            | Tecnologia                  |
 | --------------------- | --------------------------- |
 | Database              | PostgreSQL                  |
-| Estensione geografica | PostGIS                     |
 | Data access           | Drizzle                     |
 | Schema migrations     | Drizzle migrations          |
-| Test database         | PostgreSQL/PostGIS dedicato |
+| Test database         | PostgreSQL dedicato         |
 
 PostgreSQL è la source of truth per:
 
 * fotografie indicizzate;
 * metadata;
-* coordinate;
-* dati geografici;
+* coordinate GPS originali;
+* dati geografici (località);
 * cache del reverse geocoding;
 * scansioni;
 * errori delle scansioni;
@@ -131,42 +130,38 @@ PostgreSQL è la source of truth per:
 * configurazione;
 * storico delle modifiche ai viaggi.
 
+> **Nota:** PostGIS non è più utilizzato nell'MVP1. Il reverse geocoding avviene tramite API esterna (Geoapify) anziché tramite query spaziali su poligoni locali.
+
 ---
 
-## 3.4 Geographic data
+## 3.4 Geographic data — Reverse geocoding via external API
 
-I dati geografici vengono forniti offline e importati nel database.
+Travelog non importa dataset geografici offline e non mantiene poligoni territoriali nel database.
 
-La soluzione MVP1 utilizza:
+Il reverse geocoding è esternalizzato a **Geoapify Reverse Geocoding API** (https://apidocs.geoapify.com/docs/geocode/reverse).
 
-* dati geografici open basati su OpenStreetMap;
-* geoBoundaries per le geometrie amministrative;
-* PostgreSQL/PostGIS per le query spaziali.
+Durante ogni scansione, per le foto con coordinate GPS valide:
 
-Il runtime applicativo non scarica dati geografici da Internet.
+1. Le coordinate vengono normalizzate (2 decimali ≈ 1km).
+2. Si controlla la cache locale `geocoding_cache`.
+3. Se la cache è miss, si chiama Geoapify che restituisce i dati amministrativi (città, provincia, regione, stato, paese).
+4. Il risultato viene salvato in `localities` + `geocoding_cache`.
 
-### Geographic datasets
+L'API è configurata tramite l'environment variable `GEOCOAPIFY_API_KEY`.
+Se non configurata, il geocoding viene saltato ma la scansione prosegue (le foto vengono comunque salvate, solo senza informazioni geografiche).
 
-MVP1 stores the geographic datasets under:
+### Provider alternativi
 
-```
-data/geodata/
-```
+L'interfaccia `ReverseGeocoder` (`backend/src/domain/reverse-geocoder.ts`) astrae il provider esterno.
+In futuro può essere sostituita senza modifiche ai caller con:
 
-The path is relative to the Travelog project and is not configurable
-through an environment variable.
+* `NominatimReverseGeocoder` (OpenStreetMap)
+* `GoogleReverseGeocoder`
+* `PostgisReverseGeocoder` (ripristino di un approccio locale basato su OSM boundaries)
 
-Geographic datasets are imported and updated offline through dedicated
-scripts or tools.
-
-Runtime application code consumes the locally available datasets and
-does not download, update, or synchronize geographic datasets
-automatically.
-
-The geographic dataset files are considered application data and do not
-need to be versioned in Git. If required because of their size, the
-dataset files may be excluded from the repository while the expected
-directory structure and import tooling remain versioned.
+Il costo corrente del piano gratuito Geoapify:
+- **3.000 richieste/giorno**, nessuna carta di credito richiesta.
+- Per una libreria tipica di ~500 foto → ~30 chiamate API grazie alla deduplicazione per hash delle coordinate.
 
 ---
 
@@ -601,7 +596,7 @@ Le entità principali previste sono concettualmente:
 photos
 scans
 scan_errors
-administrative_areas
+localities                         ← sostituisce administrative_areas
 geocoding_cache
 presences
 trips
@@ -995,143 +990,131 @@ Le zone di esclusione puntano ora a `localities.id` invece che a `administrative
 
 ---
 
-# 25. Modello geografico
+# 25. Modello geografico (Semplificato per API esterna)
 
-Il modello amministrativo deve essere internazionale e non può assumere livelli fissi come:
+Con Geoapify non si definisce una gerarchia arbitraria basata su poligoni territoriali.
 
-```text
-Comune
-Provincia
-Regione
+L'API restituisce già i dati strutturati:
+
+```json
+{
+  "city": "Erice",
+  "county": "Trapani",
+  "state": "Sicily",
+  "country": "Italy",
+  "country_code": "IT"
+}
 ```
 
-Il modello deve invece rappresentare una gerarchia generica di unità amministrative.
+Viene salvato tutto come campi piatti nella tabella `localities`.
 
-Concettualmente:
+### 25.1 Definizione di località (aggiornata)
 
-```text
-Country
-  |
-  +-- administrative level N
-        |
-        +-- administrative level N-1
-              |
-              +-- ...
-                    |
-                    +-- lowest available locality
-```
-
-Ogni unità deve poter rappresentare almeno:
-
-* identificativo;
-* dataset/source;
-* country;
-* livello amministrativo;
-* nome;
-* geometria;
-* relazione con l'unità padre.
-
----
-
-# 26. Definizione di località
-
-La località Travelog è l'unità amministrativa più bassa determinabile dal dataset.
+La località Travelog è il nome amministrativo più specifico restituito dall'API Geoapify.
 
 Non è un POI.
 
-Il sistema deve gestire gerarchie incomplete.
+Se l'API non fornisce una città, viene utilizzato il livello superiore disponibile (town, village, county, ecc.).
 
-Se non è disponibile un livello basso, viene utilizzato il livello amministrativo superiore disponibile.
+### 25.2 Geocoding cache
 
----
+Prima del reverse geocoding, le coordinate vengono normalizzate a **2 decimali**.
 
-# 27. Geospatial queries
-
-PostGIS viene utilizzato per trovare l'unità amministrativa contenente il punto GPS.
-
-La query deve essere progettata per sfruttare gli indici spaziali.
-
-La soluzione tipica utilizzerà operazioni come:
-
-```text
-ST_Contains
-ST_Intersects
-```
-
-secondo la rappresentazione delle geometrie.
-
-Le geometrie amministrative devono avere un SRID coerente.
-
----
-
-# 28. Geocoding cache
-
-Prima del reverse geocoding, le coordinate vengono normalizzate.
-
-La coordinata normalizzata costituisce la chiave della cache.
-
-La cache è persistente in PostgreSQL.
+La combinazione `rounded_lat:rounded_lon` costituisce il `locality_hash`, la chiave primaria della deduplicazione per la tabella `localities`.
 
 Concettualmente:
 
 ```text
-geocoding_cache
-----------------
-normalized_latitude
-normalized_longitude
-result
-dataset_version
-created_at
+geocoding_cache (by original coordinates)
+-----------------------------------------
+original_latitude       — coordinate EXIF grezze (non modificate)
+original_longitude      — coordinate EXIF grezze (non modificate)
+locality_hash           — "45.56:9.17" (chiave di deduplicazione API)
+locality_id             — REFERENCES localities(id)
+country_code            — IT
+name                    — Erice
+admin_level             — 4
+geo_applied             — true
+created_at              — timestamp
 ```
 
-Il risultato effettivo potrà essere normalizzato in riferimenti alle unità amministrative invece di duplicare i dati.
+I **coordinate originali** sono preservati così come compaiono negli EXIF della foto. La `locality_hash` deriva dalle coordinate normalizzate ma non è una chiave univoca sulla cache.
 
-Le coordinate originali della fotografia rimangono comunque inalterate.
+### 25.3 Tabella localities
+
+Tabella piatto con i dati strutturati dall'API Geoapify. Nessun campo geometrico.
+
+```sql
+localities (
+    id              serial PRIMARY KEY,
+    locality_hash   varchar(100) NOT NULL UNIQUE,  -- "45.56:9.17"
+    country_code    varchar(5) NOT NULL,
+    name            text NOT NULL,                 -- es. "Erice"
+    admin_level     integer NOT NULL,              -- tipo da Geoapify
+    street          varchar(200),                  -- via/frazione
+    county          varchar(200),                  -- provincia/es. "Trapani"
+    region          varchar(200),                  -- regione/stato es. "Sicily"
+    country         varchar(200),                  -- nome paese es. "Italy"
+    raw_response    jsonb,                         -- risposta grezza Geoapify
+    source          varchar(20) DEFAULT 'geoapify',
+    created_at      timestamp NOT NULL DEFAULT now()
+);
+```
+
+La gerarchia amministrativa è conservata come campi piatti: `county`, `region`, `country`. Nessuna ricorsività tramite `parent_id`.
 
 ---
 
-# 29. Dataset version
+# 26. Dataset version (Removed — no longer relevant for external API)
 
-Il risultato del geocoding deve poter essere associato alla versione del dataset geografico utilizzato.
-
-Questo permette di:
-
-* diagnosticare risultati diversi tra dataset;
-* aggiornare i dataset in futuro;
-* mantenere la possibilità di introdurre nuovi provider/dataset.
-
-Un aggiornamento del dataset **non modifica automaticamente i viaggi esistenti**.
+No dataset import = no versioning needed. The `source` column in `localities` already identifies the provider.
 
 ---
 
-# 30. Import dei dataset geografici
+# 27. Import dei dataset geografici (Removed — replaced by Geoapify API)
 
-L'importazione dei dataset geografici è offline.
+No offline dataset imports. No `import-geodata.mjs` script. No `data/geodata/` directory needed.
 
-Viene fornito uno script/tool dedicato.
+The runtime only needs an internet connection to call Geoapify during photo scans.
 
-Esempio concettuale:
+
+---
+
+# 28. Repository layer (Updated for Geoapify approach)
+
+I repository non devono più contenere logica di spatial queries o import di dataset.
+
+Esempi aggiornati:
 
 ```text
-dataset files
-     |
-     v
-import tool
-     |
-     v
-PostgreSQL/PostGIS
+PhotoRepository
+ScanRepository
+TripRepository
+GeocodingCacheRepository      ← CRUD su geocoding_cache e localities
+SettingsRepository
+LocalitiesRepository          ← sostituisce AdministrativeAreaRepository
+ExclusionZonesRepository      ← usa localityId invece di adminAreaId
 ```
 
-Il runtime Travelog non deve:
+I repository utilizzano Drizzle e query SQL native. Nessuna dipendenza da PostGIS.
 
-* scaricare dataset;
-* aggiornare dataset;
-* richiedere Internet per il reverse geocoding.
+---
+
+# 29. Dataset version (Removed — no longer relevant for external API)
+
+No dataset import = no versioning needed. The `source` column in `localities` already identifies the provider.
+
+---
+
+# 30. Import dei dataset geografici (Removed — replaced by Geoapify API)
+
+No offline dataset imports. No `import-geodata.mjs` script. No `data/geodata/` directory needed.
+
+The runtime only needs an internet connection to call Geoapify during photo scans.
 
 ---
 
 # 31. Scan architecture
-
 La scansione è un background job asincrono eseguito nello stesso processo Node.js di Express.
 
 Non viene introdotto un worker separato in MVP1.
@@ -1801,9 +1784,9 @@ I test devono essere deterministici e non dipendere dal filesystem o dal databas
 
 ---
 
-# 61. Integration tests
+# 61. Integration tests (Updated — no more PostGIS spatial tests)
 
-Gli integration test utilizzano un database PostgreSQL/PostGIS reale dedicato.
+Gli integration test utilizzano un database PostgreSQL reale dedicato.
 
 Database:
 
@@ -1817,17 +1800,17 @@ Gli integration test verificano:
 
 * repository;
 * query PostgreSQL;
-* query PostGIS;
 * transazioni;
 * vincoli;
 * API Express;
-* integrazione tra service e repository.
+* integrazione tra service e repository;
+* geocoding cache CRUD (localities + geocoding_cache).
 
-Il database non viene sostituito da mock nei test che hanno come obiettivo verificare il comportamento SQL/PostGIS.
+Non viene più utilizzato PostGIS nei test, poiché il reverse geocoding avviene tramite API esterna.
 
 ---
 
-# 62. Test database
+# 62. Test database (Updated)
 
 Il database di test è separato dal database di sviluppo.
 
@@ -1841,19 +1824,21 @@ PostgreSQL
 
 Non viene utilizzato Docker per creare il database di test.
 
+Test e integration tests utilizzano **PostgreSQL senza PostGIS** (necessaria in MVP1).
+
 ---
 
-# 63. Data integrity
+# 63. Data integrity (Updated for Geoapify approach)
 
 Il database deve utilizzare vincoli SQL quando questi rappresentano invarianti reali del dominio.
 
 Esempi:
 
 * unique constraint sulla fingerprint della fotografia;
-* foreign keys;
+* foreign keys verso `localities.id` (anziché `administrative_areas.id`);
 * check constraints;
 * vincoli sulle relazioni;
-* eventuali exclusion constraints PostgreSQL per intervalli temporali, quando appropriati.
+* eventuale exclusion constraints PostgreSQL per intervalli temporali, quando appropriati.
 
 Le regole complesse che richiedono contesto applicativo rimangono nel domain/service layer.
 
@@ -1944,7 +1929,7 @@ Non vengono salvati indiscriminatamente tutti gli EXIF.
 
 ---
 
-# 69. Deployment layout
+# 69. Deployment layout (Updated)
 
 Installazione concettuale:
 
@@ -1960,7 +1945,6 @@ Debian Server
 │   └── Node.js / Express
 │
 ├── PostgreSQL
-│   └── PostGIS
 │
 ├── ExifTool
 │
@@ -1970,21 +1954,24 @@ Debian Server
 │
 └── /mnt/travelog/photos
     └── NAS mount
+
+Internet access required at runtime for:
+└── Geoapify Reverse Geocoding API (calls per photo scan)
 ```
 
 ---
 
-# 70. Runtime dependencies
+# 70. Runtime dependencies (Updated)
 
 Il runtime MVP1 richiede:
 
 * Debian/Linux;
 * Node.js;
 * PostgreSQL;
-* PostGIS;
 * ExifTool;
 * Nginx;
-* filesystem NAS montato.
+* filesystem NAS montato;
+* connessione internet verso Geoapify API (solo durante le scansioni).
 
 Non richiede:
 
@@ -1992,9 +1979,11 @@ Non richiede:
 * Redis;
 * message broker;
 * cloud storage;
-* servizio di geocoding esterno;
+* PostGIS;
+* servizi di geocoding esterni alternativi;
 * authentication server;
-* logging server esterno.
+* logging server esterno;
+* dataset geografici locali (nessun download offline richiesto).
 
 ---
 
@@ -2046,7 +2035,7 @@ Ogni modifica significativa a repository, database o API deve avere integration 
 
 ---
 
-# 72. Decisioni tecnologiche consolidate
+# 72. Decisioni tecnologiche consolidate (Updated for Geoapify approach)
 
 | Area                      | Decisione                      |
 | ------------------------- | ------------------------------ |
@@ -2064,7 +2053,7 @@ Ogni modifica significativa a repository, database o API deve avere integration 
 | API types                 | Generated TypeScript           |
 | API client                | Internal fetch wrapper         |
 | Database                  | PostgreSQL                     |
-| Spatial DB                | PostGIS                        |
+| Spatial DB                | **Non utilizzato** (rimosso)   |
 | Data access               | Drizzle                        |
 | Migrations                | Drizzle migrations             |
 | Photo storage             | NAS                            |
@@ -2076,11 +2065,12 @@ Ogni modifica significativa a repository, database o API deve avere integration 
 | Timestamp                 | DateTimeOriginal               |
 | Timezone                  | Naive local time               |
 | GPS editing               | Not supported                  |
-| Geocoding                 | Local                          |
-| Geographic data           | OSM/open data + geoBoundaries  |
-| Spatial queries           | PostGIS                        |
+| Geocoding                 | External API (Geoapify)        |
+| Geographic data           | Reverse geocoding via HTTP     |
+| Spatial queries           | **Non utilizzate** (rimosse)   |
 | Geocoding cache           | PostgreSQL persistent          |
-| Geographic dataset import | Offline                        |
+| Geographic dataset import | **Rimosso** — nessuna import  |
+| ReverseGeocoder interface | `ReverseGeocoder.resolve()`    |
 | Scan execution            | Node background job            |
 | Scan worker               | Same Node process              |
 | Scan concurrency          | One scan at a time             |
@@ -2099,12 +2089,12 @@ Ogni modifica significativa a repository, database o API deve avere integration 
 | Backend process           | systemd                        |
 | Logging                   | stdout/stderr + journald       |
 | Testing                   | Unit + integration             |
-| Test DB                   | Dedicated PostgreSQL/PostGIS   |
+| Test DB                   | Dedicated PostgreSQL           |
 | E2E tests                 | Not in MVP1                    |
 
 ---
 
-# 73. Architectural decisions intentionally deferred
+# 73. Architectural decisions intentionally deferred (Updated)
 
 Le seguenti decisioni non sono necessarie per definire l'architettura MVP1 e possono essere definite durante l'implementazione senza modificare i principi architetturali:
 
@@ -2115,15 +2105,14 @@ Le seguenti decisioni non sono necessarie per definire l'architettura MVP1 e pos
 * strategia di paginazione delle singole risorse;
 * formato definitivo dei structured logs;
 * dettagli dei systemd unit file;
-* dettaglio dello script di import geografico;
-* formato esatto dei dataset geografici intermedi;
-* strategia di aggiornamento futuro dei dataset geografici.
+* dettaglio della risposta Geoapify in caso di edge cases;
+* eventuale strategia futura di passaggio a PostGIS se richiesto.
 
 Queste decisioni devono essere documentate quando vengono prese e non devono contraddire questo design.
 
 ---
 
-# 74. Definition of Done tecnica MVP1
+# 74. Definition of Done tecnica MVP1 (Updated for Geoapify approach)
 
 Una implementazione MVP1 è tecnicamente completa quando:
 
@@ -2133,7 +2122,7 @@ Una implementazione MVP1 è tecnicamente completa quando:
 * OpenAPI è versionato e contract-first;
 * i tipi frontend sono generati da OpenAPI;
 * le request API sono validate secondo OpenAPI/JSON Schema;
-* PostgreSQL + PostGIS sono utilizzati come persistence layer;
+* PostgreSQL è utilizzato come persistence layer;
 * Drizzle gestisce accesso dati e migration;
 * il NAS è utilizzato tramite directory montata;
 * ExifTool estrae i metadata;
@@ -2144,9 +2133,9 @@ Una implementazione MVP1 è tecnicamente completa quando:
 * una sola scansione può essere attiva;
 * il lock viene gestito tramite PostgreSQL advisory lock;
 * il progress è disponibile tramite polling REST;
-* il reverse geocoding avviene localmente tramite PostGIS;
-* il geocoding utilizza una cache persistente;
-* i dati geografici vengono importati offline;
+* il reverse geocoding avviene tramite API esterna (Geoapify);
+* il geocoding utilizza una cache persistente in `geocoding_cache`;
+* nessun dataset geografico offline viene importato o richiesto;
 * i dati originali GPS vengono conservati;
 * i viaggi già creati non vengono modificati automaticamente;
 * merge e split mantengono lo storico richiesto;
@@ -2155,7 +2144,7 @@ Una implementazione MVP1 è tecnicamente completa quando:
 * Nginx serve frontend e reverse-proxy verso Express;
 * i log sono disponibili tramite journald;
 * esistono unit test;
-* esistono integration test con PostgreSQL/PostGIS reale;
+* esistono integration test con PostgreSQL reale (no PostGIS);
 * Docker non è richiesto per il deployment o il testing.
 
 ---
