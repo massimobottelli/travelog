@@ -9,7 +9,7 @@ import type { Request, Response, NextFunction } from "express";
 import { loadOpenApiSpec } from "../utils/openapi.js";
 import { ValidationError } from "../models/errors.js";
 
-// Map route patterns to operationId
+// Map route patterns to operationId (without API prefix)
 const ROUTE_OPS: Record<string, Record<string, string>> = {
   "/health": { get: "getHealth" },
   "/scans": { post: "startScan", get: "listScans" },
@@ -28,11 +28,19 @@ const ROUTE_OPS: Record<string, Record<string, string>> = {
 };
 
 function resolveOperationId(path: string, method: string): string | null {
-  if (ROUTE_OPS[path]?.[method]) return ROUTE_OPS[path][method];
+  // Strip API prefix if present (e.g., /api/trips -> /trips)
+  const apiPrefix = process.env.API_PREFIX ?? "/api";
+  const basePath = path.startsWith(apiPrefix)
+    ? path.slice(apiPrefix.length) || "/"
+    : path;
+
+  // Try exact match
+  if (ROUTE_OPS[basePath]?.[method]) return ROUTE_OPS[basePath][method];
+
   // Wildcard match
   for (const [pattern, ops] of Object.entries(ROUTE_OPS)) {
     const regex = new RegExp("^" + pattern.replace(/:[^/]+/g, "[^/]+") + "$");
-    if (regex.test(path.split("?")[0]) && ops[method]) return ops[method];
+    if (regex.test(basePath) && ops[method]) return ops[method];
   }
   return null;
 }

@@ -10,7 +10,7 @@ import { createApp } from "./app.js";
 const app = createApp();
 const PORT = Number(process.env.PORT) || 3000;
 
-if (require.main === module) {
+if (process.argv[1]?.endsWith("dist/index.js")) {
   app.listen(PORT, () => {
     console.log(`[server] Travelog backend listening on port ${PORT}`);
   });
