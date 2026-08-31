@@ -5,32 +5,32 @@
  * Connection string comes from `DATABASE_URL` environment variable.
  */
 
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 dotenv.config();
 
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
 const poolMax = Number(process.env.DATABASE_POOL_MAX) || 10;
 
-const pool = new Pool({
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: poolMax,
 });
 
 export const db = drizzle(pool, {
-  logger: process.env.NODE_ENV === 'development',
+  logger: process.env.NODE_ENV === "development",
 });
 
 /**
  * Gracefully close the pool on process exit.
  */
-process.on('SIGINT', () => {
+process.on("SIGINT", () => {
   pool.end();
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
+process.on("SIGTERM", () => {
   pool.end();
   process.exit(0);
 });
@@ -46,5 +46,3 @@ export function createTestDb(connectionString?: string) {
   });
   return drizzle(testPool, { logger: false });
 }
-
-

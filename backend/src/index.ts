@@ -1,23 +1,16 @@
-import dotenv from 'dotenv';
+/**
+ * Travelog MVP1 — Entry Point
+ */
 
+import dotenv from "dotenv";
 dotenv.config();
 
-import express from 'express';
+import { createApp } from "./app.js";
 
-const app = express();
+const app = createApp();
 const PORT = Number(process.env.PORT) || 3000;
-const API_PREFIX = process.env.API_PREFIX ?? '/api';
 
-// Middleware
-app.use(express.json());
-
-// Health endpoint
-app.get(`${API_PREFIX}/health`, (_req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
-// Start server only when executed directly
-if (process.argv[1]?.includes('index.ts') || process.argv[1]?.includes('index.js')) {
+if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`[server] Travelog backend listening on port ${PORT}`);
   });

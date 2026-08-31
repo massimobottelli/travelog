@@ -1,1160 +1,814 @@
 openapi: 3.1.0
 
 info:
-title: Travelog API
-version: 0.1.0
-description: |
-REST API for Travelog MVP1.
+  title: Travelog API
+  version: 0.1.0
+  description: |
+    REST API for Travelog MVP1.
 
-```
-Functional behavior is defined by:
-doc/functional-requirements-mvp1.md
+    Functional behavior is defined by:
+    `doc/functional-requirements-mvp1.md`
 
-Technical architecture is defined by:
-doc/technical-design-mvp1.md
-```
+    Technical architecture is defined by:
+    `doc/technical-design-mvp1.md`
 
 servers:
-
-* url: /api
-  description: Travelog API
+  - url: /api
+    description: Travelog API
 
 tags:
-
-* name: Health
-* name: Scans
-* name: Trips
-* name: Trip Operations
-* name: Administrative Areas
-* name: Exclusion Zones
-* name: Settings
+  - name: Health
+  - name: Scans
+  - name: Trips
+  - name: Trip Operations
+  - name: Administrative Areas
+  - name: Exclusion Zones
+  - name: Settings
 
 paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Check API health
+      responses:
+        "200":
+          description: API is available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
 
-/health:
-get:
-tags: [Health]
-operationId: getHealth
-summary: Check API health
-responses:
-"200":
-description: API is available
-content:
-application/json:
-schema:
-$ref: "#/components/schemas/HealthResponse"
-
-/scans:
-post:
-tags: [Scans]
-operationId: startScan
-summary: Start a photo scan
-description: |
-Starts an asynchronous scan of the selected directory.
-The directory must be relative to the configured photo root.
-
-```
-    Only one scan may run at a time.
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: "#/components/schemas/StartScanRequest"
-  responses:
-    "202":
-      description: Scan started
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Scan"
-    "400":
-      description: Invalid scan request
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-    "409":
-      description: Another scan is already running
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-
-get:
-  tags: [Scans]
-  operationId: listScans
-  summary: List scan history
-  parameters:
-    - $ref: "#/components/parameters/Page"
-    - $ref: "#/components/parameters/PageSize"
-  responses:
-    "200":
-      description: Scan history
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ScanList"
-```
-
-/scans/{scanId}:
-get:
-tags: [Scans]
-operationId: getScan
-summary: Get scan status and progress
-parameters:
-- $ref: "#/components/parameters/ScanId"
-responses:
-"200":
-description: Scan status
-content:
-application/json:
-schema:
-$ref: "#/components/schemas/Scan"
-"404":
-description: Scan not found
-content:
-application/json:
-schema:
-$ref: "#/components/schemas/ApiError"
-
-/trips:
-get:
-tags: [Trips]
-operationId: listTrips
-summary: List trips
-description: |
-By default only active trips are returned.
-Archived/superseded trips can be requested explicitly.
-
-```
-    Results are ordered by start date descending by default.
-  parameters:
-    - name: status
-      in: query
-      required: false
-      schema:
-        $ref: "#/components/schemas/TripListStatus"
-      description: Filter by trip status.
-    - name: search
-      in: query
-      required: false
-      schema:
-        type: string
+  /scans:
+    post:
+      tags: [Scans]
+      operationId: startScan
+      summary: Start a photo scan
       description: |
-        Free-text search by trip name or year/month.
-    - name: sort
-      in: query
-      required: false
-      schema:
-        type: string
-        enum:
-          - startDateDesc
-          - startDateAsc
-      default: startDateDesc
-    - $ref: "#/components/parameters/Page"
-    - $ref: "#/components/parameters/PageSize"
-  responses:
-    "200":
-      description: Trip list
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/TripList"
+        Starts an asynchronous scan of the selected directory.
+        The directory must be relative to the configured photo root.
 
-post:
-  tags: [Trips]
-  operationId: createTrip
-  summary: Create a trip manually
-  description: |
-    Creates a trip from an explicit manual operation.
+        Only one scan may run at a time.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartScanRequest"
+      responses:
+        "202":
+          description: Scan started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+        "400":
+          description: Invalid scan request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Another scan is already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 
-    This endpoint is not used by automatic scan processing.
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: "#/components/schemas/CreateTripRequest"
-  responses:
-    "201":
-      description: Trip created
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Trip"
-    "400":
-      description: Invalid trip
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-    "409":
-      description: Trip overlaps another active trip
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-```
+    get:
+      tags: [Scans]
+      operationId: listScans
+      summary: List scan history
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Scan history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanList"
 
-/trips/{tripId}:
-get:
-tags: [Trips]
-operationId: getTrip
-summary: Get trip details
-parameters:
-- $ref: "#/components/parameters/TripId"
-responses:
-"200":
-description: Trip details
-content:
-application/json:
-schema:
-$ref: "#/components/schemas/Trip"
-"404":
-description: Trip not found
-content:
-application/json:
-schema:
-$ref: "#/components/schemas/ApiError"
+  /scans/{scanId}:
+    get:
+      tags: [Scans]
+      operationId: getScan
+      summary: Get scan status and progress
+      parameters:
+        - $ref: "#/components/parameters/ScanId"
+      responses:
+        "200":
+          description: Scan status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+        "404":
+          description: Scan not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 
-```
-patch:
-  tags: [Trips]
-  operationId: updateTrip
-  summary: Modify a trip manually
-  description: |
-    Allows the manual modifications supported by MVP1:
-    rename and/or change start/end dates.
+  /trips:
+    get:
+      tags: [Trips]
+      operationId: listTrips
+      summary: List trips
+      description: |
+        By default only active trips are returned.
+        Archived/superseded trips can be requested explicitly.
 
-    Automatic processing never modifies an existing trip.
+        Results are ordered by start date descending by default.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TripListStatus"
+          description: Filter by trip status.
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: |
+            Free-text search by trip name or year/month.
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - startDateDesc
+              - startDateAsc
+          default: startDateDesc
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Trip list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripList"
 
-    Active trips must not overlap temporally.
-  parameters:
-    - $ref: "#/components/parameters/TripId"
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: "#/components/schemas/UpdateTripRequest"
-  responses:
-    "200":
-      description: Updated trip
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Trip"
-    "400":
-      description: Invalid modification
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-    "404":
-      description: Trip not found
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-    "409":
-      description: Modification would overlap another active trip
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-```
+    post:
+      tags: [Trips]
+      operationId: createTrip
+      summary: Create a trip manually
+      description: |
+        Creates a trip from an explicit manual operation.
 
-/trips/{tripId}/split:
-post:
-tags: [Trips]
-operationId: splitTrip
-summary: Split a trip
-description: |
-Splits a trip at the specified date.
+        This endpoint is not used by automatic scan processing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTripRequest"
+      responses:
+        "201":
+          description: Trip created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trip"
+        "400":
+          description: Invalid trip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Trip overlaps another active trip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 
-```
-    The split date belongs to the second resulting trip.
-    The original trip remains in history.
-  parameters:
-    - $ref: "#/components/parameters/TripId"
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: "#/components/schemas/SplitTripRequest"
-  responses:
-    "200":
-      description: Split result
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/TripOperationResult"
-    "400":
-      description: Invalid split date
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-    "404":
-      description: Trip not found
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-    "409":
-      description: Split would violate trip constraints
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-```
+  /trips/{tripId}:
+    get:
+      tags: [Trips]
+      operationId: getTrip
+      summary: Get trip details
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Trip details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trip"
+        "404":
+          description: Trip not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 
-/trips/merge:
-post:
-tags: [Trips]
-operationId: mergeTrips
-summary: Merge two or more trips
-description: |
-Merges two or more trips into a new trip.
+    patch:
+      tags: [Trips]
+      operationId: updateTrip
+      summary: Modify a trip manually
+      description: |
+        Allows the manual modifications supported by MVP1:
+        rename and/or change start/end dates.
 
-```
-    Original trips are retained in history and marked as superseded.
-    The resulting trip keeps a relationship to the source trips.
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: "#/components/schemas/MergeTripsRequest"
-  responses:
-    "200":
-      description: Merge result
-      content:
-        application/json:
+        Automatic processing never modifies an existing trip.
+
+        Active trips must not overlap temporally.
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTripRequest"
+      responses:
+        "200":
+          description: Updated trip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trip"
+        "400":
+          description: Invalid modification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Trip not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Modification would overlap another active trip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /trips/{tripId}/split:
+    post:
+      tags: [Trips]
+      operationId: splitTrip
+      summary: Split a trip
+      description: |
+        Splits a trip at the specified date.
+
+        The split date belongs to the second resulting trip.
+        The original trip remains in history.
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SplitTripRequest"
+      responses:
+        "200":
+          description: Split result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripOperationResult"
+        "400":
+          description: Invalid split date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Trip not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Split would violate trip constraints
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /trips/merge:
+    post:
+      tags: [Trips]
+      operationId: mergeTrips
+      summary: Merge two or more trips
+      description: |
+        Merges two or more trips into a new trip.
+
+        Original trips are retained in history and marked as superseded.
+        The resulting trip keeps a relationship to the source trips.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MergeTripsRequest"
+      responses:
+        "200":
+          description: Merge result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripOperationResult"
+        "400":
+          description: Invalid merge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: One or more trips were not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Trips cannot be merged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /settings:
+    get:
+      tags: [Settings]
+      operationId: getSettings
+      summary: Get current settings
+      responses:
+        "200":
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+
+    put:
+      tags: [Settings]
+      operationId: updateSettings
+      summary: Update settings
+      description: |
+        Updates one or more setting values.
+
+        Only provided fields are updated; omitted fields remain unchanged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingsRequest"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        "400":
+          description: Invalid settings update
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+    post:
+      tags: [Settings]
+      operationId: recalculate
+      summary: Trigger trip recalculation
+      description: |
+        Requests an explicit trip recalculation.
+
+        The operation returns immediately with ACCEPTED status.
+        Actual recalculation proceeds asynchronously.
+      responses:
+        "202":
+          description: Recalculation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recalculation"
+        "400":
+          description: Invalid recalculation request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /exclusion-zones:
+    get:
+      tags: [Exclusion Zones]
+      operationId: listExclusionZones
+      summary: List exclusion zones
+      responses:
+        "200":
+          description: Exclusion zone list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ExclusionZone"
+
+    post:
+      tags: [Exclusion Zones]
+      operationId: createExclusionZone
+      summary: Create an exclusion zone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExclusionZoneRequest"
+      responses:
+        "201":
+          description: Exclusion zone created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExclusionZone"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Administrative area not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+    delete:
+      tags: [Exclusion Zones]
+      operationId: deleteExclusionZone
+      summary: Delete an exclusion zone
+      parameters:
+        - name: id
+          in: path
+          required: true
           schema:
-            $ref: "#/components/schemas/TripOperationResult"
-    "400":
-      description: Invalid merge
-      content:
-        application/json:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Exclusion zone not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /admin-areas/search:
+    get:
+      tags: [Administrative Areas]
+      operationId: searchAdministrativeAreas
+      summary: Search administrative areas
+      parameters:
+        - name: q
+          in: query
+          required: true
           schema:
-            $ref: "#/components/schemas/ApiError"
-    "404":
-      description: One or more trips were not found
-      content:
-        application/json:
+            type: string
+            minLength: 1
+          description: Search query
+        - name: limit
+          in: query
+          required: false
           schema:
-            $ref: "#/components/schemas/ApiError"
-    "409":
-      description: Trips cannot be merged
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-```
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Maximum results to return
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdministrativeArea"
+        "400":
+          description: Invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 
-/trip-operations:
-get:
-tags: [Trip Operations]
-operationId: listTripOperations
-summary: List trip operation history
-description: |
-Returns the audit history of manual trip operations,
-including split and merge operations.
-parameters:
-- name: tripId
-in: query
-required: false
-schema:
-type: integer
-format: int64
-minimum: 1
-description: |
-Optional trip ID. When specified, returns operations
-related to that trip.
-- $ref: "#/components/parameters/Page"
-- $ref: "#/components/parameters/PageSize"
-responses:
-"200":
-description: Trip operation history
-content:
-application/json:
-schema:
-$ref: "#/components/schemas/TripOperationList"
-
-/administrative-areas:
-get:
-tags: [Administrative Areas]
-operationId: searchAdministrativeAreas
-summary: Search administrative areas
-description: |
-Searches the imported international administrative hierarchy.
-
-```
-    Results are used to select exclusion zones.
-  parameters:
-    - name: search
-      in: query
-      required: true
-      schema:
-        type: string
-        minLength: 1
-    - name: parentId
-      in: query
-      required: false
-      schema:
-        type: integer
-        format: int64
-        minimum: 1
-    - name: level
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 0
-    - name: countryCode
-      in: query
-      required: false
-      schema:
-        type: string
-        minLength: 2
-        maxLength: 3
-  responses:
-    "200":
-      description: Matching administrative areas
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/AdministrativeAreaList"
-```
-
-/administrative-areas/{areaId}:
-get:
-tags: [Administrative Areas]
-operationId: getAdministrativeArea
-summary: Get an administrative area
-parameters:
-- $ref: "#/components/parameters/AreaId"
-responses:
-"200":
-description: Administrative area
-content:
-application/json:
-schema:
-$ref: "#/components/schemas/AdministrativeArea"
-"404":
-description: Administrative area not found
-content:
-application/json:
-schema:
-$ref: "#/components/schemas/ApiError"
-
-/exclusion-zones:
-get:
-tags: [Exclusion Zones]
-operationId: listExclusionZones
-summary: List exclusion zones
-responses:
-"200":
-description: Configured exclusion zones
-content:
-application/json:
-schema:
-type: array
-items:
-$ref: "#/components/schemas/ExclusionZone"
-
-```
-post:
-  tags: [Exclusion Zones]
-  operationId: createExclusionZone
-  summary: Add an exclusion zone
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: "#/components/schemas/CreateExclusionZoneRequest"
-  responses:
-    "201":
-      description: Exclusion zone created
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ExclusionZone"
-    "400":
-      description: Invalid exclusion zone
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-    "409":
-      description: Exclusion zone already covered
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-```
-
-/exclusion-zones/{zoneId}:
-delete:
-tags: [Exclusion Zones]
-operationId: deleteExclusionZone
-summary: Remove an exclusion zone
-parameters:
-- $ref: "#/components/parameters/ZoneId"
-responses:
-"204":
-description: Exclusion zone removed
-"404":
-description: Exclusion zone not found
-content:
-application/json:
-schema:
-$ref: "#/components/schemas/ApiError"
-
-/settings:
-get:
-tags: [Settings]
-operationId: getSettings
-summary: Get application settings
-responses:
-"200":
-description: Current settings
-content:
-application/json:
-schema:
-$ref: "#/components/schemas/Settings"
-
-```
-patch:
-  tags: [Settings]
-  operationId: updateSettings
-  summary: Update application settings
-  description: |
-    Changes global thresholds.
-
-    Changes are not retroactive and do not modify existing trips.
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: "#/components/schemas/UpdateSettingsRequest"
-  responses:
-    "200":
-      description: Updated settings
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Settings"
-    "400":
-      description: Invalid settings
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-```
-
-/settings/recalculate:
-post:
-tags: [Settings]
-operationId: recalculate
-summary: Recalculate unprocessed data
-description: |
-Explicitly recalculates data using the current settings.
-
-```
-    Existing trips are never modified or deleted.
-    The operation may create new trips from data that has not
-    yet been consolidated into a trip.
-  responses:
-    "202":
-      description: Recalculation accepted
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Recalculation"
-    "409":
-      description: Recalculation cannot currently be started
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ApiError"
-```
 
 components:
-
-parameters:
-
-```
-ScanId:
-  name: scanId
-  in: path
-  required: true
-  schema:
-    type: integer
-    format: int64
-    minimum: 1
-
-TripId:
-  name: tripId
-  in: path
-  required: true
-  schema:
-    type: integer
-    format: int64
-    minimum: 1
-
-ZoneId:
-  name: zoneId
-  in: path
-  required: true
-  schema:
-    type: integer
-    format: int64
-    minimum: 1
-
-AreaId:
-  name: areaId
-  in: path
-  required: true
-  schema:
-    type: integer
-    format: int64
-    minimum: 1
-
-Page:
-  name: page
-  in: query
-  required: false
-  schema:
-    type: integer
-    minimum: 1
-    default: 1
-
-PageSize:
-  name: pageSize
-  in: query
-  required: false
-  schema:
-    type: integer
-    minimum: 1
-    maximum: 100
-    default: 50
-```
-
-schemas:
-
-```
-ApiError:
-  type: object
-  additionalProperties: false
-  required:
-    - code
-    - message
-  properties:
-    code:
-      type: string
-    message:
-      type: string
-    details:
-      type: object
-      additionalProperties: true
-
-HealthResponse:
-  type: object
-  additionalProperties: false
-  required:
-    - status
-  properties:
-    status:
-      type: string
-      enum: [ok]
-
-StartScanRequest:
-  type: object
-  additionalProperties: false
-  required:
-    - path
-  properties:
-    path:
-      type: string
-      minLength: 1
-      description: |
-        Relative path below TRAVELOG_PHOTO_ROOT.
-
-ScanStatus:
-  type: string
-  enum:
-    - PENDING
-    - RUNNING
-    - COMPLETED
-    - COMPLETED_WITH_ERRORS
-    - FAILED
-
-Scan:
-  type: object
-  additionalProperties: false
-  required:
-    - id
-    - path
-    - status
-    - startedAt
-    - counters
-  properties:
-    id:
-      type: integer
-      format: int64
-    path:
-      type: string
-    status:
-      $ref: "#/components/schemas/ScanStatus"
-    startedAt:
-      type: string
-      format: date-time
-    completedAt:
-      type:
-        - string
-        - "null"
-      format: date-time
-    counters:
-      $ref: "#/components/schemas/ScanCounters"
-    errors:
-      type: array
-      items:
-        $ref: "#/components/schemas/ScanError"
-
-ScanCounters:
-  type: object
-  additionalProperties: false
-  required:
-    - filesAnalyzed
-    - newPhotos
-    - alreadyPresent
-    - excludedIncompleteExif
-    - errors
-  properties:
-    filesAnalyzed:
-      type: integer
-      minimum: 0
-    newPhotos:
-      type: integer
-      minimum: 0
-    alreadyPresent:
-      type: integer
-      minimum: 0
-    excludedIncompleteExif:
-      type: integer
-      minimum: 0
-    errors:
-      type: integer
-      minimum: 0
-
-ScanError:
-  type: object
-  additionalProperties: false
-  required:
-    - path
-    - code
-    - message
-  properties:
-    path:
-      type: string
-    code:
-      type: string
-    message:
-      type: string
-
-ScanList:
-  type: object
-  additionalProperties: false
-  required:
-    - items
-    - page
-    - pageSize
-    - total
-  properties:
-    items:
-      type: array
-      items:
-        $ref: "#/components/schemas/Scan"
-    page:
-      type: integer
-    pageSize:
-      type: integer
-    total:
-      type: integer
-
-TripStatus:
-  type: string
-  enum:
-    - ACTIVE
-    - SUPERSEDED
-
-TripListStatus:
-  type: string
-  enum:
-    - ACTIVE
-    - SUPERSEDED
-    - ALL
-
-Trip:
-  type: object
-  additionalProperties: false
-  required:
-    - id
-    - title
-    - startDate
-    - endDate
-    - durationDays
-    - status
-    - days
-  properties:
-    id:
-      type: integer
-      format: int64
-    title:
-      type: string
-    startDate:
-      type: string
-      format: date
-    endDate:
-      type: string
-      format: date
-    durationDays:
-      type: integer
-      minimum: 1
-      description: Derived from startDate and endDate.
-    status:
-      $ref: "#/components/schemas/TripStatus"
-    supersededByTripId:
-      type:
-        - integer
-        - "null"
-      format: int64
-    days:
-      type: array
-      items:
-        $ref: "#/components/schemas/TripDay"
-
-TripDay:
-  type: object
-  additionalProperties: false
-  required:
-    - date
-    - hasPhotos
-    - visits
-  properties:
-    date:
-      type: string
-      format: date
-    hasPhotos:
-      type: boolean
-    visits:
-      type: array
-      items:
-        $ref: "#/components/schemas/TripVisit"
-    note:
-      type:
-        - string
-        - "null"
-      description: Present when the day has no photos.
-
-TripVisit:
-  type: object
-  additionalProperties: false
-  required:
-    - administrativeArea
-    - photoCount
-  properties:
-    administrativeArea:
-      $ref: "#/components/schemas/AdministrativeAreaHierarchy"
-    photoCount:
-      type: integer
-      minimum: 0
-
-AdministrativeAreaHierarchy:
-  type: object
-  additionalProperties: false
-  required:
-    - lowestAvailable
-    - levels
-  properties:
-    lowestAvailable:
-      $ref: "#/components/schemas/AdministrativeArea"
-    levels:
-      type: array
-      items:
-        $ref: "#/components/schemas/AdministrativeArea"
-
-AdministrativeArea:
-  type: object
-  additionalProperties: false
-  required:
-    - id
-    - name
-    - level
-  properties:
-    id:
-      type: integer
-      format: int64
-    name:
-      type: string
-    level:
-      type: integer
-      minimum: 0
-    levelName:
-      type:
-        - string
-        - "null"
-    countryCode:
-      type:
-        - string
-        - "null"
-    parentId:
-      type:
-        - integer
-        - "null"
-      format: int64
-
-AdministrativeAreaList:
-  type: object
-  additionalProperties: false
-  required:
-    - items
-  properties:
-    items:
-      type: array
-      items:
-        $ref: "#/components/schemas/AdministrativeArea"
-
-TripList:
-  type: object
-  additionalProperties: false
-  required:
-    - items
-    - page
-    - pageSize
-    - total
-  properties:
-    items:
-      type: array
-      items:
-        $ref: "#/components/schemas/Trip"
-    page:
-      type: integer
-    pageSize:
-      type: integer
-    total:
-      type: integer
-
-CreateTripRequest:
-  type: object
-  additionalProperties: false
-  required:
-    - title
-    - startDate
-    - endDate
-  properties:
-    title:
-      type: string
-      minLength: 1
-    startDate:
-      type: string
-      format: date
-    endDate:
-      type: string
-      format: date
-
-UpdateTripRequest:
-  type: object
-  additionalProperties: false
-  minProperties: 1
-  properties:
-    title:
-      type: string
-      minLength: 1
-    startDate:
-      type: string
-      format: date
-    endDate:
-      type: string
-      format: date
-
-SplitTripRequest:
-  type: object
-  additionalProperties: false
-  required:
-    - splitDate
-  properties:
-    splitDate:
-      type: string
-      format: date
-      description: |
-        The split date belongs to the second resulting trip.
-    secondTripTitle:
-      type:
-        - string
-        - "null"
-      minLength: 1
-      description: |
-        Optional title chosen by the user. When omitted, the system
-        proposes a title.
-
-MergeTripsRequest:
-  type: object
-  additionalProperties: false
-  required:
-    - tripIds
-  properties:
-    tripIds:
-      type: array
-      minItems: 2
-      uniqueItems: true
-      items:
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number (1-based)
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Page size
+    ScanId:
+      name: scanId
+      in: path
+      required: true
+      schema:
         type: integer
         format: int64
         minimum: 1
-    title:
-      type:
-        - string
-        - "null"
-      minLength: 1
-      description: |
-        Optional title. Defaults to the title of the first selected trip.
-
-TripOperationType:
-  type: string
-  enum:
-    - SPLIT
-    - MERGE
-
-TripOperation:
-  type: object
-  additionalProperties: false
-  required:
-    - id
-    - type
-    - createdAt
-    - sourceTripIds
-    - resultingTripIds
-  properties:
-    id:
-      type: integer
-      format: int64
-    type:
-      $ref: "#/components/schemas/TripOperationType"
-    createdAt:
-      type: string
-      format: date-time
-    sourceTripIds:
-      type: array
-      items:
+    TripId:
+      name: tripId
+      in: path
+      required: true
+      schema:
         type: integer
         format: int64
-    resultingTripIds:
-      type: array
-      items:
-        type: integer
-        format: int64
+        minimum: 1
 
-TripOperationResult:
-  type: object
-  additionalProperties: false
-  required:
-    - operation
-    - trips
-  properties:
-    operation:
-      $ref: "#/components/schemas/TripOperation"
-    trips:
-      type: array
-      items:
-        $ref: "#/components/schemas/Trip"
+  schemas:
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: TRIP_NOT_FOUND
+        message:
+          type: string
+          example: Trip not found
+        details:
+          type: object
+          additionalProperties: true
 
-TripOperationList:
-  type: object
-  additionalProperties: false
-  required:
-    - items
-    - page
-    - pageSize
-    - total
-  properties:
-    items:
-      type: array
-      items:
-        $ref: "#/components/schemas/TripOperation"
-    page:
-      type: integer
-    pageSize:
-      type: integer
-    total:
-      type: integer
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status, timestamp, uptime_seconds, version, environment]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        timestamp:
+          type: string
+          format: date-time
+        uptime_seconds:
+          type: number
+        version:
+          type: string
+          example: "0.1.0"
+        environment:
+          type: string
+          example: development
 
-Settings:
-  type: object
-  additionalProperties: false
-  required:
-    - minimumPhotosPerVisit
-    - consecutiveDaysWithoutPhotosBeforeClosing
-  properties:
-    minimumPhotosPerVisit:
-      type: integer
-      minimum: 1
-      default: 1
-    consecutiveDaysWithoutPhotosBeforeClosing:
-      type: integer
-      minimum: 0
-      default: 3
+    Trip:
+      type: object
+      additionalProperties: false
+      required: [id, name, startDate, endDate, autoGenerated, status, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        autoGenerated:
+          type: boolean
+        status:
+          type: string
+          enum: [active, archived]
+        createdAt:
+          type: string
+          format: date-time
 
-UpdateSettingsRequest:
-  type: object
-  additionalProperties: false
-  minProperties: 1
-  properties:
-    minimumPhotosPerVisit:
-      type: integer
-      minimum: 1
-    consecutiveDaysWithoutPhotosBeforeClosing:
-      type: integer
-      minimum: 0
+    CreateTripRequest:
+      type: object
+      additionalProperties: false
+      required: [startDate, endDate]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
 
-Recalculation:
-  type: object
-  additionalProperties: false
-  required:
-    - status
-  properties:
-    status:
+    UpdateTripRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+
+    SplitTripRequest:
+      type: object
+      additionalProperties: false
+      required: [splitDate]
+      properties:
+        splitDate:
+          type: string
+          format: date
+
+    MergeTripsRequest:
+      type: object
+      additionalProperties: false
+      required: [tripIds]
+      properties:
+        tripIds:
+          type: array
+          minItems: 2
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+            minimum: 1
+        title:
+          type: [string, null]
+          minLength: 1
+
+    TripOperationType:
       type: string
-      enum:
-        - ACCEPTED
+      enum: [SPLIT, MERGE]
 
-ExclusionZone:
-  type: object
-  additionalProperties: false
-  required:
-    - id
-    - administrativeArea
-  properties:
-    id:
-      type: integer
-      format: int64
-    administrativeArea:
-      $ref: "#/components/schemas/AdministrativeArea"
+    TripOperation:
+      type: object
+      additionalProperties: false
+      required: [id, type, createdAt, sourceTripIds, resultingTripIds]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          $ref: "#/components/schemas/TripOperationType"
+        createdAt:
+          type: string
+          format: date-time
+        sourceTripIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        resultingTripIds:
+          type: array
+          items:
+            type: integer
+            format: int64
 
-CreateExclusionZoneRequest:
-  type: object
-  additionalProperties: false
-  required:
-    - administrativeAreaId
-  properties:
-    administrativeAreaId:
-      type: integer
-      format: int64
-      minimum: 1
-```
+    TripOperationResult:
+      type: object
+      additionalProperties: false
+      required: [operation, trips]
+      properties:
+        operation:
+          $ref: "#/components/schemas/TripOperation"
+        trips:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trip"
+
+    TripList:
+      type: object
+      additionalProperties: false
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trip"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+
+    Settings:
+      type: object
+      additionalProperties: false
+      required: [minimumPhotosPerVisit, consecutiveDaysWithoutPhotosBeforeClosing]
+      properties:
+        minimumPhotosPerVisit:
+          type: integer
+          minimum: 1
+          default: 1
+        consecutiveDaysWithoutPhotosBeforeClosing:
+          type: integer
+          minimum: 0
+          default: 3
+
+    UpdateSettingsRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        minimumPhotosPerVisit:
+          type: integer
+          minimum: 1
+        consecutiveDaysWithoutPhotosBeforeClosing:
+          type: integer
+          minimum: 0
+
+    Recalculation:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ACCEPTED]
+
+    ExclusionZone:
+      type: object
+      additionalProperties: false
+      required: [id, administrativeArea]
+      properties:
+        id:
+          type: integer
+          format: int64
+        administrativeArea:
+          $ref: "#/components/schemas/AdministrativeArea"
+
+    CreateExclusionZoneRequest:
+      type: object
+      additionalProperties: false
+      required: [administrativeAreaId]
+      properties:
+        administrativeAreaId:
+          type: integer
+          format: int64
+          minimum: 1
+
+    AdministrativeArea:
+      type: object
+      additionalProperties: false
+      required: [id, datasetSource, countryCode, name, adminLevel]
+      properties:
+        id:
+          type: integer
+          format: int64
+        datasetSource:
+          type: string
+        countryCode:
+          type: string
+        name:
+          type: string
+        adminLevel:
+          type: integer
+        parentId:
+          type: integer
+          format: int64
+
+    TripListStatus:
+      type: string
+      enum: [active, archived]

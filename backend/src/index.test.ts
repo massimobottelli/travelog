@@ -1,14 +1,14 @@
-import { describe, it, expect } from 'vitest';
-import express from 'express';
+import { describe, it, expect } from "vitest";
+import express from "express";
 
-describe('Travelog backend', () => {
-  it('should load without errors', () => {
+describe("Travelog backend", () => {
+  it("should load without errors", () => {
     const app = express();
     expect(app).toBeDefined();
-    expect(typeof app).toBe('function');
+    expect(typeof app).toBe("function");
   });
 
-  it('should support middleware registration', () => {
+  it("should support middleware registration", () => {
     const app = express();
     // Express 5 exposes request/response handler count via listener tracking
     let captured: unknown;
@@ -19,8 +19,8 @@ describe('Travelog backend', () => {
     expect(captured).not.toBeDefined();
   });
 
-  it('should export as default module', async () => {
-    const mod = await import('./index.js');
+  it("should export as default module", async () => {
+    const mod = await import("./index.js");
     expect(mod.default).toBeDefined();
   });
 });
