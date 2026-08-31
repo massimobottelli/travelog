@@ -7,6 +7,7 @@ import {
   boolean,
   date,
   doublePrecision,
+  geometry,
   index,
   integer,
   jsonb,
@@ -146,7 +147,8 @@ export const administrativeAreas = pgTable(
     adminLevel: integer("admin_level").notNull(),
     name: text("name").notNull(),
     parentId: integer("parent_id"),
-    geometry: text("geometry"), // WKT / GeoJSON consumed by PostGIS
+    geometry: text("geometry"), // WKT consumed by PostGIS queries
+    geom: geometry("geom", { srid: 4326, type: "Polygon" }), // for spatial index
     geoVersion: varchar("geo_version"),
     createdAt: timestamp("created_at", {
       mode: "date",
@@ -293,4 +295,20 @@ export const exclusionZones = pgTable("exclusion_zones", {
   })
     .notNull()
     .defaultNow(),
+});
+
+// ── 11. Dataset Versions (Phase 4) ─────────────────────────────────
+
+export const datasetVersions = pgTable("dataset_versions", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 50 }).notNull(),
+  version: varchar("version", { length: 50 }).notNull(),
+  description: text("description"),
+  importedAt: timestamp("imported_at", {
+    mode: "date",
+    withTimezone: false,
+  })
+    .notNull()
+    .defaultNow(),
+  rowCount: integer("row_count").default(0),
 });

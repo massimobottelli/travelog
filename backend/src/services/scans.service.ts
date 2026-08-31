@@ -12,6 +12,7 @@ import { scans, scanStatusEnum } from "../db/schema.js";
 import scansRepository from "../repositories/scans.repository.js";
 import photosRepository from "../repositories/photos.repository.js";
 import scanErrorsRepository from "../repositories/scan-errors.repository.js";
+import geocodingService from "../services/geocoding.service.js";
 import { NotFoundError, ConflictError } from "../models/errors.js";
 import { env } from "../utils/env.js";
 import { enumerateSupportedFiles, type ScanEntry } from "../scans/photo-enumeration.js";
@@ -107,6 +108,10 @@ class ScansService {
     }
     const input = photosRepository.buildPhotoInput(entry, exif);
     if (input.status === "valid") {
+      // Run geocoding before saving so cache is populated for future lookups
+      if (input.latitude !== null && input.longitude !== null) {
+        try { await geocodingService.reverseGeocode(input.latitude, input.longitude); } catch { /* geo fail does not block scan */ }
+      }
       await dbPool.connect().then(async (cl) => {
         try { await cl.query("BEGIN"); await photosRepository.upsertPhoto(input); await cl.query("COMMIT"); cnt.np++; }
         catch (e) { await cl.query("ROLLBACK"); throw e; }
