@@ -879,3 +879,63 @@ The final implementation must be consistent with the project architecture.
 When in doubt:
 
 > **Do not invent. Read the requirements, follow the technical design, make the smallest change that solves the problem, and ask before changing the contract.**
+
+
+# Regole per gestione e modifica dei file
+
+## Creazione e modifica dei file
+
+* **NON usare `cat`, heredoc (`<<EOF`), `echo`, `printf` o comandi equivalenti da terminale per creare o sovrascrivere file.**
+* Per creare nuovi file o modificare file esistenti, **usa sempre gli strumenti nativi di Cline per la gestione dei file/editor**.
+* Evita qualsiasi comando da terminale che possa rimanere in attesa di input interattivo.
+* Non utilizzare mai comandi come:
+
+  ```bash
+  cat > file <<EOF
+  ...
+  EOF
+  ```
+
+  ```bash
+  cat <<EOF > file
+  ...
+  EOF
+  ```
+
+## Terminale
+
+* Usa il terminale esclusivamente per:
+
+  * installare dipendenze;
+  * eseguire build;
+  * eseguire test;
+  * eseguire lint/format;
+  * eseguire script e comandi necessari al progetto;
+  * operazioni che non richiedono la scrittura manuale di grandi quantità di contenuto nei file.
+* Preferisci sempre comandi **non interattivi**.
+* Prima di eseguire un comando da terminale, assicurati che possa terminare autonomamente.
+* Non lasciare processi interattivi o comandi in attesa di input.
+
+## File di grandi dimensioni
+
+* Per file lunghi, non ricrearli interamente tramite terminale.
+* Modifica solo le sezioni necessarie.
+* Suddividi le modifiche in operazioni più piccole quando il file è molto grande.
+* Evita di riscrivere inutilmente file già esistenti.
+
+## Robustezza
+
+* Dopo ogni modifica importante, verifica che il file sia stato scritto correttamente.
+* Dopo modifiche al codice, esegui i test o il controllo appropriato quando disponibile.
+* Se un comando terminale sembra bloccarsi, **non continuare a inviare comandi allo stesso terminale**: interrompilo e utilizza un approccio alternativo.
+
+## Priorità
+
+Quando devi modificare un file, segui questa priorità:
+
+1. Strumenti nativi di editing di Cline.
+2. Modifica incrementale del file.
+3. Script non interattivo solo quando realmente necessario.
+4. **Mai `cat`/heredoc per generare il contenuto dei file.**
+
+L'obiettivo principale è evitare che il terminale rimanga bloccato durante la creazione o modifica dei file.
