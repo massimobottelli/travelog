@@ -95,14 +95,19 @@ export async function getLocalityByHash(localityHash: string): Promise<LocalityR
 /**
  * Search localities by name substring (case-insensitive).
  */
-export async function searchLocalities(q: string, limit: number): Promise<Array<{
-  id: number;
-  countryCode: string;
-  name: string;
-  adminLevel: number;
-  region?: string | null;
-  county?: string | null;
-}>> {
+export async function searchLocalities(
+  q: string,
+  limit: number,
+): Promise<
+  Array<{
+    id: number;
+    countryCode: string;
+    name: string;
+    adminLevel: number;
+    region?: string | null;
+    county?: string | null;
+  }>
+> {
   const pattern = `%${q}%`;
   const result = await pgPool.query(
     `SELECT id, country_code, name, admin_level, region, county
@@ -193,4 +198,3 @@ export default {
   getGeocodeCacheEntry,
   upsertGeocodeCache,
 };
-

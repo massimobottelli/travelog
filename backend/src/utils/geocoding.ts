@@ -28,4 +28,3 @@ export function normalizeCoordinates(
 export function makeLocalityHash(lat: number, lon: number): string {
   return `${lat.toFixed(2)}:${lon.toFixed(2)}`;
 }
-

@@ -64,6 +64,7 @@ L'implementazione MVP1 segue questi principi:
 | UI framework         | React                                   |
 | Linguaggio           | TypeScript                              |
 | Build tool           | Vite                                    |
+| CSS framework        | **Tailwind CSS v4** (`@tailwindcss/vite`) |
 | HTTP                 | Fetch API                               |
 | API client           | Layer applicativo interno sopra `fetch` |
 | API types            | Generati da OpenAPI                     |
@@ -78,6 +79,12 @@ Non vengono introdotti in MVP1:
 * TanStack Query;
 * altri global state manager;
 * framework frontend full-stack.
+
+**Tailwind CSS v4** è stato introdotto su richiesta esplicita dell'utente
+(plugin Vite `@tailwindcss/vite`, utility classes; l'animazione indeterminata
+della progress bar resta in CSS custom). Il CSS pre-esistente in
+`index.css` è stato mantenuto per i componenti già realizzati; i componenti
+nuovi o rivisitati usano le utility Tailwind.
 
 ### Motivazione
 
@@ -437,6 +444,10 @@ Functional application settings are not configured through environment
 variables; they are persisted in the database and managed through the
 application.
 
+The application uses a **single `.env` file at the repository root**, loaded
+with a module-relative path (independent of the process working directory).
+There is no per-package `.env`.
+
 The MVP1 environment configuration is:
 
 | Variable              | Purpose                                                  | Example                                                  |
@@ -455,7 +466,27 @@ The MVP1 environment configuration is:
 No environment variables are used for trip-detection thresholds or other
 functional settings.
 
-The canonical example configuration is stored in `.env.example`.
+The canonical example configuration is stored in `.env.example` at the
+repository root.
+
+### Photo root configuration (updated)
+
+In MVP1 the photo root is **user-configurable at runtime**: `TRAVELOG_PHOTO_ROOT`
+ships empty in `.env` and the user sets it from the **Settings page**
+(Impostazioni → Percorso foto).
+
+* `GET /api/config` returns the current value (null when unset).
+* `PUT /api/config` validates the path (absolute, existing directory),
+  rewrites the `TRAVELOG_PHOTO_ROOT` line in the root `.env` (upsert,
+  preserving other variables) and applies the change immediately to the
+  running process — no restart required.
+* The Scans page shows the currently configured root; starting a scan
+  without a configured root fails fast with a validation error.
+
+This is a deliberate deviation from the original "environment-only"
+deployment configuration: the app is single-user and trusted (network-local),
+so the photo root boundary is chosen by the operator through the UI. All
+other functional settings (thresholds, exclusion zones) remain in PostgreSQL.
 
 ---
 

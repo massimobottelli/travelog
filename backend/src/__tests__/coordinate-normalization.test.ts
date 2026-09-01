@@ -7,20 +7,17 @@ import { normalizeCoordinates, makeLocalityHash } from "../utils/geocoding.js";
 
 describe("normalizeCoordinates", () => {
   it.each([
-    [45.5621, 9.1742, 45.56, 9.17],           // Milan area → ~1km buckets
-    [45.5634, 9.1789, 45.56, 9.18],            // close point but different hash bucket
-    [0, 0, 0.0, 0.0],                           // equator
-    [45.5, -9.25, 45.5, -9.25],                 // negative longitude
-    [-33.87, 151.21, -33.87, 151.21],           // Sydney
-    [89.99, 179.99, 89.99, 179.99],               // near pole — no rounding beyond existing decimals
-  ])(
-    "should normalize lat=%f lon=%f to lat=%f lon=%f",
-    (lat, lon, expectedLat, expectedLon) => {
-      const result = normalizeCoordinates(lat, lon);
-      expect(result.normalizedLatitude).toBe(expectedLat);
-      expect(result.normalizedLongitude).toBe(expectedLon);
-    },
-  );
+    [45.5621, 9.1742, 45.56, 9.17], // Milan area → ~1km buckets
+    [45.5634, 9.1789, 45.56, 9.18], // close point but different hash bucket
+    [0, 0, 0.0, 0.0], // equator
+    [45.5, -9.25, 45.5, -9.25], // negative longitude
+    [-33.87, 151.21, -33.87, 151.21], // Sydney
+    [89.99, 179.99, 89.99, 179.99], // near pole — no rounding beyond existing decimals
+  ])("should normalize lat=%f lon=%f to lat=%f lon=%f", (lat, lon, expectedLat, expectedLon) => {
+    const result = normalizeCoordinates(lat, lon);
+    expect(result.normalizedLatitude).toBe(expectedLat);
+    expect(result.normalizedLongitude).toBe(expectedLon);
+  });
 
   it("should produce consistent results for same input", () => {
     const r1 = normalizeCoordinates(45.56, 9.17);
@@ -51,4 +48,3 @@ describe("makeLocalityHash", () => {
     expect(makeLocalityHash(-33.87, -151.21)).toBe("-33.87:-151.21");
   });
 });
-

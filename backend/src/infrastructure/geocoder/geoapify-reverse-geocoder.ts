@@ -50,7 +50,8 @@ export class GeoapifyReverseGeocoder implements ReverseGeocoder {
       if (!result || (!result.city && !result.town && !result.village)) return null;
 
       // Best locality name: prefer city/town/village (municipality level)
-      const primaryName = result.city || result.town || result.village || result.municipality || null;
+      const primaryName =
+        result.city || result.town || result.village || result.municipality || null;
 
       // Country code uppercase + full name
       const countryCodeUpper = (result.country_code ?? "").toUpperCase();
@@ -61,8 +62,12 @@ export class GeoapifyReverseGeocoder implements ReverseGeocoder {
         countryCode,
         countryFull,
         name: primaryName,
-        adminLevel: result.result_type === "city" || result.result_type === "town" ? 4 :
-                    result.result_type === "county" ? 6 : 8,
+        adminLevel:
+          result.result_type === "city" || result.result_type === "town"
+            ? 4
+            : result.result_type === "county"
+              ? 6
+              : 8,
         county: result.county ?? null,
         parentName: result.state ?? null,
         parentCountryCode: countryCode,

@@ -7,9 +7,13 @@
 import { db, pool as dbPool } from "../db/client.js";
 import { scans, scanStatusEnum } from "../db/schema.js";
 import { eq, desc, count } from "drizzle-orm";
+import type { PoolClient } from "pg";
 import type { ScanRecord } from "../services/scans.service.js";
 
 class ScansRepository {
+  /** Pooled client currently owning the advisory lock, if any. */
+  private lockClient: PoolClient | null = null;
+
   async createScan(folder: string): Promise<ScanRecord> {
     const result = await db
       .insert(scans)
@@ -48,6 +52,7 @@ class ScansRepository {
       folder: string;
       status: string;
       filesAnalyzed: number;
+      filesTotal: number | null;
       newPhotos: number;
       existingPhotos: number;
       excludedPhotos: number;
@@ -75,25 +80,41 @@ class ScansRepository {
 
   /**
    * Try to acquire a PostgreSQL advisory lock.
+   *
+   * The lock is session-level: the client that acquires it must be the
+   * same one that releases it, otherwise `pg_advisory_unlock` on a
+   * different pooled session fails silently and the lock stays held.
+   * The owning client is therefore kept for the whole lock lifetime
+   * and only returned to the pool on release.
+   *
    * Returns true if acquired, false otherwise.
    */
   async tryAcquireLock(lockID: number): Promise<boolean> {
     const client = await dbPool.connect();
     try {
       const result = await client.query("SELECT pg_try_advisory_lock($1) AS locked", [lockID]);
-      return Boolean(result.rows[0]?.locked);
-    } finally {
+      if (!result.rows[0]?.locked) {
+        client.release();
+        return false;
+      }
+      this.lockClient = client;
+      return true;
+    } catch (err) {
       client.release();
+      throw err;
     }
   }
 
   /**
-   * Release a PostgreSQL advisory lock.
+   * Release a PostgreSQL advisory lock previously acquired with
+   * tryAcquireLock, on the same session that owns it.
    */
-  async releaseLock(lockID: number): Promise<void> {
-    const client = await dbPool.connect();
+  async releaseLock(_lockID: number): Promise<void> {
+    const client = this.lockClient;
+    this.lockClient = null;
+    if (!client) return;
     try {
-      await client.query("SELECT pg_advisory_unlock($1)", [lockID]);
+      await client.query("SELECT pg_advisory_unlock($1)", [_lockID]);
     } finally {
       client.release();
     }

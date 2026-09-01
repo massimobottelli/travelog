@@ -6,12 +6,23 @@
 
 import { db } from "../db/client.js";
 import { scanErrors } from "../db/schema.js";
+import { eq, sql } from "drizzle-orm";
 
 export interface InsertScanErrorInput {
   scanId: number;
   filePath: string;
   errorCode: string;
   message: string;
+}
+
+export interface ScanErrorRecord {
+  id: number;
+  scanId: number | null;
+  filePath: string;
+  errorCode: string;
+  message: string;
+  /** Naive local time as stored in the database ("YYYY-MM-DDTHH:mm:ss"). */
+  createdAt: string;
 }
 
 /**
@@ -27,6 +38,26 @@ export async function insertScanError(input: InsertScanErrorInput): Promise<void
   });
 }
 
+/**
+ * List all errors recorded for a scan, ordered by insertion order.
+ */
+export async function listScanErrors(scanId: number): Promise<ScanErrorRecord[]> {
+  return db
+    .select({
+      id: scanErrors.id,
+      scanId: scanErrors.scanId,
+      filePath: scanErrors.filePath,
+      errorCode: scanErrors.errorCode,
+      message: scanErrors.message,
+      // Serialize the naive timestamp in SQL, independent of the server timezone
+      createdAt: sql<string>`to_char(${scanErrors.createdAt}, 'YYYY-MM-DD"T"HH24:MI:SS')`,
+    })
+    .from(scanErrors)
+    .where(eq(scanErrors.scanId, scanId))
+    .orderBy(scanErrors.id);
+}
+
 export default {
   insertScanError,
+  listScanErrors,
 };

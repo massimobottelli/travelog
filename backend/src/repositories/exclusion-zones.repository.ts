@@ -29,4 +29,3 @@ class ExclusionZonesRepository {
 }
 
 export default new ExclusionZonesRepository();
-

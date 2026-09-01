@@ -6,6 +6,19 @@ dist/
 
 # Generated files
 **/__generated__/**
+backend/src/api/types.ts
+frontend/src/api/types.ts
 
 # Database migrations (auto-generated)
-database/migrations/*.sql
+database/migrations/
+
+# Documentation (prose, not code)
+doc/
+README.md
+
+# Lockfiles and build artifacts
+package-lock.json
+*.tsbuildinfo
+
+# OpenAPI contract is YAML (not in prettier scope)
+openapi/

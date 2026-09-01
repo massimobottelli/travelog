@@ -12,8 +12,12 @@ import { ValidationError } from "../models/errors.js";
 // Map route patterns to operationId (without API prefix)
 const ROUTE_OPS: Record<string, Record<string, string>> = {
   "/health": { get: "getHealth" },
+  "/config": { get: "getConfig", put: "updateConfig" },
+  "/data": { delete: "deleteAllData" },
   "/scans": { post: "startScan", get: "listScans" },
   "/scans/:scanId": { get: "getScan" },
+  "/scans/:scanId/errors": { get: "listScanErrors" },
+  "/photos": { get: "listPhotos" },
   "/trips": { get: "listTrips", post: "createTrip" },
   "/trips/:tripId": { get: "getTrip", patch: "updateTrip" },
   "/trips/:tripId/split": { post: "splitTrip" },
@@ -30,9 +34,7 @@ const ROUTE_OPS: Record<string, Record<string, string>> = {
 function resolveOperationId(path: string, method: string): string | null {
   // Strip API prefix if present (e.g., /api/trips -> /trips)
   const apiPrefix = process.env.API_PREFIX ?? "/api";
-  const basePath = path.startsWith(apiPrefix)
-    ? path.slice(apiPrefix.length) || "/"
-    : path;
+  const basePath = path.startsWith(apiPrefix) ? path.slice(apiPrefix.length) || "/" : path;
 
   // Try exact match
   if (ROUTE_OPS[basePath]?.[method]) return ROUTE_OPS[basePath][method];
@@ -64,13 +66,18 @@ export function openApiValidator(_req: Request, _res: Response, next: NextFuncti
     return;
   }
 
-  // Validate required body fields for POST/PUT/PATCH operations
+  // Validate required body fields for POST/PUT/PATCH operations.
+  // "Required" means present and not null: an empty string is a valid
+  // value (e.g. startScan with an empty folder scans the whole root).
   const requiredFields = REQUIRED_BODY_FIELDS[operationId] ?? [];
   if (
     requiredFields.length > 0 &&
     (_req.method === "POST" || _req.method === "PUT" || _req.method === "PATCH")
   ) {
-    const missing = requiredFields.filter((f) => !(_req.body && _req.body[f]));
+    const missing = requiredFields.filter((f) => {
+      const value = _req.body ? _req.body[f] : undefined;
+      return value === undefined || value === null;
+    });
     if (missing.length > 0) {
       next(
         new ValidationError(`Missing required fields: ${missing.join(", ")}`, { fields: missing }),

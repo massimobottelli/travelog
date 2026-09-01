@@ -24,6 +24,21 @@ class ScansController {
     const scan = await scansService.getScan(scanId);
     res.status(200).json(scan);
   }
+
+  async listScanErrors(req: Request, res: Response): Promise<void> {
+    const scanId = Number(req.params.scanId);
+    const items = await scansService.listScanErrors(scanId);
+    res.status(200).json({
+      items: items.map((err) => ({
+        id: err.id,
+        scanId: err.scanId,
+        filePath: err.filePath,
+        errorCode: err.errorCode,
+        message: err.message,
+        createdAt: err.createdAt,
+      })),
+    });
+  }
 }
 
 export default new ScansController();

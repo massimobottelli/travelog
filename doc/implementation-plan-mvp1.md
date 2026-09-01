@@ -704,21 +704,47 @@ Creare la struttura React e collegarla alle API.
 
 ### Tasks
 
-* [ ] Configurare React/Vite
-* [ ] Configurare routing se necessario
-* [ ] Integrare generated API types
-* [ ] Implementare API client basato su fetch
-* [ ] Implementare gestione errori API
-* [ ] Creare layout applicazione
-* [ ] Creare navigazione principale
-* [ ] Creare componenti UI condivisi
-* [ ] Creare gestione loading
-* [ ] Creare gestione errori
-* [ ] Implementare test componenti fondamentali
+* [x] Configurare React/Vite
+* [x] Configurare routing se necessario
+* [x] Integrare generated API types
+* [x] Implementare API client basato su fetch
+* [x] Implementare gestione errori API
+* [x] Creare layout applicazione
+* [x] Creare navigazione principale
+* [x] Creare componenti UI condivisi
+* [x] Creare gestione loading
+* [x] Creare gestione errori
+* [x] Implementare test componenti fondamentali
 
 ### Done when
 
 Il frontend può comunicare con il backend attraverso il contratto OpenAPI senza duplicare manualmente i tipi API.
+
+---
+
+# ✅ Fase 7 — Frontend foundation: Completata
+
+## Esecuzione Task Fase 7
+
+| # | Task | Stato | Note |
+|---|------|-------|------|
+| 1 | Configurare React/Vite | ✅ | Config esistente, proxy `/api → :3000` |
+| 2 | Configurare routing | ✅ | Navigazione a tab via React state (nessuna libreria routing aggiunta) |
+| 3 | Integrare generated API types | ✅ | `frontend/src/api/types.ts` generato da OpenAPI (`npm run gen:types`) |
+| 4 | Implementare API client | ✅ | `api/client.ts` — fetch wrapper + `ApiError {code,message,details}` |
+| 5 | Gestione errori API | ✅ | Conversione errori contratto + `errorToMessage()` |
+| 6 | Layout applicazione | ✅ | `App.tsx` header + main, CSS `index.css` |
+| 7 | Navigazione principale | ✅ | Tab Scansioni / Foto / Impostazioni |
+| 8 | Componenti UI condivisi | ✅ | StatusBadge, ProgressBar, ErrorAlert, Loading, ScanErrors |
+| 9 | Gestione loading | ✅ | Componente `Loading` + stati per pagina |
+| 10 | Gestione errori | ✅ | `ErrorAlert` + messaggi utente |
+| 11 | Test componenti | ✅ | 39 test Vitest (jsdom + @testing-library/react) |
+
+## Fix del contratto OpenAPI necessari per la generazione tipi
+
+La specifica referenziava `Scan`, `ScanList`, `StartScanRequest` senza definirli.
+Aggiunti gli schemi mancanti; fix path script `gen:types` (ora genera tipi per
+backend **e** frontend da `openapi/openapi.yaml`).
 
 ---
 
@@ -727,6 +753,12 @@ Il frontend può comunicare con il backend attraverso il contratto OpenAPI senza
 ## Goal
 
 Implementare l'interfaccia completa delle funzionalità MVP1.
+
+> **Nota:** questa fase è stata anticipata rispetto alle fasi 5–6. Sono stati
+> implementati **solo** i task le cui API sono già presenti nel backend
+> (scansioni + impostazioni/ricalcolo), più la vista tecnica foto richiesta
+> esplicitamente. I task relativi ai viaggi restano aperti fino al
+> completamento delle fasi 5–6.
 
 ### Tasks
 
@@ -738,13 +770,14 @@ Implementare l'interfaccia completa delle funzionalità MVP1.
 * [ ] Implementare merge
 * [ ] Implementare impostazioni
 * [ ] Implementare zone di esclusione
-* [ ] Implementare avvio scansione
-* [ ] Implementare scan progress
-* [ ] Implementare polling
-* [ ] Implementare stato scan completata
-* [ ] Implementare stato scan con errori
-* [ ] Implementare visualizzazione errori
-* [ ] Implementare ricalcolo esplicito
+* [x] Implementare avvio scansione
+* [x] Implementare scan progress
+* [x] Implementare polling
+* [x] Implementare stato scan completata
+* [x] Implementare stato scan con errori
+* [x] Implementare visualizzazione errori
+* [x] Implementare ricalcolo esplicito
+* [x] Implementare vista tecnica elenco foto (data, coordinate GPS, località gerarchica) — sezione tecnica richiesta in anticipo
 * [ ] Verificare comportamento UI con API reali
 
 ### Done when
@@ -752,6 +785,186 @@ Implementare l'interfaccia completa delle funzionalità MVP1.
 Tutte le funzionalità MVP1 previste dai requisiti sono utilizzabili dalla UI.
 
 Le fotografie non vengono visualizzate.
+
+---
+
+# ✅ Fase 8 (scope anticipato) — Scansioni, ricalcolo e vista tecnica foto: Completata
+
+## Esecuzione Task Fase 8 (scope anticipato)
+
+| # | Task | Stato | Note |
+|---|------|-------|------|
+| 1 | Avvio scansione | ✅ | `ScansPage` form cartella relativa al photo root, `startScan()` → 202 |
+| 2 | Scan progress | ✅ | Progress bar + contatori (analizzati/nuove/già presenti/escluse/errori) |
+| 3 | Polling | ✅ | `useScanProgress(scanId)` — poll `GET /scans/:id`, stop su stato terminale |
+| 4 | Stato scan completata | ✅ | Badge "Completata" + messaggio successo + refresh storico |
+| 5 | Stato scan con errori | ✅ | Badge "Completata con errori" + avviso con numero errori |
+| 6 | Visualizzazione errori | ✅ | `ScanErrors` su nuovo endpoint `GET /scans/:id/errors` |
+| 7 | Ricalcolo esplicito | ✅ | `SettingsPage` pulsante "Ricalcola" → `POST /settings` → `ACCEPTED` |
+| 8 | Vista tecnica foto | ✅ | `PhotosPage`: data/ora naive, GPS originali, località gerarchica (`country/region/county/name`), paginazione + filtro stato |
+
+## Backend aggiuntivo richiesto dalla UI (contratto OpenAPI aggiornato)
+
+* `GET /photos` → `listPhotos` (paginato, filtro `metadataStatus`, join
+  `photos → geocoding_cache → localities` per la località gerarchica)
+* `GET /scans/{scanId}/errors` → `listScanErrors`
+* Fix conformità `GET/PUT /settings` alla forma di contratto OpenAPI
+  (`minimumPhotosPerVisit`, `consecutiveDaysWithoutPhotosBeforeClosing`)
+* Fix `settings` repository update (singleton non più cablato su `id=1`)
+* Serializzazione naive local time (`to_char`) indipendente dal timezone server
+
+## Verifica end-to-end eseguita
+
+* Scan reale cartella `test` (6 foto: JPEG + HEIC): avvio → polling → `completed`,
+  6 analizzate / 6 già presenti / 0 nuove (**idempotenza confermata**)
+* `GET /scans/:id/errors` → lista errori vuota su scan pulita
+* `GET /api/photos` → timestamp naive preservato, GPS originali,
+  località `Erice / Trapani / Sicily / Italy`; foto senza geocoding → `locality: null`
+* `GET/PUT /settings` conforme al contratto; `Ricalcola` → `{"status":"ACCEPTED"}`
+* Build frontend (`tsc -b && vite build`) e backend OK; 51 test backend + 39 test frontend passano
+
+## Limitazioni note
+
+* La generazione reale dei viaggi dal "Ricalcola" arriverà con le fasi 5–6
+  (l'endpoint restituisce già `ACCEPTED` secondo il contratto).
+* La percentuale di avanzamento resta indeterminata durante la scansione:
+  il totale file non è noto a monte (coerente con il contratto, §41).
+
+---
+
+# ✅ Configurazione runtime del photo root — Completata (richiesta utente)
+
+## Modifica
+
+Il photo root (`TRAVELOG_PHOTO_ROOT`) non è più soltanto una variabile di
+deployment: è configurabile dall'utente dalla pagina Impostazioni e persistito
+nel **unico file `.env` alla root del repository** (eliminato `backend/.env`).
+
+| Elemento | Dettaglio |
+|---|---|
+| `.env` unico in root | Caricato con path modulo-relativo (`backend/src/config/dotenv.ts`), indipendente dal cwd |
+| `TRAVELOG_PHOTO_ROOT` | Vuoto di default; impostato/cancellato dall'utente via UI |
+| `GET /api/config` | Restituisce `{ photoRoot: string \| null }` (contratto OpenAPI, tag `Config`) |
+| `PUT /api/config` | Valida (percorso assoluto + directory esistente), riscrive la riga nel `.env` preservando le altre variabili, applica subito al processo (nessun restart) |
+| Scansioni | Banner con la root corrente; avvio fallisce subito (400) se la root non è configurata o non esiste |
+| Impostazioni | Nuova sezione "Percorso foto" con input + salvataggio |
+
+## Sicurezza
+
+* Il valore scritto nel `.env` è ripulito da newline (no injection di chiavi env).
+* La validazione (assoluto, esistente, directory) avviene nel backend prima di scrivere.
+* Test del writer eseguiti su file temporanei, mai sul `.env` reale.
+
+## Verifiche eseguite
+
+* Unit test writer `.env` (creazione, upsert preservando le altre variabili, append, anti-injection): ✅
+* Integration `GET/PUT /api/config` (contratto, 400 su relativo/inesistente): ✅
+* Smoke end-to-end reale: `GET /config` → null → `POST /scans` → 400 fail-fast →
+  `PUT /config` valido (`.env` aggiornato live) → `POST /scans` → `completed` (6/6 nuove,
+  idempotenza confermata dalle scansioni precedenti) → `PUT /config ""` → `.env` azzerato: ✅
+* `doc/technical-design-mvp1.md` §8 aggiornato con la decisione architetturale.
+* **Database di sviluppo e test ripuliti dai dati di test.**
+
+---
+
+# ✅ Comando di cancellazione database — Completato (richiesta utente)
+
+## Modifica
+
+Nuova sezione **Manutenzione** nella pagina Impostazioni con comando di
+cancellazione totale del database, protetta da conferma esplicita a due step.
+
+| Elemento | Dettaglio |
+|---|---|
+| Contratto OpenAPI | `DELETE /data` → `deleteAllData`, 204 / 409 (scan in corso), tag `Data` |
+| Backend | `DataResetService`: singolo `TRUNCATE ... RESTART IDENTITY CASCADE` su tutte le 10 tabelle, dentro l'advisory lock delle scansioni (409 se una scansione è in corso) |
+| Non tocca | La configurazione del photo root nel `.env` è preservata |
+| Frontend | Sezione "Manutenzione" rossa → pulsante "Cancella database" → dialog di conferma ("Sei sicuro?...") → "Sì, cancella tutto" / "Annulla"; messaggio di esito |
+
+## Fix di bug pre-esistente scoperto durante la verifica
+
+L'advisory lock veniva acquisito su una connessione del pool e rilasciato su
+un'altra: `pg_advisory_unlock` su una sessione diversa fallisce silenziosamente
+e il lock resta bloccato, impedendo ogni scansione/reset successivo. Ora il
+client che acquisisce il lock viene conservato fino al rilascio
+(`scans.repository.ts`) — stesso ciclo di vita, stessa sessione.
+
+## Verifiche eseguite
+
+* Integration test `DELETE /api/data`: semina dati su tutte le tabelle → 204 →
+  tutte le tabelle a 0 → le impostazioni tornano ai default: ✅
+* Test UI del flusso di conferma (nessuna DELETE prima della conferma, Annulla
+  senza effetti, conferma → una sola chiamata): ✅
+* Smoke end-to-end reale su `travelog_test`: scan reale (6 foto) → `DELETE /data`
+  → 204 → tutte le tabelle azzerate → config `.env` intatta → secondo DELETE → 204: ✅
+* **Verificato anche il rifiuto durante una scansione attiva (409).** ✅
+* 67 test backend + 45 test frontend passano; lint e build OK.
+* Database di sviluppo (`travelog_dev`) con i dati reali dell'utente **non toccato**;
+  database di test ripulito.
+
+---
+
+# ✅ Fix: scansione con cartella vuota (intera photo root) — Completato
+
+## Problema
+
+`POST /scans` con `folder: ""` (intera photo root) veniva rifiutato con
+`Missing required fields: folder` da tre punti che trattavano la stringa
+vuota come valore mancante.
+
+## Fix (tre livelli)
+
+| Livello | Prima | Dopo |
+|---|---|---|
+| Contratto OpenAPI | `folder` con `minLength: 1` | Rimosso `minLength`: stringa vuota valida, documentata come "intera photo root" |
+| Middleware validazione | `!body[f]` (vuoto = mancante) | Mancante solo se `undefined` o `null` |
+| `scans.service` | `!folder` rifiutava `""`; target costruito con concatenazione | Accetta `""`; target con `path.join(photoRoot, folder)` (niente doppi slash) |
+
+## Verifiche
+
+* Unit test middleware (cartella vuota accettata, campo assente rifiutato): ✅
+* Integration: `POST /scans` con `folder: ""` supera la validazione del body e
+  si ferma solo sul check del photo root; richiesta senza `folder` → 400: ✅
+* Smoke E2E reale su `travelog_test` con photo root = cartella `test`:
+  `POST /scans {folder:""}` → `completed`, 6/6 foto importate; `.env`
+  ripristinato al valore dell'utente; DB di test ripulito: ✅
+* 72 test backend + 45 test frontend; lint e build OK.
+
+---
+
+# ✅ Tailwind CSS + progress bar proporzionale — Completati
+
+## 1. Tailwind CSS (richiesta utente)
+
+* Installato **Tailwind CSS v4** con plugin Vite `@tailwindcss/vite` (unica
+  aggiunta di dipendenze, richiesta esplicita dell'utente).
+* `@import "tailwindcss";` in `frontend/src/index.css`; il CSS custom
+  pre-esistente resta per i componenti già realizzati.
+* `ProgressBar` riscritta con utility Tailwind (animazione indeterminata in CSS custom).
+
+## 2. Progress bar proporzionale (richiesta utente)
+
+La barra avanza proporzionalmente a `foto scansionate / totale foto da
+scansionare` (totale **inclusi i sub-folder**, noto subito dopo
+l'enumerazione ricorsiva):
+
+| Livello | Modifica |
+|---|---|
+| Migration 0005 | `scans.files_total integer` (`database/migrations/0005_add_files_total.sql`, applicata a dev e test) |
+| OpenAPI | `Scan.filesTotal` (nullable, con descrizione) |
+| Backend | Lo scanner persiste `filesTotal = entries.length` subito dopo l'enumerazione |
+| Frontend | Percentuale = `filesAnalyzed / filesTotal`; indeterminata solo durante la fase di enumerazione; etichetta "Elaborazione: X di Y file (Z%)" |
+
+## Verifiche
+
+* Smoke E2E reale su `travelog_test`: poll a metà scansione →
+  `running, filesAnalyzed: 3, filesTotal: 6` (50%); finale → `6/6`, 100%: ✅
+* Integration `GET /scans/:id` espone `filesTotal`: ✅
+* Migration 0005 applicata a `travelog_dev` e `travelog_test`: ✅
+* Build frontend con Tailwind (CSS 11.5 kB con utility generate): ✅
+* 73 test backend + 47 test frontend; lint OK; DB di test ripulito.
+
+---
 
 ---
 
@@ -1079,4 +1292,6 @@ Cline deve aggiornare le checkbox **solo dopo aver verificato il completamento d
 
 Il piano deve rimanere aggiornato durante tutto lo sviluppo MVP1.
 
-**Fasi completate:** Phase 0, Phase 1, Phase 2, Phase 3, **Phase 4**
+**Fasi completate:** Phase 0, Phase 1, Phase 2, Phase 3, **Phase 4**, **Phase 7**, **Phase 8 (scope anticipato: scansioni, ricalcolo, vista tecnica foto)**
+
+**Nota sull'ordine:** la Fase 7 e una parte della Fase 8 sono state implementate in anticipo rispetto alle fasi 5–6 (presenze/generazione viaggi e operazioni sui viaggi), su richiesta esplicita, limitandosi alle funzionalità già supportate dal backend.

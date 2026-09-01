@@ -25,11 +25,13 @@ class GeocodingService {
 
   constructor(geoapifyApiKey: string | null) {
     if (geoapifyApiKey) {
-      import("../infrastructure/geocoder/geoapify-reverse-geocoder.js").then((m) => {
-        this.geocoder = new m.GeoapifyReverseGeocoder(geoapifyApiKey);
-      }).catch(() => {
-        console.warn("[Geocoding] Geoapify module not loaded, geocoding disabled");
-      });
+      import("../infrastructure/geocoder/geoapify-reverse-geocoder.js")
+        .then((m) => {
+          this.geocoder = new m.GeoapifyReverseGeocoder(geoapifyApiKey);
+        })
+        .catch(() => {
+          console.warn("[Geocoding] Geoapify module not loaded, geocoding disabled");
+        });
     }
   }
 
@@ -118,4 +120,3 @@ class GeocodingService {
 }
 
 export default new GeocodingService(process.env.GEOCOAPIFY_API_KEY ?? null);
-

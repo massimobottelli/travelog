@@ -6,8 +6,8 @@
  */
 
 import { db, pool as dbPool } from "../db/client.js";
-import { photos, metadataStatusEnum } from "../db/schema.js";
-import { eq, and } from "drizzle-orm";
+import { photos, geocodingCache, localities, metadataStatusEnum } from "../db/schema.js";
+import { eq, and, desc, count, sql } from "drizzle-orm";
 import type { ScanEntry } from "../scans/photo-enumeration.js";
 import type { RawExifData } from "../scans/exiftool.js";
 
@@ -85,7 +85,13 @@ export async function upsertPhoto(input: UpsertPhotoInput): Promise<number> {
       const [existing] = await db
         .select()
         .from(photos)
-        .where(and(eq(photos.filePath, input.filePath), eq(photos.size, input.size), eq(photos.mtime, input.mtime)))
+        .where(
+          and(
+            eq(photos.filePath, input.filePath),
+            eq(photos.size, input.size),
+            eq(photos.mtime, input.mtime),
+          ),
+        )
         .limit(1);
       if (existing) {
         return existing.id;
@@ -114,17 +120,116 @@ export async function markPhotoExcluded(
     .where(and(eq(photos.filePath, filePath), eq(photos.size, size), eq(photos.mtime, mtime)));
 }
 
+export interface PhotoLocality {
+  countryCode: string;
+  name: string;
+  county: string | null;
+  region: string | null;
+  country: string | null;
+}
+
+export interface PhotoListItem {
+  id: number;
+  filePath: string;
+  fileName: string;
+  fileType: string;
+  /** Naive local time as stored in the database ("YYYY-MM-DDTHH:mm:ss"). */
+  dateTimeOriginal: string;
+  originalLatitude: number | null;
+  originalLongitude: number | null;
+  metadataStatus: string;
+  exclusionReason: string | null;
+  locality: PhotoLocality | null;
+}
+
+export interface PhotoListResult {
+  items: PhotoListItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+/**
+ * List catalogued photos ordered by shoot date (descending), paginated.
+ *
+ * Each photo is enriched with the hierarchical administrative locality
+ * resolved by reverse geocoding, resolved through the geocoding cache
+ * keyed on the original EXIF coordinates.
+ */
+export async function listPhotos(
+  page: number,
+  pageSize: number,
+  metadataStatus?: "valid" | "excluded",
+): Promise<PhotoListResult> {
+  const offset = (page - 1) * pageSize;
+  const where = metadataStatus ? eq(photos.metadataStatus, metadataStatus) : undefined;
+
+  const rows = await db
+    .select({
+      id: photos.id,
+      filePath: photos.filePath,
+      fileName: photos.fileName,
+      fileType: photos.fileType,
+      // Serialize the naive timestamp in SQL so the value is independent
+      // of the server timezone (EXIF DateTimeOriginal is naive local time).
+      dateTimeOriginal: sql<string>`to_char(${photos.dateTimeOriginal}, 'YYYY-MM-DD"T"HH24:MI:SS')`,
+      originalLatitude: photos.originalLatitude,
+      originalLongitude: photos.originalLongitude,
+      metadataStatus: photos.metadataStatus,
+      exclusionReason: photos.exclusionReason,
+      localityCountryCode: geocodingCache.countryCode,
+      localityName: geocodingCache.name,
+      localityCounty: localities.county,
+      localityRegion: localities.region,
+      localityCountry: localities.country,
+    })
+    .from(photos)
+    .leftJoin(
+      geocodingCache,
+      and(
+        eq(geocodingCache.originalLatitude, photos.originalLatitude),
+        eq(geocodingCache.originalLongitude, photos.originalLongitude),
+      ),
+    )
+    .leftJoin(localities, eq(localities.id, geocodingCache.localityId))
+    .where(where)
+    .orderBy(desc(photos.dateTimeOriginal), desc(photos.id))
+    .limit(pageSize)
+    .offset(offset);
+
+  const [{ total }] = await db.select({ total: count() }).from(photos).where(where);
+
+  const items: PhotoListItem[] = rows.map((row) => ({
+    id: row.id,
+    filePath: row.filePath,
+    fileName: row.fileName,
+    fileType: row.fileType,
+    dateTimeOriginal: row.dateTimeOriginal,
+    originalLatitude: row.originalLatitude,
+    originalLongitude: row.originalLongitude,
+    metadataStatus: row.metadataStatus,
+    exclusionReason: row.exclusionReason ?? null,
+    locality:
+      row.localityCountryCode && row.localityName
+        ? {
+            countryCode: row.localityCountryCode,
+            name: row.localityName,
+            county: row.localityCounty ?? null,
+            region: row.localityRegion ?? null,
+            country: row.localityCountry ?? null,
+          }
+        : null,
+  }));
+
+  return { items, page, pageSize, total };
+}
+
 /**
  * Convert a ScanEntry + ExifTool output into a photo insert/update input.
  */
-export function buildPhotoInput(
-  entry: ScanEntry,
-  exif: RawExifData,
-): UpsertPhotoInput {
+export function buildPhotoInput(entry: ScanEntry, exif: RawExifData): UpsertPhotoInput {
   const isValid =
-    exif.dateTimeOriginal !== null &&
-    exif.latitude !== null &&
-    exif.longitude !== null;
+    exif.dateTimeOriginal !== null && exif.latitude !== null && exif.longitude !== null;
 
   let exclusionReason: string | null = null;
   if (!isValid) {
@@ -140,7 +245,9 @@ export function buildPhotoInput(
     fileType: entry.fileType,
     size: entry.size,
     mtime: entry.mtime,
-    dateTimeOriginal: exif.dateTimeOriginal ? new Date(exif.dateTimeOriginal) : new Date("1970-01-01"),
+    dateTimeOriginal: exif.dateTimeOriginal
+      ? new Date(exif.dateTimeOriginal)
+      : new Date("1970-01-01"),
     latitude: exif.latitude,
     longitude: exif.longitude,
     status: isValid ? metadataStatusEnum.enumValues[0] : metadataStatusEnum.enumValues[1],
@@ -153,4 +260,5 @@ export default {
   upsertPhoto,
   markPhotoExcluded,
   buildPhotoInput,
+  listPhotos,
 };

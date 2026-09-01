@@ -1,17 +1,22 @@
 {
   "name": "travelog",
   "private": true,
-  "workspaces": ["backend", "frontend"],
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "engines": {
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "prettier": "^3.9.6"
   },
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace=@travelog/backend\" \"npm run dev --workspace=@travelog/frontend\"",
     "build": "npm run build --workspace=@travelog/backend && npm run build --workspace=@travelog/frontend",
     "test": "npm run test --workspace=@travelog/backend && npm run test --workspace=@travelog/frontend",
+    "gen:types": "npm run gen:types --workspace=@travelog/backend",
     "lint": "prettier --check \"**/*.{ts,tsx,json,md}\"",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
   }

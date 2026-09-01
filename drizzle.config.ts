@@ -9,12 +9,12 @@
  *   npm run db:migrate    → runs pending migrations against DATABASE_URL
  */
 
-import { defineConfig } from 'drizzle-kit';
+import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
-  schema: './backend/src/db/schema.ts',
-  out: './database/migrations',
-  dialect: 'postgresql',
+  schema: "./backend/src/db/schema.ts",
+  out: "./database/migrations",
+  dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },

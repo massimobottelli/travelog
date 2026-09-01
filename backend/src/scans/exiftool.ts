@@ -75,7 +75,7 @@ export async function readExif(filePath: string): Promise<RawExifData | null> {
 
         try {
           const parsed = JSON.parse(stdout.trim());
-          const obj = Array.isArray(parsed) ? parsed[0] ?? {} : parsed;
+          const obj = Array.isArray(parsed) ? (parsed[0] ?? {}) : parsed;
           setResolved(parseExifOutput(obj));
         } catch {
           setResolved(null);
@@ -142,16 +142,13 @@ function parseDateTimeOriginal(value: unknown): string | null {
  *   "37 deg 52' 52.44\" N"
  * We parse these into decimal degrees.
  */
-function parseGps(obj: Record<string, unknown>): { latitude: number | null; longitude: number | null } {
-  const lat = parseSingleCoordinate(
-    obj.GPSLatitude,
-    obj.GPSLatitudeRef,
-  );
+function parseGps(obj: Record<string, unknown>): {
+  latitude: number | null;
+  longitude: number | null;
+} {
+  const lat = parseSingleCoordinate(obj.GPSLatitude, obj.GPSLatitudeRef);
 
-  const lon = parseSingleCoordinate(
-    obj.GPSLongitude,
-    obj.GPSLongitudeRef,
-  );
+  const lon = parseSingleCoordinate(obj.GPSLongitude, obj.GPSLongitudeRef);
 
   return { latitude: lat, longitude: lon };
 }
@@ -160,10 +157,7 @@ function parseGps(obj: Record<string, unknown>): { latitude: number | null; long
  * Convert a GPS coordinate string "37 deg 52' 52.44\" N" to decimal degrees.
  * This is the format ExifTool returns by default in JSON output.
  */
-function parseSingleCoordinateString(
-  coordStr: string,
-  ref: unknown,
-): number | null {
+function parseSingleCoordinateString(coordStr: string, ref: unknown): number | null {
   // Format: "NN deg MM' SS.SS\" [NSEW]"
   const match = coordStr.match(/^(\d+) deg (\d+)' ([\d.]+)"\s+(N|S|E|W)$/);
   if (!match) return null;
@@ -182,10 +176,7 @@ function parseSingleCoordinateString(
  * Convert a GPS coordinate array [deg, min, sec] + Ref to decimal degrees.
  * Kept for potential future raw-format usage.
  */
-function parseSingleCoordinate(
-  coord: unknown,
-  ref: unknown,
-): number | null {
+function parseSingleCoordinate(coord: unknown, ref: unknown): number | null {
   if (!Array.isArray(coord) || coord.length < 3) {
     // Try string format instead
     if (typeof coord === "string") {

@@ -12,7 +12,10 @@ import { loadOpenApiSpec } from "./utils/openapi.js";
 import { openApiValidator } from "./middleware/openapi.js";
 import { errorHandler } from "./middleware/error.js";
 import healthRoutes from "./routes/health.routes.js";
+import configRoutes from "./routes/config.routes.js";
 import scansRoutes from "./routes/scans.routes.js";
+import dataRoutes from "./routes/data.routes.js";
+import photosRoutes from "./routes/photos.routes.js";
 import tripsRoutes from "./routes/trips.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import exclusionZonesRoutes from "./routes/exclusion-zones.routes.js";
@@ -40,7 +43,10 @@ export function createApp(): ReturnType<typeof express> {
 
   // ── Routes ───────────────────────────────────────────────────
   app.use(`${API_PREFIX}/health`, healthRoutes);
+  app.use(`${API_PREFIX}/config`, configRoutes);
+  app.use(`${API_PREFIX}/data`, dataRoutes);
   app.use(`${API_PREFIX}/scans`, scansRoutes);
+  app.use(`${API_PREFIX}/photos`, photosRoutes);
   app.use(`${API_PREFIX}/trips`, tripsRoutes);
   app.use(`${API_PREFIX}/settings`, settingsRoutes);
   app.use(`${API_PREFIX}/exclusion-zones`, exclusionZonesRoutes);

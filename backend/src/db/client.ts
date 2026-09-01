@@ -5,8 +5,9 @@
  * Connection string comes from `DATABASE_URL` environment variable.
  */
 
-import dotenv from "dotenv";
-dotenv.config();
+import { loadRootEnv } from "../config/dotenv.js";
+
+loadRootEnv();
 
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";

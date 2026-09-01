@@ -90,6 +90,8 @@ export const scans = pgTable(
     endedAt: timestamp("ended_at", { mode: "date", withTimezone: true }),
     status: scanStatusEnum("status").notNull(),
     filesAnalyzed: integer("files_analyzed").default(0),
+    /** Total supported files found by enumeration (known when the scan starts processing). */
+    filesTotal: integer("files_total"),
     newPhotos: integer("new_photos").default(0),
     existingPhotos: integer("existing_photos").default(0),
     excludedPhotos: integer("excluded_photos").default(0),
@@ -303,5 +305,3 @@ export const exclusionZones = pgTable("exclusion_zones", {
     .notNull()
     .defaultNow(),
 });
-
-

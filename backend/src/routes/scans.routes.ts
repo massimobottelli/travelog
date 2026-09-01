@@ -16,4 +16,7 @@ router.get("/", scansController.listScans);
 // GET /scans/:id — get scan status/progress
 router.get("/:scanId", scansController.getScan);
 
+// GET /scans/:id/errors — list per-file errors of a scan
+router.get("/:scanId/errors", scansController.listScanErrors);
+
 export default router;

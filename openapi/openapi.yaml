@@ -18,12 +18,15 @@ servers:
 
 tags:
   - name: Health
+  - name: Config
   - name: Scans
+  - name: Photos
   - name: Trips
   - name: Trip Operations
   - name: Localities
   - name: Exclusion Zones
   - name: Settings
+  - name: Data
 
 paths:
   /health:
@@ -106,6 +109,127 @@ paths:
                 $ref: "#/components/schemas/Scan"
         "404":
           description: Scan not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /scans/{scanId}/errors:
+    get:
+      tags: [Scans]
+      operationId: listScanErrors
+      summary: List errors recorded for a scan
+      parameters:
+        - $ref: "#/components/parameters/ScanId"
+      responses:
+        "200":
+          description: Scan errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanErrorList"
+        "404":
+          description: Scan not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /photos:
+    get:
+      tags: [Photos]
+      operationId: listPhotos
+      summary: List catalogued photos
+      description: |
+        Technical data listing of catalogued photos.
+
+        Photos are not displayed as images in MVP1; this view exposes
+        the persisted metadata only: original shoot timestamp, original
+        GPS coordinates and the hierarchical administrative locality
+        resolved by reverse geocoding when available.
+      parameters:
+        - name: metadataStatus
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/PhotoMetadataStatus"
+          description: Filter by metadata status.
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Photo list ordered by shoot date descending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotoList"
+        "400":
+          description: Invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /config:
+    get:
+      tags: [Config]
+      operationId: getConfig
+      summary: Get runtime configuration
+      responses:
+        "200":
+          description: Runtime configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeConfig"
+
+    put:
+      tags: [Config]
+      operationId: updateConfig
+      summary: Update the photo root path
+      description: |
+        Persists TRAVELOG_PHOTO_ROOT in the root .env file and applies
+        the change immediately. An empty value clears the configuration.
+
+        The path must be absolute and must exist as a directory.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateConfigRequest"
+      responses:
+        "200":
+          description: Updated runtime configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeConfig"
+        "400":
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /data:
+    delete:
+      tags: [Data]
+      operationId: deleteAllData
+      summary: Delete all catalogued data
+      description: |
+        Irreversibly deletes every photo, scan, scan error, locality,
+        geocoding cache entry, presence, trip, trip history record and
+        application setting.
+
+        The photo root configuration (.env) is not modified.
+
+        The operation is rejected while a scan is running.
+      responses:
+        "204":
+          description: All data deleted
+        "409":
+          description: Another scan is already running
           content:
             application/json:
               schema:
@@ -593,6 +717,234 @@ components:
         environment:
           type: string
           example: development
+
+    StartScanRequest:
+      type: object
+      additionalProperties: false
+      required: [folder]
+      properties:
+        folder:
+          type: string
+          maxLength: 1024
+          description: |
+            Directory to scan, relative to the configured photo root.
+            An empty string scans the whole photo root.
+
+    RuntimeConfig:
+      type: object
+      additionalProperties: false
+      required: [photoRoot]
+      properties:
+        photoRoot:
+          type: string
+          nullable: true
+          description: |
+            Root directory of the photo archive (TRAVELOG_PHOTO_ROOT).
+            Null when not yet configured.
+
+    UpdateConfigRequest:
+      type: object
+      additionalProperties: false
+      required: [photoRoot]
+      properties:
+        photoRoot:
+          type: [string, "null"]
+          description: |
+            New photo root path. Must be absolute and exist as a directory.
+            An empty string or null clears the configuration.
+
+    ScanStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - completed
+        - completed_with_errors
+        - failed
+
+    Scan:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - folder
+        - status
+        - startedAt
+        - filesAnalyzed
+        - newPhotos
+        - existingPhotos
+        - excludedPhotos
+        - errors
+      properties:
+        id:
+          type: integer
+          format: int64
+        folder:
+          type: string
+        status:
+          $ref: "#/components/schemas/ScanStatus"
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        filesAnalyzed:
+          type: integer
+          nullable: true
+        filesTotal:
+          type: integer
+          nullable: true
+          description: |
+            Total supported files found by enumeration (including
+            subfolders). Known once enumeration completes; enables the
+            proportional progress bar.
+        newPhotos:
+          type: integer
+          nullable: true
+        existingPhotos:
+          type: integer
+          nullable: true
+        excludedPhotos:
+          type: integer
+          nullable: true
+        errors:
+          type: integer
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+
+    ScanList:
+      type: object
+      additionalProperties: false
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Scan"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+
+    ScanError:
+      type: object
+      additionalProperties: false
+      required: [id, scanId, filePath, errorCode, message, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        scanId:
+          type: integer
+          format: int64
+        filePath:
+          type: string
+        errorCode:
+          type: string
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ScanErrorList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScanError"
+
+    PhotoMetadataStatus:
+      type: string
+      enum: [valid, excluded]
+
+    PhotoLocality:
+      type: object
+      additionalProperties: false
+      required: [countryCode, name]
+      properties:
+        countryCode:
+          type: string
+        name:
+          type: string
+          description: Most specific administrative unit resolved by the geocoder
+        county:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+
+    Photo:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - filePath
+        - fileName
+        - fileType
+        - dateTimeOriginal
+        - originalLatitude
+        - originalLongitude
+        - metadataStatus
+      properties:
+        id:
+          type: integer
+          format: int64
+        filePath:
+          type: string
+        fileName:
+          type: string
+        fileType:
+          type: string
+        dateTimeOriginal:
+          type: string
+          format: date-time
+          description: EXIF DateTimeOriginal as naive local time
+        originalLatitude:
+          type: number
+          nullable: true
+        originalLongitude:
+          type: number
+          nullable: true
+        metadataStatus:
+          $ref: "#/components/schemas/PhotoMetadataStatus"
+        exclusionReason:
+          type: string
+          nullable: true
+        locality:
+          description: Hierarchical administrative locality when reverse geocoding succeeded
+          oneOf:
+            - $ref: "#/components/schemas/PhotoLocality"
+          nullable: true
+
+    PhotoList:
+      type: object
+      additionalProperties: false
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Photo"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
 
     Trip:
       type: object

@@ -40,4 +40,3 @@ const exclusionZonesService = {
 };
 
 export default exclusionZonesService;
-

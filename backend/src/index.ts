@@ -2,8 +2,8 @@
  * Travelog MVP1 — Entry Point
  */
 
-import dotenv from "dotenv";
-dotenv.config();
+import { loadRootEnv } from "./config/dotenv.js";
+loadRootEnv();
 
 import { createApp } from "./app.js";
 

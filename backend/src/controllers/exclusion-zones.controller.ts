@@ -25,4 +25,3 @@ class ExclusionZonesController {
 }
 
 export default new ExclusionZonesController();
-

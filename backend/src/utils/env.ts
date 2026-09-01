@@ -2,22 +2,44 @@
  * Travelog MVP1 — Environment Configuration
  */
 
-import dotenv from "dotenv";
+import { loadRootEnv } from "../config/dotenv.js";
 
-dotenv.config();
+loadRootEnv();
 
 export const env = {
-  get databaseUrl() { return required("DATABASE_URL"); },
-  get databasePoolMax() { return numberEnv("DATABASE_POOL_MAX", 10); },
-  get photoRoot() { return process.env.TRAVELOG_PHOTO_ROOT; },
-  get host() { return process.env.HOST ?? "0.0.0.0"; },
-  get port() { return numberEnv("PORT", 3000); },
-  get apiPrefix() { return process.env.API_PREFIX ?? "/api"; },
-  get corsOrigin() { return process.env.CORS_ORIGIN ?? "http://localhost:5173"; },
-  get nodeEnv() { return process.env.NODE_ENV ?? "development"; },
-  get logLevel() { return (process.env.LOG_LEVEL ?? "info") as "debug" | "info" | "warn" | "error"; },
-  get exiftoolPath() { return process.env.EXIFTOOL_PATH ?? "exiftool"; },
-  get geoapifyApiKey() { return process.env.GEOCOAPIFY_API_KEY; },
+  get databaseUrl() {
+    return required("DATABASE_URL");
+  },
+  get databasePoolMax() {
+    return numberEnv("DATABASE_POOL_MAX", 10);
+  },
+  get photoRoot() {
+    return process.env.TRAVELOG_PHOTO_ROOT;
+  },
+  get host() {
+    return process.env.HOST ?? "0.0.0.0";
+  },
+  get port() {
+    return numberEnv("PORT", 3000);
+  },
+  get apiPrefix() {
+    return process.env.API_PREFIX ?? "/api";
+  },
+  get corsOrigin() {
+    return process.env.CORS_ORIGIN ?? "http://localhost:5173";
+  },
+  get nodeEnv() {
+    return process.env.NODE_ENV ?? "development";
+  },
+  get logLevel() {
+    return (process.env.LOG_LEVEL ?? "info") as "debug" | "info" | "warn" | "error";
+  },
+  get exiftoolPath() {
+    return process.env.EXIFTOOL_PATH ?? "exiftool";
+  },
+  get geoapifyApiKey() {
+    return process.env.GEOCOAPIFY_API_KEY;
+  },
 } as const;
 
 function required(name: string): string {
