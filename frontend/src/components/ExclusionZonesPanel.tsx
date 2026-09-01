@@ -28,14 +28,146 @@ export default function ExclusionZonesPanel() {
   const [results, setResults] = useState<Locality[]>([]);
   const [searching, setSearching] = useState(false);
 
-  const [adding, setAdding] = useState<number | null>(null);
+  const [adding, setAdding] = useState<string | null>(null);
   const [removing, setRemoving] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   useAutoDismiss(message, () => setMessage(null));
   const [searched, setSearched] = useState<string | null>(null);
-  /** Chosen scope per search result locality (default: the locality itself). */
-  const [scopes, setScopes] = useState<Record<number, "locality" | "county" | "region">>({});
+
+  // ── Grouped search results ─────────────────────────────────
+  // The localities table holds one row per geocoded coordinate hash,
+  // so a raw search returns the same city/province many times. Group
+  // the results so each commune appears once, plus one province row
+  // and one region row (variants such as Milan/Milano merged).
+
+  type SearchRow =
+    | {
+        kind: "locality";
+        key: string;
+        label: string;
+        level: string;
+        hint: string;
+        localityId: number;
+      }
+    | { kind: "county"; key: string; label: string; level: string; hint: string; anchor: Locality }
+    | { kind: "region"; key: string; label: string; level: string; hint: string; anchor: Locality };
+
+  const normalizeName = (value: string): string => value.toLowerCase().replace(/['’\s-]/g, "");
+
+  /** Same heuristic as the backend: variants share a ≥5-char prefix. */
+  function nameVariantsMatch(a: string, b: string): boolean {
+    const na = normalizeName(a);
+    const nb = normalizeName(b);
+    if (na === nb) return true;
+    const min = Math.min(na.length, nb.length);
+    if (min < 5) return false;
+    return na.startsWith(nb) || nb.startsWith(na);
+  }
+
+  function groupResults(items: Locality[], query: string): SearchRow[] {
+    const nq = normalizeName(query.trim());
+    /** A level row is shown only when its own field matches the query. */
+    const matches = (value: string): boolean => nq.length > 0 && normalizeName(value).includes(nq);
+    const rows: SearchRow[] = [];
+    const seenLocality = new Set<string>();
+    const countyGroups = new Map<string, { label: string; hint: string; anchor: Locality }>();
+    const regionGroups = new Map<string, { label: string; hint: string; anchor: Locality }>();
+
+    for (const l of items) {
+      const country = l.country ?? "";
+      const locKey = `${l.name}|${l.county ?? ""}|${l.region ?? ""}|${country}`.toLowerCase();
+      if (matches(l.name) && !seenLocality.has(locKey)) {
+        seenLocality.add(locKey);
+        rows.push({
+          kind: "locality",
+          key: locKey,
+          label: l.name,
+          level: "Comune/località",
+          hint: [l.county, l.region, l.country].filter(Boolean).join(", "),
+          localityId: l.id,
+        });
+      }
+      if (l.county && matches(l.county)) {
+        const ck = `${country}:${l.county}`.toLowerCase();
+        const existing = [...countyGroups.keys()].find(
+          (k) =>
+            k.split(":")[0] === country.toLowerCase() &&
+            k.includes(":") &&
+            nameVariantsMatch(k.slice(k.indexOf(":") + 1), normalizeName(l.county as string)),
+        );
+        if (!existing && !countyGroups.has(ck)) {
+          countyGroups.set(ck, {
+            label: `Provincia: ${l.county}`,
+            hint: [l.region, l.country].filter(Boolean).join(", "),
+            anchor: l,
+          });
+        }
+      }
+      if (l.region && matches(l.region)) {
+        const rk = `${country}:${l.region}`.toLowerCase();
+        const existing = [...regionGroups.keys()].find(
+          (k) =>
+            k.split(":")[0] === country.toLowerCase() &&
+            k.includes(":") &&
+            nameVariantsMatch(k.slice(k.indexOf(":") + 1), normalizeName(l.region as string)),
+        );
+        if (!existing && !regionGroups.has(rk)) {
+          regionGroups.set(rk, {
+            label: `Regione: ${l.region}`,
+            hint: l.country ?? "",
+            anchor: l,
+          });
+        }
+      }
+    }
+
+    for (const [key, g] of countyGroups) {
+      rows.push({
+        kind: "county",
+        key: `county-${key}`,
+        label: g.label,
+        level: "Provincia",
+        hint: g.hint,
+        anchor: g.anchor,
+      });
+    }
+    for (const [key, g] of regionGroups) {
+      rows.push({
+        kind: "region",
+        key: `region-${key}`,
+        label: g.label,
+        level: "Regione",
+        hint: g.hint,
+        anchor: g.anchor,
+      });
+    }
+    return rows;
+  }
+
+  const rows = groupResults(results, searched ?? "");
+
+  const handleAddRow = async (row: SearchRow): Promise<void> => {
+    const anchorId = row.kind === "locality" ? row.localityId : row.anchor.id;
+    const area =
+      row.kind === "locality"
+        ? `il comune ${row.label}`
+        : row.label.replace(/^Provincia: /, "la provincia ").replace(/^Regione: /, "la regione ");
+    setAdding(row.key);
+    setError(null);
+    setMessage(null);
+    try {
+      await createExclusionZone(anchorId, row.kind);
+      setMessage(`Zona di esclusione creata: ${area}`);
+      setResults([]);
+      setQuery("");
+      await reload();
+    } catch (err: unknown) {
+      setError(errorToMessage(err));
+    } finally {
+      setAdding(null);
+    }
+  };
 
   const reload = useCallback(async () => {
     setLoadError(null);
@@ -67,29 +199,17 @@ export default function ExclusionZonesPanel() {
     }
   };
 
-  const handleAdd = async (locality: Locality): Promise<void> => {
-    setAdding(locality.id);
-    setError(null);
-    setMessage(null);
-    try {
-      const scope = scopes[locality.id] ?? "locality";
-      await createExclusionZone(locality.id, scope);
-      const area =
-        scope === "region"
-          ? `la regione ${locality.region}`
-          : scope === "county"
-            ? `la provincia ${locality.county}`
-            : `il comune ${locality.name}`;
-      setMessage(`Zona di esclusione creata: ${area}`);
-      setResults([]);
-      setQuery("");
-      await reload();
-    } catch (err: unknown) {
-      setError(errorToMessage(err));
-    } finally {
-      setAdding(null);
+  /** Label of the excluded area: county/region scopes show the area name,
+   * not the anchor locality the zone is technically attached to. */
+  function zoneAreaLabel(zone: ExclusionZone): string {
+    if (zone.scope === "county" && zone.locality.county) {
+      return `Provincia: ${zone.locality.county}`;
     }
-  };
+    if (zone.scope === "region" && zone.locality.region) {
+      return `Regione: ${zone.locality.region}`;
+    }
+    return zone.locality.name;
+  }
 
   const handleDelete = async (zone: ExclusionZone): Promise<void> => {
     setRemoving(zone.id);
@@ -97,7 +217,7 @@ export default function ExclusionZonesPanel() {
     setMessage(null);
     try {
       await deleteExclusionZone(zone.id);
-      setMessage(`Zona di esclusione rimossa: ${zone.locality.name}`);
+      setMessage(`Zona di esclusione rimossa: ${zoneAreaLabel(zone)}`);
       await reload();
     } catch (err: unknown) {
       setError(errorToMessage(err));
@@ -133,16 +253,17 @@ export default function ExclusionZonesPanel() {
                     ? "Provincia"
                     : "Comune"}
               </span>
-              <strong>{zone.locality.name}</strong>
-              {(zone.locality.county || zone.locality.region || zone.locality.country) && (
-                <span className="hint">
-                  {" "}
-                  —{" "}
-                  {[zone.locality.county, zone.locality.region, zone.locality.country]
-                    .filter(Boolean)
-                    .join(", ")}
-                </span>
-              )}
+              <strong>{zoneAreaLabel(zone)}</strong>
+              {zone.scope === "locality" &&
+                (zone.locality.county || zone.locality.region || zone.locality.country) && (
+                  <span className="hint">
+                    {" "}
+                    —{" "}
+                    {[zone.locality.county, zone.locality.region, zone.locality.country]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
+                )}
               <button
                 type="button"
                 className="danger"
@@ -186,46 +307,18 @@ export default function ExclusionZonesPanel() {
         </p>
       )}
 
-      {results.length > 0 && (
+      {rows.length > 0 && (
         <ul className="exclusion-results">
-          {results.map((locality) => {
-            const chosen = scopes[locality.id] ?? "locality";
-            return (
-              <li key={locality.id}>
-                <strong>{locality.name}</strong>
-                <span className="hint">
-                  {" "}
-                  —{" "}
-                  {[locality.county, locality.region, locality.country].filter(Boolean).join(", ")}
-                </span>
-                <select
-                  aria-label={`Ambito di esclusione per ${locality.name}`}
-                  value={chosen}
-                  onChange={(e) =>
-                    setScopes((s) => ({
-                      ...s,
-                      [locality.id]: e.target.value as "locality" | "county" | "region",
-                    }))
-                  }
-                >
-                  <option value="locality">Comune/località</option>
-                  <option value="county" disabled={!locality.county}>
-                    Provincia{locality.county ? `: ${locality.county}` : ""}
-                  </option>
-                  <option value="region" disabled={!locality.region}>
-                    Regione{locality.region ? `: ${locality.region}` : ""}
-                  </option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() => handleAdd(locality)}
-                  disabled={adding === locality.id}
-                >
-                  {adding === locality.id ? "Aggiunta…" : "Escludi"}
-                </button>
-              </li>
-            );
-          })}
+          {rows.map((row) => (
+            <li key={row.key}>
+              <span className="badge">{row.level}</span>
+              <strong>{row.label}</strong>
+              {row.hint && <span className="hint"> — {row.hint}</span>}
+              <button type="button" onClick={() => handleAddRow(row)} disabled={adding === row.key}>
+                {adding === row.key ? "Aggiunta…" : "Escludi"}
+              </button>
+            </li>
+          ))}
         </ul>
       )}
 

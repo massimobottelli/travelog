@@ -341,6 +341,30 @@ describe("contiguity and exclusion rules", () => {
     expect(trips[0]).toMatchObject({ startDate: "2025-08-03", endDate: "2025-08-03" });
   });
 
+  it("matches county variants across provider languages (Milan/Milano)", async () => {
+    const erice = await insertLocality("trip-test-erice", "Erice");
+    const milanese = await insertLocality("trip-test-cusano", "Cusano Milanino");
+    await setSettings(1, 3);
+    // Same province returned in two languages by the provider:
+    // the zone is anchored on the "Milan" spelling, but the presence
+    // carries the "Milano" variant.
+    await pool.query(`UPDATE localities SET county = 'Milan' WHERE id = $1`, [erice]);
+    await pool.query(`UPDATE localities SET county = 'Milano' WHERE id = $1`, [milanese]);
+    await insertCache(38.03, 12.58, "trip-test-erice", erice);
+    await insertCache(45.52, 9.09, "trip-test-cusano", milanese);
+
+    await exclusionZonesRepository.create(erice, "county");
+
+    await insertPhotos("trip-test/a", 1, "2025-08-01 10:30:00", 45.52, 9.09);
+    await insertPhotos("trip-test/b", 1, "2025-08-02 10:30:00", 38.03, 12.58);
+
+    await presencesRepository.rebuildFromPhotos();
+    const result = await tripCalculationService.generateTrips();
+
+    // The "Milano"-variant day is excluded like the "Milan" one: no trips
+    expect(result.tripsCreated).toBe(0);
+  });
+
   it("aggregates duplicate coordinate hashes of the same locality in the detail", async () => {
     // The same city resolved at two different rounded coordinates:
     // the detail shows ONE entry with the summed photo count.

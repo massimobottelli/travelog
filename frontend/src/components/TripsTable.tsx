@@ -10,6 +10,7 @@ import { Fragment } from "react";
 import type { Trip, TripDetail } from "../api/client";
 import { formatTripDate, tripDurationDays, tripYear, tripMonth } from "../utils/format";
 import TripDetailPanel from "./TripDetailPanel";
+import TripDialog, { type TripDialogState } from "./TripDialog";
 import Loading from "./Loading";
 import ErrorAlert from "./ErrorAlert";
 
@@ -22,12 +23,19 @@ interface TripsTableProps {
   detail: TripDetail | null;
   detailLoading: boolean;
   detailError: string | null;
+  dialog: TripDialogState | null;
+  operating: boolean;
   onSelectTrip: (id: number) => void;
   onToggleSelected: (id: number) => void;
   onRename: (trip: Trip) => void;
   onDates: (trip: Trip) => void;
   onSplit: (trip: Trip) => void;
   onDelete: (trip: Trip) => void;
+  onDeleteConfirm: (id: number) => void;
+  onDeleteCancel: () => void;
+  onDialogSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onDialogCancel: () => void;
+  deleting: boolean;
 }
 
 export default function TripsTable({
@@ -39,12 +47,19 @@ export default function TripsTable({
   detail,
   detailLoading,
   detailError,
+  dialog,
+  operating,
   onSelectTrip,
   onToggleSelected,
   onRename,
   onDates,
   onSplit,
   onDelete,
+  onDeleteConfirm,
+  onDeleteCancel,
+  onDialogSubmit,
+  onDialogCancel,
+  deleting,
 }: TripsTableProps) {
   const colSpan = 7 + (mergeMode ? 1 : 0);
   return (
@@ -109,15 +124,60 @@ export default function TripsTable({
                         </button>
                       </>
                     )}
-                    {confirmDeleteId === trip.id ? null : (
-                      <button type="button" className="danger" onClick={() => onDelete(trip)}>
-                        Elimina
-                      </button>
-                    )}
+                    <button type="button" className="danger" onClick={() => onDelete(trip)}>
+                      Elimina
+                    </button>
                   </span>
                 )}
               </td>
             </tr>
+            {confirmDeleteId === trip.id && (
+              <tr className="trip-detail-row">
+                <td colSpan={colSpan}>
+                  <div
+                    className="confirm-box full-width"
+                    role="alertdialog"
+                    aria-label="Conferma eliminazione viaggio"
+                  >
+                    <p>
+                      Eliminare definitivamente il viaggio{" "}
+                      <strong>«{trip.name || "(senza nome)"}»</strong>? Le foto e le presenze non
+                      vengono toccate; l'operazione resta nello storico.
+                    </p>
+                    <div className="confirm-actions">
+                      <button
+                        type="button"
+                        className="danger"
+                        onClick={() => onDeleteConfirm(trip.id)}
+                        disabled={deleting}
+                      >
+                        {deleting ? "Eliminazione…" : "Sì, elimina viaggio"}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={onDeleteCancel}
+                        disabled={deleting}
+                      >
+                        Annulla
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {dialog !== null && dialog.tripId === trip.id && (
+              <tr className="trip-detail-row">
+                <td colSpan={colSpan}>
+                  <TripDialog
+                    dialog={dialog}
+                    operating={operating}
+                    onSubmit={onDialogSubmit}
+                    onCancel={onDialogCancel}
+                  />
+                </td>
+              </tr>
+            )}
             {selectedTripId === trip.id && (
               <tr className="trip-detail-row">
                 <td colSpan={colSpan}>

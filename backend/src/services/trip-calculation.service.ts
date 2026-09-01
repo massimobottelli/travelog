@@ -53,23 +53,51 @@ class TripCalculationService {
     // region. County/region matching is qualified by country code to
     // avoid cross-country name collisions.
     const excludedLocalityIds = new Set<number>();
-    const excludedCounties = new Set<string>();
-    const excludedRegions = new Set<string>();
+    const excludedCounties: { countryCode: string; name: string }[] = [];
+    const excludedRegions: { countryCode: string; name: string }[] = [];
     for (const zone of zones) {
       if (zone.scope === "county" && zone.county) {
-        excludedCounties.add(`${zone.countryCode}:${zone.county}`);
+        excludedCounties.push({ countryCode: zone.countryCode, name: zone.county });
       } else if (zone.scope === "region" && zone.region) {
-        excludedRegions.add(`${zone.countryCode}:${zone.region}`);
+        excludedRegions.push({ countryCode: zone.countryCode, name: zone.region });
       } else if (zone.localityId !== null) {
         excludedLocalityIds.add(zone.localityId);
       }
     }
+
+    /**
+     * The geocoding provider returns administrative names in inconsistent
+     * languages for the same area (e.g. county "Milan" and "Milano",
+     * region "Lombardy" and "Lombardia" — same province/region). A zone
+     * stored with one spelling must also exclude the other variants.
+     * Heuristic: names match when, normalized (lowercase, spaces and
+     * apostrophes removed), they are equal OR one is a prefix of the
+     * other (minimum 5 characters to avoid false positives).
+     */
+    function nameVariantsMatch(a: string, b: string): boolean {
+      const normalize = (value: string): string => value.toLowerCase().replace(/['’\s-]/g, "");
+      const na = normalize(a);
+      const nb = normalize(b);
+      if (na === nb) return true;
+      const min = Math.min(na.length, nb.length);
+      if (min < 5) return false;
+      return na.startsWith(nb) || nb.startsWith(na);
+    }
+
     const isExcluded = (presence: PresenceRow): boolean =>
       excludedLocalityIds.has(presence.localityId) ||
       (presence.county !== null &&
-        excludedCounties.has(`${presence.countryCode}:${presence.county}`)) ||
+        excludedCounties.some(
+          (zone) =>
+            zone.countryCode === presence.countryCode &&
+            nameVariantsMatch(zone.name, presence.county as string),
+        )) ||
       (presence.region !== null &&
-        excludedRegions.has(`${presence.countryCode}:${presence.region}`));
+        excludedRegions.some(
+          (zone) =>
+            zone.countryCode === presence.countryCode &&
+            nameVariantsMatch(zone.name, presence.region as string),
+        ));
 
     const presences = await presencesRepository.listPresences();
 

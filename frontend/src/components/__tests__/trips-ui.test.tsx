@@ -264,6 +264,7 @@ describe("ExclusionZonesPanel", () => {
     items: [
       {
         id: 5,
+        scope: "locality",
         locality: {
           id: 7,
           localityHash: "45.56:9.17",
@@ -338,7 +339,14 @@ describe("ExclusionZonesPanel", () => {
     await waitFor(() => {
       expect(screen.getByText("Verona")).not.toBeNull();
     });
-    fireEvent.click(screen.getByRole("button", { name: "Escludi" }));
+
+    // The grouped results show one commune row + one province row; the
+    // region row appears only when the query matches the region name.
+    expect(screen.getAllByText("Comune/località").length).toBe(1);
+    expect(screen.getByText("Provincia: Verona")).not.toBeNull();
+    expect(screen.queryByText("Regione: Veneto")).toBeNull();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Escludi" })[0]);
 
     await waitFor(() => {
       const post = fetchMock.mock.calls.find(

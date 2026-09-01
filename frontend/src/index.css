@@ -379,6 +379,15 @@ button.secondary:hover:not(:disabled) {
   max-width: 560px;
 }
 
+/* Full-width variant used inside table rows (delete-trip accordion). */
+.confirm-box.full-width {
+  max-width: none;
+}
+
+.confirm-box.full-width .confirm-actions {
+  justify-content: flex-end;
+}
+
 .confirm-box p {
   margin: 0 0 0.75rem;
   font-weight: 600;
@@ -431,6 +440,21 @@ button.secondary:hover:not(:disabled) {
   white-space: normal;
   background: rgba(0, 0, 0, 0.03);
   border-top: 1px dashed #d1d5db;
+}
+
+/* Accordion panels (scan history, operations history) */
+.accordion-header .accordion-toggle {
+  padding: 0.25rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+/* Inline operation dialogs inside a trip row: full width, actions right */
+.trip-detail-row td > form.dialog {
+  max-width: none;
+}
+
+.trip-detail-row td > form.dialog .confirm-actions {
+  justify-content: flex-end;
 }
 
 .trips-table tr.selected td {

@@ -15,11 +15,22 @@ import ProgressBar from "../components/ProgressBar";
 import ErrorAlert from "../components/ErrorAlert";
 import ScanErrors from "../components/ScanErrors";
 import PhotoRootBanner from "../components/PhotoRootBanner";
+import Accordion from "../components/Accordion";
 import { errorToMessage } from "../utils/error";
 
-/** Backend instants: display without timezone conversion (trim offset/Z). */
-function formatTimestamp(value: string): string {
-  return value.replace(/(Z|[+-]\d{2}:\d{2})$/, "").replace("T", " ");
+/**
+ * Backend instants are UTC ISO strings with offset (e.g. "…T19:00:34.433Z").
+ * Render them in the browser's local time. (Photo DateTimeOriginal values
+ * are naive local time per requirements §5.2 and are NOT converted.)
+ */
+export function formatTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  );
 }
 
 interface ScanProgressPanelProps {
@@ -140,8 +151,7 @@ function ScanHistoryTable({ history, selectedScanId, onSelect }: ScanHistoryTabl
   const items = history.items ?? [];
 
   return (
-    <section className="panel">
-      <h3>Storico scansioni ({history.total ?? items.length})</h3>
+    <Accordion title={`Storico scansioni (${history.total ?? items.length})`}>
       {items.length === 0 ? (
         <p>Nessuna scansione registrata.</p>
       ) : (
@@ -184,7 +194,7 @@ function ScanHistoryTable({ history, selectedScanId, onSelect }: ScanHistoryTabl
           </tbody>
         </table>
       )}
-    </section>
+    </Accordion>
   );
 }
 

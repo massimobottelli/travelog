@@ -13,8 +13,8 @@ import { splitTrip, mergeTrips, listTripOperations } from "../api/operations";
 import { recalculate } from "../api/settings";
 import type { Trip, TripDetail, TripOperation } from "../api/client";
 import type { TripDialogState } from "../components/TripDialog";
-import TripDialog from "../components/TripDialog";
 import TripsTable from "../components/TripsTable";
+import Accordion from "../components/Accordion";
 import Loading from "../components/Loading";
 import ErrorAlert from "../components/ErrorAlert";
 import { errorToMessage } from "../utils/error";
@@ -40,7 +40,7 @@ export default function TripsPage() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [mergeTitle, setMergeTitle] = useState("");
   const [history, setHistory] = useState<TripOperation[]>([]);
-  const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const [recalculating, setRecalculating] = useState(false);
   const [recalcMessage, setRecalcMessage] = useState<string | null>(null);
@@ -159,14 +159,13 @@ export default function TripsPage() {
     setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   };
 
-  const handleDelete = async (): Promise<void> => {
-    if (!confirmDelete) return;
+  const handleDelete = async (tripId: number): Promise<void> => {
     setOperating(true);
     setActionError(null);
     try {
-      await deleteTrip(confirmDelete.id);
-      setConfirmDelete(null);
-      if (selectedTripId === confirmDelete.id) {
+      await deleteTrip(tripId);
+      setConfirmDeleteId(null);
+      if (selectedTripId === tripId) {
         setSelectedTripId(null);
         setDetail(null);
       }
@@ -260,7 +259,7 @@ export default function TripsPage() {
             mergeMode={mergeMode}
             selectedIds={selectedIds}
             selectedTripId={selectedTripId}
-            confirmDeleteId={confirmDelete?.id ?? null}
+            confirmDeleteId={confirmDeleteId}
             detail={detail}
             detailLoading={detailLoading}
             detailError={detailError}
@@ -286,44 +285,14 @@ export default function TripsPage() {
                 proposedName: `${trip.name} (2)`,
               })
             }
-            onDelete={(trip) =>
-              setConfirmDelete({ id: trip.id, name: trip.name || "(senza nome)" })
-            }
-          />
-        )}
-
-        {confirmDelete && (
-          <div
-            className="confirm-box"
-            role="alertdialog"
-            aria-label="Conferma eliminazione viaggio"
-          >
-            <p>
-              Eliminare definitivamente il viaggio <strong>«{confirmDelete.name}»</strong>? Le foto
-              e le presenze non vengono toccate; l'operazione resta nello storico.
-            </p>
-            <div className="confirm-actions">
-              <button type="button" className="danger" onClick={handleDelete} disabled={operating}>
-                {operating ? "Eliminazione…" : "Sì, elimina viaggio"}
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => setConfirmDelete(null)}
-                disabled={operating}
-              >
-                Annulla
-              </button>
-            </div>
-          </div>
-        )}
-
-        {dialog && (
-          <TripDialog
+            onDelete={(trip) => setConfirmDeleteId(trip.id)}
+            onDeleteConfirm={handleDelete}
+            onDeleteCancel={() => setConfirmDeleteId(null)}
+            deleting={operating}
             dialog={dialog}
             operating={operating}
-            onSubmit={handleDialogSubmit}
-            onCancel={() => setDialog(null)}
+            onDialogSubmit={handleDialogSubmit}
+            onDialogCancel={() => setDialog(null)}
           />
         )}
 
@@ -332,8 +301,7 @@ export default function TripsPage() {
       </section>
 
       {history.length > 0 && (
-        <section className="panel" aria-label="Storico operazioni">
-          <h2>Storico operazioni</h2>
+        <Accordion title="Storico operazioni">
           <ul className="hint">
             {history.map((op) => (
               <li key={op.id}>
@@ -348,7 +316,7 @@ export default function TripsPage() {
               </li>
             ))}
           </ul>
-        </section>
+        </Accordion>
       )}
     </div>
   );
