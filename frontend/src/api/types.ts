@@ -4,1511 +4,1512 @@
  */
 
 export interface paths {
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Check API health */
-        get: operations["getHealth"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  "/health": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scans": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List scan history */
-        get: operations["listScans"];
-        put?: never;
-        /**
-         * Start a photo scan
-         * @description Starts an asynchronous scan of the selected directory.
-         *     The directory must be relative to the configured photo root.
-         *
-         *     Only one scan may run at a time.
-         */
-        post: operations["startScan"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Check API health */
+    get: operations["getHealth"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scans": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scans/{scanId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get scan status and progress */
-        get: operations["getScan"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List scan history */
+    get: operations["listScans"];
+    put?: never;
+    /**
+     * Start a photo scan
+     * @description Starts an asynchronous scan of the selected directory.
+     *     The directory must be relative to the configured photo root.
+     *
+     *     Only one scan may run at a time.
+     */
+    post: operations["startScan"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scans/{scanId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scans/{scanId}/errors": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List errors recorded for a scan */
-        get: operations["listScanErrors"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get scan status and progress */
+    get: operations["getScan"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scans/{scanId}/errors": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/scans/{scanId}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Request cancellation of a running scan
-         * @description Asks the running scan to stop after the photo currently being
-         *     processed. The scan is then marked as failed with a diagnostic
-         *     message ("Scan cancelled by the user"); photos already saved
-         *     remain in the database.
-         *
-         *     The response returns immediately with the current scan snapshot.
-         */
-        post: operations["cancelScan"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List errors recorded for a scan */
+    get: operations["listScanErrors"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/scans/{scanId}/cancel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/photos": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List catalogued photos
-         * @description Technical data listing of catalogued photos.
-         *
-         *     Photos are not displayed as images in MVP1; this view exposes
-         *     the persisted metadata only: original shoot timestamp, original
-         *     GPS coordinates and the hierarchical administrative locality
-         *     resolved by reverse geocoding when available.
-         */
-        get: operations["listPhotos"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Request cancellation of a running scan
+     * @description Asks the running scan to stop after the photo currently being
+     *     processed. The scan is then marked as failed with a diagnostic
+     *     message ("Scan cancelled by the user"); photos already saved
+     *     remain in the database.
+     *
+     *     The response returns immediately with the current scan snapshot.
+     */
+    post: operations["cancelScan"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/photos": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get runtime configuration */
-        get: operations["getConfig"];
-        /**
-         * Update the photo root path
-         * @description Persists TRAVELOG_PHOTO_ROOT in the root .env file and applies
-         *     the change immediately. An empty value clears the configuration.
-         *
-         *     The path must be absolute and must exist as a directory.
-         */
-        put: operations["updateConfig"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List catalogued photos
+     * @description Technical data listing of catalogued photos.
+     *
+     *     Photos are not displayed as images in MVP1; this view exposes
+     *     the persisted metadata only: original shoot timestamp, original
+     *     GPS coordinates and the hierarchical administrative locality
+     *     resolved by reverse geocoding when available.
+     */
+    get: operations["listPhotos"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/config": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/data": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete all catalogued data
-         * @description Irreversibly deletes every photo, scan, scan error, locality,
-         *     geocoding cache entry, presence, trip, trip history record and
-         *     application setting.
-         *
-         *     The photo root configuration (.env) is not modified.
-         *
-         *     The operation is rejected while a scan is running.
-         */
-        delete: operations["deleteAllData"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get runtime configuration */
+    get: operations["getConfig"];
+    /**
+     * Update the photo root path
+     * @description Persists TRAVELOG_PHOTO_ROOT in the root .env file and applies
+     *     the change immediately. An empty value clears the configuration.
+     *
+     *     The path must be absolute and must exist as a directory.
+     */
+    put: operations["updateConfig"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/data": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/trips": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List trips
-         * @description By default only active trips are returned.
-         *     Archived/superseded trips can be requested explicitly.
-         *
-         *     Results are ordered by start date descending by default.
-         */
-        get: operations["listTrips"];
-        put?: never;
-        /**
-         * Create a trip manually
-         * @description Creates a trip from an explicit manual operation.
-         *
-         *     This endpoint is not used by automatic scan processing.
-         */
-        post: operations["createTrip"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete all catalogued data
+     * @description Irreversibly deletes every photo, scan, scan error, locality,
+     *     geocoding cache entry, presence, trip, trip history record and
+     *     application setting.
+     *
+     *     The photo root configuration (.env) is not modified.
+     *
+     *     The operation is rejected while a scan is running.
+     */
+    delete: operations["deleteAllData"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/trips": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/trips/{tripId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get trip details
-         * @description Returns the trip data plus the chronology of its days: visited
-         *     localities with administrative hierarchy and photo counts per
-         *     day/locality; days without photos (gaps of 1–2 days) are listed
-         *     with the "Nessuna foto" marker (functional requirements §16).
-         */
-        get: operations["getTrip"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete a trip
-         * @description Explicit user operation: removes a trip whose period is not a
-         *     trip. The deletion is recorded in the operations audit trail
-         *     with a snapshot of the deleted trip (functional requirements
-         *     §14). Photographs and presences are not deleted.
-         */
-        delete: operations["deleteTrip"];
-        options?: never;
-        head?: never;
-        /**
-         * Modify a trip manually
-         * @description Allows the manual modifications supported by MVP1:
-         *     rename and/or change start/end dates.
-         *
-         *     Automatic processing never modifies an existing trip.
-         *
-         *     Active trips must not overlap temporally.
-         */
-        patch: operations["updateTrip"];
-        trace?: never;
+    /**
+     * List trips
+     * @description By default only active trips are returned.
+     *     Archived/superseded trips can be requested explicitly.
+     *
+     *     Results are ordered by start date descending by default.
+     */
+    get: operations["listTrips"];
+    put?: never;
+    /**
+     * Create a trip manually
+     * @description Creates a trip from an explicit manual operation.
+     *
+     *     This endpoint is not used by automatic scan processing.
+     */
+    post: operations["createTrip"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/trips/{tripId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/trips/{tripId}/split": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Split a trip
-         * @description Splits a trip at the specified date.
-         *
-         *     The split date belongs to the second resulting trip.
-         *     The original trip remains in history.
-         */
-        post: operations["splitTrip"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Get trip details
+     * @description Returns the trip data plus the chronology of its days: visited
+     *     localities with administrative hierarchy and photo counts per
+     *     day/locality; days without photos (gaps of 1–2 days) are listed
+     *     with the "Nessuna foto" marker (functional requirements §16).
+     */
+    get: operations["getTrip"];
+    put?: never;
+    post?: never;
+    /**
+     * Delete a trip
+     * @description Explicit user operation: removes a trip whose period is not a
+     *     trip. The deletion is recorded in the operations audit trail
+     *     with a snapshot of the deleted trip (functional requirements
+     *     §14). Photographs and presences are not deleted.
+     */
+    delete: operations["deleteTrip"];
+    options?: never;
+    head?: never;
+    /**
+     * Modify a trip manually
+     * @description Allows the manual modifications supported by MVP1:
+     *     rename and/or change start/end dates.
+     *
+     *     Automatic processing never modifies an existing trip.
+     *
+     *     Active trips must not overlap temporally.
+     */
+    patch: operations["updateTrip"];
+    trace?: never;
+  };
+  "/trips/{tripId}/split": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/trips/merge": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Merge two or more trips
-         * @description Merges two or more trips into a new trip.
-         *
-         *     Original trips are retained in history and marked as superseded.
-         *     The resulting trip keeps a relationship to the source trips.
-         */
-        post: operations["mergeTrips"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Split a trip
+     * @description Splits a trip at the specified date.
+     *
+     *     The split date belongs to the second resulting trip.
+     *     The original trip remains in history.
+     */
+    post: operations["splitTrip"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/trips/merge": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/operations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List trip operations (audit trail)
-         * @description Chronological history of the manual trip operations (split, merge).
-         *     Each entry records the source trips, the resulting trips and the
-         *     timestamp of the operation (functional requirements §14).
-         */
-        get: operations["listTripOperations"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Merge two or more trips
+     * @description Merges two or more trips into a new trip.
+     *
+     *     Original trips are retained in history and marked as superseded.
+     *     The resulting trip keeps a relationship to the source trips.
+     */
+    post: operations["mergeTrips"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/operations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get current settings */
-        get: operations["getSettings"];
-        /**
-         * Update settings
-         * @description Updates one or more setting values.
-         *
-         *     Only provided fields are updated; omitted fields remain unchanged.
-         */
-        put: operations["updateSettings"];
-        /**
-         * Trigger trip recalculation
-         * @description Requests an explicit trip recalculation.
-         *
-         *     The operation returns immediately with ACCEPTED status.
-         *     Actual recalculation proceeds asynchronously.
-         */
-        post: operations["recalculate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List trip operations (audit trail)
+     * @description Chronological history of the manual trip operations (split, merge).
+     *     Each entry records the source trips, the resulting trips and the
+     *     timestamp of the operation (functional requirements §14).
+     */
+    get: operations["listTripOperations"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/settings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/exclusion-zones": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List exclusion zones */
-        get: operations["listExclusionZones"];
-        put?: never;
-        /** Create an exclusion zone */
-        post: operations["createExclusionZone"];
-        /** Delete an exclusion zone */
-        delete: operations["deleteExclusionZone"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get current settings */
+    get: operations["getSettings"];
+    /**
+     * Update settings
+     * @description Updates one or more setting values.
+     *
+     *     Only provided fields are updated; omitted fields remain unchanged.
+     */
+    put: operations["updateSettings"];
+    /**
+     * Trigger trip recalculation
+     * @description Requests an explicit trip recalculation.
+     *
+     *     The operation returns immediately with ACCEPTED status.
+     *     Actual recalculation proceeds asynchronously.
+     */
+    post: operations["recalculate"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/exclusion-zones": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/localities/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Search localities by name, region or county */
-        get: operations["searchLocalities"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List exclusion zones */
+    get: operations["listExclusionZones"];
+    put?: never;
+    /** Create an exclusion zone */
+    post: operations["createExclusionZone"];
+    /** Delete an exclusion zone */
+    delete: operations["deleteExclusionZone"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/localities/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    /** Search localities by name, region or county */
+    get: operations["searchLocalities"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        ApiError: {
-            /** @example TRIP_NOT_FOUND */
-            code: string;
-            /** @example Trip not found */
-            message: string;
-            details?: {
-                [key: string]: unknown;
-            };
-        };
-        HealthResponse: {
-            /** @enum {string} */
-            status: "ok";
-            /** Format: date-time */
-            timestamp: string;
-            uptime_seconds: number;
-            /** @example 0.1.0 */
-            version: string;
-            /** @example development */
-            environment: string;
-        };
-        StartScanRequest: {
-            /**
-             * @description Directory to scan, relative to the configured photo root.
-             *     An empty string scans the whole photo root.
-             */
-            folder: string;
-        };
-        RuntimeConfig: {
-            /**
-             * @description Root directory of the photo archive (TRAVELOG_PHOTO_ROOT).
-             *     Null when not yet configured.
-             */
-            photoRoot: string | null;
-        };
-        UpdateConfigRequest: {
-            /**
-             * @description New photo root path. Must be absolute and exist as a directory.
-             *     An empty string or null clears the configuration.
-             */
-            photoRoot: string | null;
-        };
-        /** @enum {string} */
-        ScanStatus: "pending" | "running" | "completed" | "completed_with_errors" | "failed" | "stopped";
-        Scan: {
-            /** Format: int64 */
-            id: number;
-            folder: string;
-            status: components["schemas"]["ScanStatus"];
-            /** Format: date-time */
-            startedAt: string;
-            /** Format: date-time */
-            endedAt?: string | null;
-            filesAnalyzed: number | null;
-            /**
-             * @description Total supported files found by enumeration (including
-             *     subfolders). Known once enumeration completes; enables the
-             *     proportional progress bar.
-             */
-            filesTotal?: number | null;
-            newPhotos: number | null;
-            existingPhotos: number | null;
-            excludedPhotos: number | null;
-            errors: number | null;
-            errorMessage?: string | null;
-        };
-        ScanList: {
-            items: components["schemas"]["Scan"][];
-            page: number;
-            pageSize: number;
-            total: number;
-        };
-        ScanError: {
-            /** Format: int64 */
-            id: number;
-            /** Format: int64 */
-            scanId: number;
-            filePath: string;
-            errorCode: string;
-            message: string;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        ScanErrorList: {
-            items: components["schemas"]["ScanError"][];
-        };
-        /** @enum {string} */
-        PhotoMetadataStatus: "valid" | "excluded";
-        PhotoLocality: {
-            countryCode: string;
-            /** @description Most specific administrative unit resolved by the geocoder */
-            name: string;
-            county?: string | null;
-            region?: string | null;
-            country?: string | null;
-        };
-        Photo: {
-            /** Format: int64 */
-            id: number;
-            filePath: string;
-            fileName: string;
-            fileType: string;
-            /**
-             * Format: date-time
-             * @description EXIF DateTimeOriginal as naive local time; null when unreadable/missing (excluded photos)
-             */
-            dateTimeOriginal: string | null;
-            originalLatitude: number | null;
-            originalLongitude: number | null;
-            metadataStatus: components["schemas"]["PhotoMetadataStatus"];
-            exclusionReason?: string | null;
-            /** @description Hierarchical administrative locality when reverse geocoding succeeded */
-            locality?: components["schemas"]["PhotoLocality"] | null;
-        };
-        PhotoList: {
-            items: components["schemas"]["Photo"][];
-            page: number;
-            pageSize: number;
-            total: number;
-        };
-        Trip: {
-            /** Format: int64 */
-            id: number;
-            name: string;
-            /** Format: date */
-            startDate: string;
-            /** Format: date */
-            endDate: string;
-            autoGenerated: boolean;
-            /** @enum {string} */
-            status: "active" | "archived";
-            /** Format: date-time */
-            createdAt: string;
-        };
-        CreateTripRequest: {
-            name?: string;
-            /** Format: date */
-            startDate: string;
-            /** Format: date */
-            endDate: string;
-        };
-        UpdateTripRequest: {
-            name?: string;
-            /** Format: date */
-            startDate?: string;
-            /** Format: date */
-            endDate?: string;
-        };
-        SplitTripRequest: {
-            /** Format: date */
-            splitDate: string;
-            /**
-             * @description Optional name for the second trip. When omitted, the system
-             *     proposes one; the user can change it before confirming.
-             */
-            name?: string;
-        };
-        MergeTripsRequest: {
-            tripIds: number[];
-            title?: string | null;
-        };
-        /** @enum {string} */
-        TripOperationType: "SPLIT" | "MERGE" | "DELETE";
-        TripOperation: {
-            /** Format: int64 */
-            id: number;
-            type: components["schemas"]["TripOperationType"];
-            /** Format: date-time */
-            createdAt: string;
-            sourceTripIds: number[];
-            resultingTripIds: number[];
-        };
-        TripOperationResult: {
-            operation: components["schemas"]["TripOperation"];
-            trips: components["schemas"]["Trip"][];
-        };
-        TripOperationList: {
-            items: components["schemas"]["TripOperation"][];
-            page: number;
-            pageSize: number;
-            total: number;
-        };
-        TripDayLocality: {
-            localityId: number;
-            name: string;
-            county?: string | null;
-            region?: string | null;
-            country?: string | null;
-            photoCount: number;
-        };
-        TripDay: {
-            /** Format: date */
-            date: string;
-            /**
-             * @description True for days without photos inside the trip (gaps of 1–2 days
-             *     are listed with the "Nessuna foto" marker, §16).
-             */
-            noPhotos: boolean;
-            localities: components["schemas"]["TripDayLocality"][];
-        };
-        TripDetail: {
-            /** Format: int64 */
-            id: number;
-            name: string;
-            /** Format: date */
-            startDate: string;
-            /** Format: date */
-            endDate: string;
-            autoGenerated: boolean;
-            /** @enum {string} */
-            status: "active" | "archived";
-            /** Format: date-time */
-            createdAt: string;
-            days: components["schemas"]["TripDay"][];
-        };
-        TripList: {
-            items: components["schemas"]["Trip"][];
-            page: number;
-            pageSize: number;
-            total: number;
-        };
-        Settings: {
-            /** @default 1 */
-            minimumPhotosPerVisit: number;
-            /** @default 3 */
-            consecutiveDaysWithoutPhotosBeforeClosing: number;
-        };
-        UpdateSettingsRequest: {
-            minimumPhotosPerVisit?: number;
-            consecutiveDaysWithoutPhotosBeforeClosing?: number;
-        };
-        Recalculation: {
-            /** @enum {string} */
-            status: "ACCEPTED";
-        };
-        ExclusionZone: {
-            /** Format: int64 */
-            id: number;
-            locality: components["schemas"]["Locality"];
-            /**
-             * @description Hierarchy level the exclusion applies to (§9.1): locality
-             *     (comune), county (provincia) or region (regione).
-             * @enum {string}
-             */
-            scope: "locality" | "county" | "region";
-        };
-        CreateExclusionZoneRequest: {
-            /** Format: int64 */
-            localityId: number;
-            /**
-             * @description Hierarchy level the exclusion applies to (§9.1): the locality
-             *     itself, its county (provincia) or its region. The anchor
-             *     locality must have the corresponding level.
-             * @default locality
-             * @enum {string}
-             */
-            scope: "locality" | "county" | "region";
-        };
-        Locality: {
-            /** Format: int64 */
-            id: number;
-            /** @description Coordinate hash key, e.g. "45.56:9.17" */
-            localityHash: string;
-            /** @description Provider name (e.g. "geoapify") */
-            source: string;
-            countryCode: string;
-            name: string;
-            /** @description Administrative level (0=highest, higher=more specific) */
-            adminLevel: number;
-            /** @description Region/state, e.g. "Lombardia" */
-            region?: string | null;
-            /** @description County/province, e.g. "Monza e Brianza" */
-            county?: string | null;
-            /** @description Country name, e.g. "Italy" */
-            country?: string | null;
-            /** Format: date-time */
-            createdAt?: string;
-        };
-        /** @enum {string} */
-        TripListStatus: "active" | "archived";
+  schemas: {
+    ApiError: {
+      /** @example TRIP_NOT_FOUND */
+      code: string;
+      /** @example Trip not found */
+      message: string;
+      details?: {
+        [key: string]: unknown;
+      };
     };
-    responses: never;
-    parameters: {
-        /** @description Page number (1-based) */
-        Page: number;
-        /** @description Page size */
-        PageSize: number;
-        ScanId: number;
-        TripId: number;
+    HealthResponse: {
+      /** @enum {string} */
+      status: "ok";
+      /** Format: date-time */
+      timestamp: string;
+      uptime_seconds: number;
+      /** @example 0.1.0 */
+      version: string;
+      /** @example development */
+      environment: string;
     };
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    StartScanRequest: {
+      /**
+       * @description Directory to scan, relative to the configured photo root.
+       *     An empty string scans the whole photo root.
+       */
+      folder: string;
+    };
+    RuntimeConfig: {
+      /**
+       * @description Root directory of the photo archive (TRAVELOG_PHOTO_ROOT).
+       *     Null when not yet configured.
+       */
+      photoRoot: string | null;
+    };
+    UpdateConfigRequest: {
+      /**
+       * @description New photo root path. Must be absolute and exist as a directory.
+       *     An empty string or null clears the configuration.
+       */
+      photoRoot: string | null;
+    };
+    /** @enum {string} */
+    ScanStatus:
+      "pending" | "running" | "completed" | "completed_with_errors" | "failed" | "stopped";
+    Scan: {
+      /** Format: int64 */
+      id: number;
+      folder: string;
+      status: components["schemas"]["ScanStatus"];
+      /** Format: date-time */
+      startedAt: string;
+      /** Format: date-time */
+      endedAt?: string | null;
+      filesAnalyzed: number | null;
+      /**
+       * @description Total supported files found by enumeration (including
+       *     subfolders). Known once enumeration completes; enables the
+       *     proportional progress bar.
+       */
+      filesTotal?: number | null;
+      newPhotos: number | null;
+      existingPhotos: number | null;
+      excludedPhotos: number | null;
+      errors: number | null;
+      errorMessage?: string | null;
+    };
+    ScanList: {
+      items: components["schemas"]["Scan"][];
+      page: number;
+      pageSize: number;
+      total: number;
+    };
+    ScanError: {
+      /** Format: int64 */
+      id: number;
+      /** Format: int64 */
+      scanId: number;
+      filePath: string;
+      errorCode: string;
+      message: string;
+      /** Format: date-time */
+      createdAt: string;
+    };
+    ScanErrorList: {
+      items: components["schemas"]["ScanError"][];
+    };
+    /** @enum {string} */
+    PhotoMetadataStatus: "valid" | "excluded";
+    PhotoLocality: {
+      countryCode: string;
+      /** @description Most specific administrative unit resolved by the geocoder */
+      name: string;
+      county?: string | null;
+      region?: string | null;
+      country?: string | null;
+    };
+    Photo: {
+      /** Format: int64 */
+      id: number;
+      filePath: string;
+      fileName: string;
+      fileType: string;
+      /**
+       * Format: date-time
+       * @description EXIF DateTimeOriginal as naive local time; null when unreadable/missing (excluded photos)
+       */
+      dateTimeOriginal: string | null;
+      originalLatitude: number | null;
+      originalLongitude: number | null;
+      metadataStatus: components["schemas"]["PhotoMetadataStatus"];
+      exclusionReason?: string | null;
+      /** @description Hierarchical administrative locality when reverse geocoding succeeded */
+      locality?: components["schemas"]["PhotoLocality"] | null;
+    };
+    PhotoList: {
+      items: components["schemas"]["Photo"][];
+      page: number;
+      pageSize: number;
+      total: number;
+    };
+    Trip: {
+      /** Format: int64 */
+      id: number;
+      name: string;
+      /** Format: date */
+      startDate: string;
+      /** Format: date */
+      endDate: string;
+      autoGenerated: boolean;
+      /** @enum {string} */
+      status: "active" | "archived";
+      /** Format: date-time */
+      createdAt: string;
+    };
+    CreateTripRequest: {
+      name?: string;
+      /** Format: date */
+      startDate: string;
+      /** Format: date */
+      endDate: string;
+    };
+    UpdateTripRequest: {
+      name?: string;
+      /** Format: date */
+      startDate?: string;
+      /** Format: date */
+      endDate?: string;
+    };
+    SplitTripRequest: {
+      /** Format: date */
+      splitDate: string;
+      /**
+       * @description Optional name for the second trip. When omitted, the system
+       *     proposes one; the user can change it before confirming.
+       */
+      name?: string;
+    };
+    MergeTripsRequest: {
+      tripIds: number[];
+      title?: string | null;
+    };
+    /** @enum {string} */
+    TripOperationType: "SPLIT" | "MERGE" | "DELETE";
+    TripOperation: {
+      /** Format: int64 */
+      id: number;
+      type: components["schemas"]["TripOperationType"];
+      /** Format: date-time */
+      createdAt: string;
+      sourceTripIds: number[];
+      resultingTripIds: number[];
+    };
+    TripOperationResult: {
+      operation: components["schemas"]["TripOperation"];
+      trips: components["schemas"]["Trip"][];
+    };
+    TripOperationList: {
+      items: components["schemas"]["TripOperation"][];
+      page: number;
+      pageSize: number;
+      total: number;
+    };
+    TripDayLocality: {
+      localityId: number;
+      name: string;
+      county?: string | null;
+      region?: string | null;
+      country?: string | null;
+      photoCount: number;
+    };
+    TripDay: {
+      /** Format: date */
+      date: string;
+      /**
+       * @description True for days without photos inside the trip (gaps of 1–2 days
+       *     are listed with the "Nessuna foto" marker, §16).
+       */
+      noPhotos: boolean;
+      localities: components["schemas"]["TripDayLocality"][];
+    };
+    TripDetail: {
+      /** Format: int64 */
+      id: number;
+      name: string;
+      /** Format: date */
+      startDate: string;
+      /** Format: date */
+      endDate: string;
+      autoGenerated: boolean;
+      /** @enum {string} */
+      status: "active" | "archived";
+      /** Format: date-time */
+      createdAt: string;
+      days: components["schemas"]["TripDay"][];
+    };
+    TripList: {
+      items: components["schemas"]["Trip"][];
+      page: number;
+      pageSize: number;
+      total: number;
+    };
+    Settings: {
+      /** @default 2 */
+      minimumConsecutiveDaysWithPhotos: number;
+      /** @default 3 */
+      consecutiveDaysWithoutPhotosBeforeClosing: number;
+    };
+    UpdateSettingsRequest: {
+      minimumConsecutiveDaysWithPhotos?: number;
+      consecutiveDaysWithoutPhotosBeforeClosing?: number;
+    };
+    Recalculation: {
+      /** @enum {string} */
+      status: "ACCEPTED";
+    };
+    ExclusionZone: {
+      /** Format: int64 */
+      id: number;
+      locality: components["schemas"]["Locality"];
+      /**
+       * @description Hierarchy level the exclusion applies to (§9.1): locality
+       *     (comune), county (provincia) or region (regione).
+       * @enum {string}
+       */
+      scope: "locality" | "county" | "region";
+    };
+    CreateExclusionZoneRequest: {
+      /** Format: int64 */
+      localityId: number;
+      /**
+       * @description Hierarchy level the exclusion applies to (§9.1): the locality
+       *     itself, its county (provincia) or its region. The anchor
+       *     locality must have the corresponding level.
+       * @default locality
+       * @enum {string}
+       */
+      scope: "locality" | "county" | "region";
+    };
+    Locality: {
+      /** Format: int64 */
+      id: number;
+      /** @description Coordinate hash key, e.g. "45.56:9.17" */
+      localityHash: string;
+      /** @description Provider name (e.g. "geoapify") */
+      source: string;
+      countryCode: string;
+      name: string;
+      /** @description Administrative level (0=highest, higher=more specific) */
+      adminLevel: number;
+      /** @description Region/state, e.g. "Lombardia" */
+      region?: string | null;
+      /** @description County/province, e.g. "Monza e Brianza" */
+      county?: string | null;
+      /** @description Country name, e.g. "Italy" */
+      country?: string | null;
+      /** Format: date-time */
+      createdAt?: string;
+    };
+    /** @enum {string} */
+    TripListStatus: "active" | "archived";
+  };
+  responses: never;
+  parameters: {
+    /** @description Page number (1-based) */
+    Page: number;
+    /** @description Page size */
+    PageSize: number;
+    ScanId: number;
+    TripId: number;
+  };
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    getHealth: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description API is available */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthResponse"];
-                };
-            };
-        };
+  getHealth: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    listScans: {
-        parameters: {
-            query?: {
-                /** @description Page number (1-based) */
-                page?: components["parameters"]["Page"];
-                /** @description Page size */
-                pageSize?: components["parameters"]["PageSize"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description API is available */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Scan history */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScanList"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["HealthResponse"];
         };
+      };
     };
-    startScan: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StartScanRequest"];
-            };
-        };
-        responses: {
-            /** @description Scan started */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Scan"];
-                };
-            };
-            /** @description Invalid scan request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Another scan is already running */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  listScans: {
+    parameters: {
+      query?: {
+        /** @description Page number (1-based) */
+        page?: components["parameters"]["Page"];
+        /** @description Page size */
+        pageSize?: components["parameters"]["PageSize"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    getScan: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scanId: components["parameters"]["ScanId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Scan history */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Scan status */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Scan"];
-                };
-            };
-            /** @description Scan not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["ScanList"];
         };
+      };
     };
-    listScanErrors: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scanId: components["parameters"]["ScanId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Scan errors */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ScanErrorList"];
-                };
-            };
-            /** @description Scan not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  startScan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    cancelScan: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                scanId: components["parameters"]["ScanId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Cancellation requested */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Scan"];
-                };
-            };
-            /** @description Scan not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Scan is not running */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StartScanRequest"];
+      };
     };
-    listPhotos: {
-        parameters: {
-            query?: {
-                /** @description Filter by metadata status. */
-                metadataStatus?: components["schemas"]["PhotoMetadataStatus"];
-                /** @description Page number (1-based) */
-                page?: components["parameters"]["Page"];
-                /** @description Page size */
-                pageSize?: components["parameters"]["PageSize"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Scan started */
+      202: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Photo list ordered by shoot date descending */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PhotoList"];
-                };
-            };
-            /** @description Invalid query parameter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["Scan"];
         };
+      };
+      /** @description Invalid scan request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Another scan is already running */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
     };
-    getConfig: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Runtime configuration */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RuntimeConfig"];
-                };
-            };
-        };
+  };
+  getScan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scanId: components["parameters"]["ScanId"];
+      };
+      cookie?: never;
     };
-    updateConfig: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Scan status */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateConfigRequest"];
-            };
+        content: {
+          "application/json": components["schemas"]["Scan"];
         };
-        responses: {
-            /** @description Updated runtime configuration */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RuntimeConfig"];
-                };
-            };
-            /** @description Invalid configuration */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+      };
+      /** @description Scan not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
     };
-    deleteAllData: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description All data deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Another scan is already running */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  listScanErrors: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scanId: components["parameters"]["ScanId"];
+      };
+      cookie?: never;
     };
-    listTrips: {
-        parameters: {
-            query?: {
-                /** @description Filter by trip status. */
-                status?: components["schemas"]["TripListStatus"];
-                /** @description Free-text search by trip name or year/month. */
-                search?: string;
-                /** @default startDateDesc */
-                sort?: "startDateDesc" | "startDateAsc";
-                /** @description Page number (1-based) */
-                page?: components["parameters"]["Page"];
-                /** @description Page size */
-                pageSize?: components["parameters"]["PageSize"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Scan errors */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Trip list */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TripList"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["ScanErrorList"];
         };
+      };
+      /** @description Scan not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
     };
-    createTrip: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateTripRequest"];
-            };
-        };
-        responses: {
-            /** @description Trip created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Trip"];
-                };
-            };
-            /** @description Invalid trip */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Trip overlaps another active trip */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  cancelScan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        scanId: components["parameters"]["ScanId"];
+      };
+      cookie?: never;
     };
-    getTrip: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tripId: components["parameters"]["TripId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Cancellation requested */
+      202: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Trip details */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TripDetail"];
-                };
-            };
-            /** @description Trip not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["Scan"];
         };
+      };
+      /** @description Scan not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Scan is not running */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
     };
-    deleteTrip: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tripId: components["parameters"]["TripId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Trip deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Trip not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  listPhotos: {
+    parameters: {
+      query?: {
+        /** @description Filter by metadata status. */
+        metadataStatus?: components["schemas"]["PhotoMetadataStatus"];
+        /** @description Page number (1-based) */
+        page?: components["parameters"]["Page"];
+        /** @description Page size */
+        pageSize?: components["parameters"]["PageSize"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    updateTrip: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tripId: components["parameters"]["TripId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Photo list ordered by shoot date descending */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateTripRequest"];
-            };
+        content: {
+          "application/json": components["schemas"]["PhotoList"];
         };
-        responses: {
-            /** @description Updated trip */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Trip"];
-                };
-            };
-            /** @description Invalid modification */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Trip not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Modification would overlap another active trip */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+      };
+      /** @description Invalid query parameter */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
     };
-    splitTrip: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tripId: components["parameters"]["TripId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SplitTripRequest"];
-            };
-        };
-        responses: {
-            /** @description Split result */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TripOperationResult"];
-                };
-            };
-            /** @description Invalid split date */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Trip not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Split would violate trip constraints */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  getConfig: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    mergeTrips: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Runtime configuration */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MergeTripsRequest"];
-            };
+        content: {
+          "application/json": components["schemas"]["RuntimeConfig"];
         };
-        responses: {
-            /** @description Merge result */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TripOperationResult"];
-                };
-            };
-            /** @description Invalid merge */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description One or more trips were not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Trips cannot be merged */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+      };
     };
-    listTripOperations: {
-        parameters: {
-            query?: {
-                /** @description Page number (1-based) */
-                page?: components["parameters"]["Page"];
-                /** @description Page size */
-                pageSize?: components["parameters"]["PageSize"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Operation history */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TripOperationList"];
-                };
-            };
-        };
+  };
+  updateConfig: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    getSettings: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Current settings */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Settings"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateConfigRequest"];
+      };
     };
-    updateSettings: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Updated runtime configuration */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateSettingsRequest"];
-            };
+        content: {
+          "application/json": components["schemas"]["RuntimeConfig"];
         };
-        responses: {
-            /** @description Updated settings */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Settings"];
-                };
-            };
-            /** @description Invalid settings update */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+      };
+      /** @description Invalid configuration */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
     };
-    recalculate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Recalculation accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Recalculation"];
-                };
-            };
-            /** @description Invalid recalculation request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  deleteAllData: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    listExclusionZones: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description All data deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Exclusion zone list */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["ExclusionZone"][];
-                    };
-                };
-            };
+        content?: never;
+      };
+      /** @description Another scan is already running */
+      409: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
     };
-    createExclusionZone: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateExclusionZoneRequest"];
-            };
-        };
-        responses: {
-            /** @description Exclusion zone created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExclusionZone"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Administrative area not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  listTrips: {
+    parameters: {
+      query?: {
+        /** @description Filter by trip status. */
+        status?: components["schemas"]["TripListStatus"];
+        /** @description Free-text search by trip name or year/month. */
+        search?: string;
+        /** @default startDateDesc */
+        sort?: "startDateDesc" | "startDateAsc";
+        /** @description Page number (1-based) */
+        page?: components["parameters"]["Page"];
+        /** @description Page size */
+        pageSize?: components["parameters"]["PageSize"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    deleteExclusionZone: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Trip list */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Exclusion zone not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["TripList"];
         };
+      };
     };
-    searchLocalities: {
-        parameters: {
-            query: {
-                /** @description Search query (matches name, region, county) */
-                q: string;
-                /** @description Maximum results to return */
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Search results */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["Locality"][];
-                    };
-                };
-            };
-            /** @description Invalid query parameter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  createTrip: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateTripRequest"];
+      };
+    };
+    responses: {
+      /** @description Trip created */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Trip"];
+        };
+      };
+      /** @description Invalid trip */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Trip overlaps another active trip */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  getTrip: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tripId: components["parameters"]["TripId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Trip details */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TripDetail"];
+        };
+      };
+      /** @description Trip not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  deleteTrip: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tripId: components["parameters"]["TripId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Trip deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Trip not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  updateTrip: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tripId: components["parameters"]["TripId"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateTripRequest"];
+      };
+    };
+    responses: {
+      /** @description Updated trip */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Trip"];
+        };
+      };
+      /** @description Invalid modification */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Trip not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Modification would overlap another active trip */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  splitTrip: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tripId: components["parameters"]["TripId"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SplitTripRequest"];
+      };
+    };
+    responses: {
+      /** @description Split result */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TripOperationResult"];
+        };
+      };
+      /** @description Invalid split date */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Trip not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Split would violate trip constraints */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  mergeTrips: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MergeTripsRequest"];
+      };
+    };
+    responses: {
+      /** @description Merge result */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TripOperationResult"];
+        };
+      };
+      /** @description Invalid merge */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description One or more trips were not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Trips cannot be merged */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  listTripOperations: {
+    parameters: {
+      query?: {
+        /** @description Page number (1-based) */
+        page?: components["parameters"]["Page"];
+        /** @description Page size */
+        pageSize?: components["parameters"]["PageSize"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Operation history */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TripOperationList"];
+        };
+      };
+    };
+  };
+  getSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current settings */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Settings"];
+        };
+      };
+    };
+  };
+  updateSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateSettingsRequest"];
+      };
+    };
+    responses: {
+      /** @description Updated settings */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Settings"];
+        };
+      };
+      /** @description Invalid settings update */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  recalculate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Recalculation accepted */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Recalculation"];
+        };
+      };
+      /** @description Invalid recalculation request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  listExclusionZones: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Exclusion zone list */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            items: components["schemas"]["ExclusionZone"][];
+          };
+        };
+      };
+    };
+  };
+  createExclusionZone: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateExclusionZoneRequest"];
+      };
+    };
+    responses: {
+      /** @description Exclusion zone created */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ExclusionZone"];
+        };
+      };
+      /** @description Invalid request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Administrative area not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  deleteExclusionZone: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Exclusion zone not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  searchLocalities: {
+    parameters: {
+      query: {
+        /** @description Search query (matches name, region, county) */
+        q: string;
+        /** @description Maximum results to return */
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Search results */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            items: components["schemas"]["Locality"][];
+          };
+        };
+      };
+      /** @description Invalid query parameter */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
 }

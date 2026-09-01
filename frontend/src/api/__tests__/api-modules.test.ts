@@ -70,12 +70,15 @@ describe("scans API", () => {
 describe("settings API", () => {
   it("getSettings requests /settings", async () => {
     fetchMock.mockResolvedValueOnce(
-      jsonResponse({ minimumPhotosPerVisit: 1, consecutiveDaysWithoutPhotosBeforeClosing: 3 }),
+      jsonResponse({
+        minimumConsecutiveDaysWithPhotos: 2,
+        consecutiveDaysWithoutPhotosBeforeClosing: 3,
+      }),
     );
 
     const settings = await getSettings();
 
-    expect(settings.minimumPhotosPerVisit).toBe(1);
+    expect(settings.minimumConsecutiveDaysWithPhotos).toBe(2);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/settings",
       expect.objectContaining({ method: "GET" }),
@@ -84,16 +87,19 @@ describe("settings API", () => {
 
   it("updateSettings puts the payload", async () => {
     fetchMock.mockResolvedValueOnce(
-      jsonResponse({ minimumPhotosPerVisit: 5, consecutiveDaysWithoutPhotosBeforeClosing: 2 }),
+      jsonResponse({
+        minimumConsecutiveDaysWithPhotos: 5,
+        consecutiveDaysWithoutPhotosBeforeClosing: 2,
+      }),
     );
 
-    await updateSettings({ minimumPhotosPerVisit: 5 });
+    await updateSettings({ minimumConsecutiveDaysWithPhotos: 5 });
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/settings",
       expect.objectContaining({
         method: "PUT",
-        body: JSON.stringify({ minimumPhotosPerVisit: 5 }),
+        body: JSON.stringify({ minimumConsecutiveDaysWithPhotos: 5 }),
       }),
     );
   });

@@ -284,7 +284,7 @@ export const tripHistory = pgTable(
 
 export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
-  minPhotoCountPerVisit: integer("min_photo_count_per_visit").notNull().default(1),
+  minConsecutiveDaysWithPhotos: integer("min_consecutive_days_with_photos").notNull().default(2),
   daysWithoutPhotosThreshold: integer("days_without_photos_threshold").notNull().default(3),
   updatedAt: timestamp("updated_at", {
     mode: "date",

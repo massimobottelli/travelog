@@ -71,8 +71,11 @@ async function listTrips() {
 async function setSettings(min: number, gap: number) {
   await pool.query("DELETE FROM settings");
   await pool.query(
-    `INSERT INTO settings (min_photo_count_per_visit, days_without_photos_threshold)
-     VALUES ($1, $2)`,
+    `INSERT INTO settings (id, min_consecutive_days_with_photos, days_without_photos_threshold)
+     VALUES (1, $1, $2)
+     ON CONFLICT (id) DO UPDATE SET
+       min_consecutive_days_with_photos = EXCLUDED.min_consecutive_days_with_photos,
+       days_without_photos_threshold = EXCLUDED.days_without_photos_threshold`,
     [min, gap],
   );
 }
@@ -173,6 +176,8 @@ describe("trip generation", () => {
     const milano = await insertLocality("trip-test-milano", "Milano");
     await insertCache(38.03, 12.58, "trip-test-erice", erice);
     await insertCache(45.46, 9.19, "trip-test-milano", milano);
+    // min = 1 consecutive day: single-day visits qualify (as in §10.5)
+    await setSettings(1, 3);
 
     await insertPhotos("trip-test/a", 3, "2025-08-10 10:30:00", 38.03, 12.58);
     await insertPhotos("trip-test/b", 1, "2025-08-11 10:30:00", 38.03, 12.58);
@@ -209,6 +214,7 @@ describe("contiguity and exclusion rules", () => {
   it("creates a NEW trip for photos contiguous to an existing trip (§10.6)", async () => {
     const erice = await insertLocality("trip-test-erice", "Erice");
     await insertCache(38.03, 12.58, "trip-test-erice", erice);
+    await setSettings(1, 3);
 
     // First scan already consolidated trip A: 10–11 August
     await insertManualTrip("2025-08-10", "2025-08-11");
@@ -236,20 +242,20 @@ describe("contiguity and exclusion rules", () => {
     });
   });
 
-  it("respects the minimum photos per visit threshold (§8)", async () => {
+  it("requires the minimum consecutive days with photos (user request)", async () => {
     const erice = await insertLocality("trip-test-erice", "Erice");
     await insertCache(38.03, 12.58, "trip-test-erice", erice);
     await setSettings(2, 3);
 
-    // Under threshold: no visits → no trips
-    await insertPhotos("trip-test/a", 1, "2025-08-10 10:30:00", 38.03, 12.58);
+    // A single day with photos: run of 1 < 2 → no trips
+    await insertPhotos("trip-test/a", 10, "2025-08-10 10:30:00", 38.03, 12.58);
     await presencesRepository.rebuildFromPhotos();
     let result = await tripCalculationService.generateTrips();
     expect(result.tripsCreated).toBe(0);
     expect(await listTrips()).toHaveLength(0);
 
-    // At threshold: visit → trip
-    await insertPhotos("trip-test/b", 1, "2025-08-10 11:30:00", 38.03, 12.58);
+    // A second consecutive day: run of 2 → trip
+    await insertPhotos("trip-test/b", 10, "2025-08-11 10:30:00", 38.03, 12.58);
     await presencesRepository.rebuildFromPhotos();
     result = await tripCalculationService.generateTrips();
     expect(result.tripsCreated).toBe(1);
@@ -262,6 +268,7 @@ describe("contiguity and exclusion rules", () => {
     await insertCache(38.03, 12.58, "trip-test-erice", erice);
     await insertCache(45.46, 9.19, "trip-test-milano", milano);
     await exclusionZonesRepository.create(milano);
+    await setSettings(1, 3);
 
     // 01–02 out of zone, 03 only at home (excluded → immediate closure),
     // 04 mixed day (excluded + out of zone → travel day)
@@ -285,6 +292,7 @@ describe("contiguity and exclusion rules", () => {
   it("applies a county-scope exclusion zone only within the same county", async () => {
     const erice = await insertLocality("trip-test-erice", "Erice");
     const trapani = await insertLocality("trip-test-trapani", "Trapani");
+    await setSettings(1, 3);
     // Same county for both: a county exclusion must cover both localities
     await pool.query(`UPDATE localities SET county = 'Trapani' WHERE id IN ($1, $2)`, [
       erice,
@@ -311,25 +319,27 @@ describe("contiguity and exclusion rules", () => {
     expect(trips[0]).toMatchObject({ startDate: "2025-08-03", endDate: "2025-08-03" });
   });
 
-  it("aggregates duplicate coordinate hashes of the same locality (§6.3/§7.2)", async () => {
+  it("aggregates duplicate coordinate hashes of the same locality in the detail", async () => {
     // The same city resolved at two different rounded coordinates:
-    // two localities rows, two cache entries, same name.
+    // the detail shows ONE entry with the summed photo count.
     const erice1 = await insertLocality("trip-test-erice", "Erice");
     const erice2 = await insertLocality("trip-test-erice2", "Erice");
     await insertCache(38.03, 12.58, "trip-test-erice", erice1);
     await insertCache(38.04, 12.59, "trip-test-erice2", erice2);
-    await setSettings(5, 3);
-
-    // 2 + 3 photos of "Erice" on the same day: separately below the
-    // threshold of 5, aggregated above it → one visit, one trip.
     await insertPhotos("trip-test/a", 2, "2025-08-10 10:30:00", 38.03, 12.58);
     await insertPhotos("trip-test/b", 3, "2025-08-10 11:30:00", 38.04, 12.59);
-
+    await insertPhotos("trip-test/c", 4, "2025-08-11 10:30:00", 38.03, 12.58);
+    await insertPhotos("trip-test/d", 6, "2025-08-11 11:30:00", 38.04, 12.59);
     await presencesRepository.rebuildFromPhotos();
     const result = await tripCalculationService.generateTrips();
     expect(result.tripsCreated).toBe(1);
     const trips = await listTrips();
-    expect(trips[0]).toMatchObject({ startDate: "2025-08-10", endDate: "2025-08-10" });
+    expect(trips[0]).toMatchObject({ startDate: "2025-08-10", endDate: "2025-08-11" });
+    const days = await tripsRepository.getTripDays("2025-08-10", "2025-08-11");
+    expect(days[0].localities).toHaveLength(1);
+    expect(days[0].localities[0].photoCount).toBe(5);
+    expect(days[1].localities).toHaveLength(1);
+    expect(days[1].localities[0].photoCount).toBe(10);
   });
 
   it("generates no trips without photos", async () => {

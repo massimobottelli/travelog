@@ -14,7 +14,7 @@ class SettingsController {
 
   async updateSettings(req: Request, res: Response): Promise<void> {
     const updates = req.body as Partial<{
-      minimumPhotosPerVisit: number;
+      minimumConsecutiveDaysWithPhotos: number;
       consecutiveDaysWithoutPhotosBeforeClosing: number;
     }>;
     const settings = await settingsService.updateSettings(updates);

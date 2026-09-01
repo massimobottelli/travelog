@@ -1258,12 +1258,12 @@ components:
     Settings:
       type: object
       additionalProperties: false
-      required: [minimumPhotosPerVisit, consecutiveDaysWithoutPhotosBeforeClosing]
+      required: [minimumConsecutiveDaysWithPhotos, consecutiveDaysWithoutPhotosBeforeClosing]
       properties:
-        minimumPhotosPerVisit:
+        minimumConsecutiveDaysWithPhotos:
           type: integer
           minimum: 1
-          default: 1
+          default: 2
         consecutiveDaysWithoutPhotosBeforeClosing:
           type: integer
           minimum: 0
@@ -1274,7 +1274,7 @@ components:
       additionalProperties: false
       minProperties: 1
       properties:
-        minimumPhotosPerVisit:
+        minimumConsecutiveDaysWithPhotos:
           type: integer
           minimum: 1
         consecutiveDaysWithoutPhotosBeforeClosing:

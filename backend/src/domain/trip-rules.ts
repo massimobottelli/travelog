@@ -23,8 +23,6 @@ export interface DayFacts {
   photosOutsideZone: number;
   /** Valid geolocated photos inside an exclusion zone. */
   photosInsideZone: number;
-  /** Out-of-zone presences (day + locality) meeting the visit threshold. */
-  outOfZoneVisits: number;
 }
 
 export interface DayClassification {
@@ -59,25 +57,67 @@ export function addDays(date: string, days: number): string {
   return new Date(utc * 86_400_000).toISOString().slice(0, 10);
 }
 
+/** Kind of a single day before the consecutive-days rule is applied. */
+export type RawDayKind = "out" | "excluded" | "off";
+
 /**
- * Classify a single calendar day (requirements §9.4, §9.5, §10.2):
- *
- * - "travel": at least one out-of-zone visit (a day + locality presence
- *   meeting the minimum-photos-per-visit threshold);
+ * Raw kind of a day:
+ * - "out": at least one valid photo outside the exclusion zones;
  * - "excluded": photos exist but exclusively inside exclusion zones —
- *   an ongoing trip closes immediately at the previous day (§9.5);
- * - "no_visit": no qualifying presence (no photos at all, or photos only
- *   below the visit threshold) — counts toward the days-without-photos
- *   tolerance (§10.3).
+ *   the user was home that day: it breaks a photo run and closes an
+ *   ongoing trip immediately (§9.5);
+ * - "off": no out-of-zone photos (no photos at all, or only excluded
+ *   photos — treated as a day without photos for the run computation).
  */
-export function classifyDay(facts: DayFacts): DayClassification {
-  if (facts.outOfZoneVisits > 0) {
-    return { date: facts.date, kind: "travel" };
+export function kindOfDay(facts: DayFacts): RawDayKind {
+  if (facts.photosOutsideZone > 0) return "out";
+  if (facts.photosInsideZone > 0) return "excluded";
+  return "off";
+}
+
+/**
+ * Classify days applying the consecutive-days visit rule (functional
+ * change requested by the user, superseding the §8 photo-count
+ * threshold): a day is a "travel" day only if it belongs to a run of at
+ * least `minConsecutiveDays` consecutive calendar days with photos
+ * outside the exclusion zones, regardless of locality. Runs are broken
+ * by days without out-of-zone photos and by fully excluded days.
+ *
+ * A day with photos only inside exclusion zones keeps the "excluded"
+ * kind: an ongoing trip closes immediately at the previous day (§9.5).
+ */
+export function classifyTravelDays(
+  facts: DayFacts[],
+  minConsecutiveDays: number,
+): DayClassification[] {
+  const sorted = [...facts].sort((a, b) => diffInDays(b.date, a.date));
+  const kinds = sorted.map((f) => ({ date: f.date, kind: kindOfDay(f) }));
+
+  const result: DayClassification[] = new Array(sorted.length);
+  let i = 0;
+  while (i < sorted.length) {
+    if (kinds[i].kind === "out") {
+      let j = i;
+      while (
+        j + 1 < sorted.length &&
+        kinds[j + 1].kind === "out" &&
+        diffInDays(sorted[j].date, sorted[j + 1].date) === 1
+      ) {
+        j++;
+      }
+      const runLength = j - i + 1;
+      const kind: DayKind = runLength >= minConsecutiveDays ? "travel" : "no_visit";
+      for (let k = i; k <= j; k++) {
+        result[k] = { date: sorted[k].date, kind };
+      }
+      i = j + 1;
+    } else {
+      const kind: DayKind = kinds[i].kind === "excluded" ? "excluded" : "no_visit";
+      result[i] = { date: sorted[i].date, kind };
+      i++;
+    }
   }
-  if (facts.photosInsideZone > 0 && facts.photosOutsideZone === 0) {
-    return { date: facts.date, kind: "excluded" };
-  }
-  return { date: facts.date, kind: "no_visit" };
+  return result;
 }
 
 /**

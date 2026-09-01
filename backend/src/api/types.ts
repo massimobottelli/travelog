@@ -607,13 +607,13 @@ export interface components {
       total: number;
     };
     Settings: {
-      /** @default 1 */
-      minimumPhotosPerVisit: number;
+      /** @default 2 */
+      minimumConsecutiveDaysWithPhotos: number;
       /** @default 3 */
       consecutiveDaysWithoutPhotosBeforeClosing: number;
     };
     UpdateSettingsRequest: {
-      minimumPhotosPerVisit?: number;
+      minimumConsecutiveDaysWithPhotos?: number;
       consecutiveDaysWithoutPhotosBeforeClosing?: number;
     };
     Recalculation: {

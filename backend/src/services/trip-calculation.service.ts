@@ -18,10 +18,10 @@ import tripsRepository from "../repositories/trips.repository.js";
 import exclusionZonesRepository from "../repositories/exclusion-zones.repository.js";
 import settingsService from "./settings.service.js";
 import {
-  classifyDay,
   groupDaysIntoTrips,
   clipIntervalsAgainstBlocked,
   formatAutoTripName,
+  classifyTravelDays,
   type DayFacts,
 } from "../domain/trip-rules.js";
 
@@ -95,7 +95,6 @@ class TripCalculationService {
           date: presence.photoDate,
           photosOutsideZone: 0,
           photosInsideZone: 0,
-          outOfZoneVisits: 0,
         };
         factsByDate.set(presence.photoDate, facts);
       }
@@ -105,14 +104,17 @@ class TripCalculationService {
         facts.photosInsideZone += presence.photoCount;
       } else {
         facts.photosOutsideZone += presence.photoCount;
-        // §8: the threshold applies to each day + locality pair.
-        if (presence.photoCount >= settings.minimumPhotosPerVisit) {
-          facts.outOfZoneVisits += 1;
-        }
       }
     }
 
-    const days = [...factsByDate.values()].map((facts) => classifyDay(facts));
+    // Consecutive-days visit rule (user request, supersedes the §8
+    // photo-count threshold): a day is a travel day only if it belongs to
+    // a run of at least `minimumConsecutiveDaysWithPhotos` consecutive
+    // days with out-of-zone photos, regardless of locality.
+    const days = classifyTravelDays(
+      [...factsByDate.values()],
+      settings.minimumConsecutiveDaysWithPhotos,
+    );
     const candidates = groupDaysIntoTrips(days, settings.consecutiveDaysWithoutPhotosBeforeClosing);
 
     // §11: existing trips are immutable — new trips are created only in

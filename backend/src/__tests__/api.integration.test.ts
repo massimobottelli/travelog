@@ -229,24 +229,24 @@ describe("GET/PUT /api/settings", () => {
     expect(res.status).toBe(200);
     expect(Object.keys(res.body).sort()).toEqual([
       "consecutiveDaysWithoutPhotosBeforeClosing",
-      "minimumPhotosPerVisit",
+      "minimumConsecutiveDaysWithPhotos",
     ]);
-    expect(res.body.minimumPhotosPerVisit).toBe(1);
+    expect(res.body.minimumConsecutiveDaysWithPhotos).toBe(2);
     expect(res.body.consecutiveDaysWithoutPhotosBeforeClosing).toBe(3);
   });
 
   it("updates settings and returns the contract shape", async () => {
     const res = await request(server)
       .put("/api/settings")
-      .send({ minimumPhotosPerVisit: 5, consecutiveDaysWithoutPhotosBeforeClosing: 2 });
+      .send({ minimumConsecutiveDaysWithPhotos: 5, consecutiveDaysWithoutPhotosBeforeClosing: 2 });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      minimumPhotosPerVisit: 5,
+      minimumConsecutiveDaysWithPhotos: 5,
       consecutiveDaysWithoutPhotosBeforeClosing: 2,
     });
 
     const after = await request(server).get("/api/settings");
-    expect(after.body.minimumPhotosPerVisit).toBe(5);
+    expect(after.body.minimumConsecutiveDaysWithPhotos).toBe(5);
   });
 });
 
@@ -375,7 +375,7 @@ describe("DELETE /api/data", () => {
       lon: null,
     });
     await insertScanWithErrors();
-    await request(server).put("/api/settings").send({ minimumPhotosPerVisit: 7 });
+    await request(server).put("/api/settings").send({ minimumConsecutiveDaysWithPhotos: 7 });
 
     const res = await request(server).delete("/api/data");
     expect(res.status).toBe(204);
@@ -401,7 +401,7 @@ describe("DELETE /api/data", () => {
     // Settings fall back to defaults on next access
     const settings = await request(server).get("/api/settings");
     expect(settings.status).toBe(200);
-    expect(settings.body.minimumPhotosPerVisit).toBe(1);
+    expect(settings.body.minimumConsecutiveDaysWithPhotos).toBe(2);
     expect(settings.body.consecutiveDaysWithoutPhotosBeforeClosing).toBe(3);
   });
 });

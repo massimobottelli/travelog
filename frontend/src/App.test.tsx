@@ -18,7 +18,10 @@ function mockAllEndpoints(): void {
     const url = String(input);
     if (url.includes("/api/settings")) {
       return Promise.resolve(
-        jsonResponse({ minimumPhotosPerVisit: 1, consecutiveDaysWithoutPhotosBeforeClosing: 3 }),
+        jsonResponse({
+          minimumConsecutiveDaysWithPhotos: 2,
+          consecutiveDaysWithoutPhotosBeforeClosing: 3,
+        }),
       );
     }
     if (url.includes("/api/config")) {
@@ -200,8 +203,8 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Impostazioni" }));
 
     await waitFor(() => {
-      const input = screen.getByLabelText("Foto minime per visita") as HTMLInputElement;
-      expect(input.value).toBe("1");
+      const input = screen.getByLabelText("Giorni consecutivi con foto") as HTMLInputElement;
+      expect(input.value).toBe("2");
     });
     expect(screen.getByRole("button", { name: "Ricalcola" })).not.toBeNull();
   });

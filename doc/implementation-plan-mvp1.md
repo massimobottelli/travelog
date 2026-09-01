@@ -1334,6 +1334,31 @@ usa lo stato `failed` con messaggio diagnostico invece di introdurne uno nuovo
 
 ---
 
+> **Aggiornamento (richiesta utente): soglia "giorni consecutivi con foto" — Completato**
+>
+> **Cambio funzionale** (supera il requisito §8 "foto minime per visita"):
+> una visita/viaggio è definita da un numero minimo di **giorni consecutivi
+> con foto fuori dalle zone di esclusione** (default **2**), a prescindere
+> dalla località (scelta utente: es. 1 giorno a Firenze + 1 a Siena =
+> viaggio di 2 giorni). Un giorno isolato con foto non è un viaggio.
+>
+> * Migration 0011: `settings.min_photo_count_per_visit` →
+>   `min_consecutive_days_with_photos` (default 2, valore esistente
+>   aggiornato a 2); applicata a dev e test.
+> * Dominio (`trip-rules.classifyTravelDays`): i giorni appartenenti a una
+>   sequenza di ≥N giorni consecutivi con foto fuori zona sono "travel";
+>   le sequenze si interrompono su giorni senza foto fuori zona e sulle
+>   giornate interamente in zona di esclusione (che chiudono il viaggio in
+>   corso, §9.5). I giorni isolati sotto soglia sono "no_visit".
+> * Impostazioni (contratto + UI): "Giorni consecutivi con foto"
+>   (`minimumConsecutiveDaysWithPhotos`, default 2) al posto di
+>   "Foto minime per visita"; la regola dei giorni senza foto (§10.3) resta
+>   invariata.
+> * Fix fixures test settings (singleton id=1). Totale backend **138**,
+>   frontend **54**.
+
+---
+
 # Phase 9 — Integration and hardening
 
 ## Goal

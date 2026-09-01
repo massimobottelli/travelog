@@ -9,13 +9,13 @@ import { eq } from "drizzle-orm";
 // ── Contract DTO (OpenAPI Settings schema) ────────────────────
 
 export interface SettingsDto {
-  minimumPhotosPerVisit: number;
+  minimumConsecutiveDaysWithPhotos: number;
   consecutiveDaysWithoutPhotosBeforeClosing: number;
 }
 
 function toDto(row: Record<string, unknown>): SettingsDto {
   return {
-    minimumPhotosPerVisit: Number(row.minPhotoCountPerVisit ?? 1),
+    minimumConsecutiveDaysWithPhotos: Number(row.minConsecutiveDaysWithPhotos ?? 2),
     consecutiveDaysWithoutPhotosBeforeClosing: Number(row.daysWithoutPhotosThreshold ?? 3),
   };
 }
@@ -33,7 +33,7 @@ class SettingsRepository {
       .insert(settingsTable)
       .values({
         id: SETTINGS_SINGLETON_ID,
-        minPhotoCountPerVisit: 1,
+        minConsecutiveDaysWithPhotos: 2,
         daysWithoutPhotosThreshold: 3,
       })
       .onConflictDoNothing();
@@ -53,8 +53,8 @@ class SettingsRepository {
     const setValues: Record<string, unknown> = {};
 
     for (const key of Object.keys(updates)) {
-      if (key === "minimumPhotosPerVisit") {
-        setValues.minPhotoCountPerVisit = updates[key];
+      if (key === "minimumConsecutiveDaysWithPhotos") {
+        setValues.minConsecutiveDaysWithPhotos = updates[key];
       } else if (key === "consecutiveDaysWithoutPhotosBeforeClosing") {
         setValues.daysWithoutPhotosThreshold = updates[key];
       }

@@ -18,7 +18,7 @@ import { errorToMessage } from "../utils/error";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [minimumPhotosPerVisit, setMinimumPhotosPerVisit] = useState("1");
+  const [minimumConsecutiveDaysWithPhotos, setMinimumConsecutiveDaysWithPhotos] = useState("2");
   const [consecutiveDaysWithoutPhotosBeforeClosing, setConsecutiveDaysWithoutPhotosBeforeClosing] =
     useState("3");
 
@@ -48,7 +48,7 @@ export default function SettingsPage() {
       .then((result) => {
         if (!active) return;
         setSettings(result);
-        setMinimumPhotosPerVisit(String(result.minimumPhotosPerVisit));
+        setMinimumConsecutiveDaysWithPhotos(String(result.minimumConsecutiveDaysWithPhotos));
         setConsecutiveDaysWithoutPhotosBeforeClosing(
           String(result.consecutiveDaysWithoutPhotosBeforeClosing),
         );
@@ -109,7 +109,7 @@ export default function SettingsPage() {
     setSaveMessage(null);
     try {
       const updated = await updateSettings({
-        minimumPhotosPerVisit: Number(minimumPhotosPerVisit),
+        minimumConsecutiveDaysWithPhotos: Number(minimumConsecutiveDaysWithPhotos),
         consecutiveDaysWithoutPhotosBeforeClosing: Number(
           consecutiveDaysWithoutPhotosBeforeClosing,
         ),
@@ -207,17 +207,19 @@ export default function SettingsPage() {
         <h2>Impostazioni</h2>
         <form onSubmit={handleSave} className="settings-form">
           <div className="field">
-            <label htmlFor="min-photos">Foto minime per visita</label>
+            <label htmlFor="min-photos">Giorni consecutivi con foto</label>
             <input
               id="min-photos"
               type="number"
               min={1}
-              value={minimumPhotosPerVisit}
-              onChange={(e) => setMinimumPhotosPerVisit(e.target.value)}
+              value={minimumConsecutiveDaysWithPhotos}
+              onChange={(e) => setMinimumConsecutiveDaysWithPhotos(e.target.value)}
               required
             />
             <p className="hint">
-              Numero minimo di foto valide con GPS per la coppia giorno + località.
+              Numero minimo di giorni consecutivi con foto fuori dalle zone di esclusione per
+              definire un viaggio (a prescindere dalla località). Un giorno isolato non è un
+              viaggio.
             </p>
           </div>
           <div className="field">

@@ -8,17 +8,23 @@
 
 import { describe, it, expect } from "vitest";
 import {
-  classifyDay,
+  classifyTravelDays,
   groupDaysIntoTrips,
   clipIntervalsAgainstBlocked,
   formatAutoTripName,
   addDays,
   diffInDays,
+  kindOfDay,
   type DayClassification,
+  type DayFacts,
 } from "../trip-rules.js";
 
 function day(date: string, kind: DayClassification["kind"]): DayClassification {
   return { date, kind };
+}
+
+function facts(date: string, outside: number, inside = 0): DayFacts {
+  return { date, photosOutsideZone: outside, photosInsideZone: inside };
 }
 
 describe("date helpers", () => {
@@ -35,60 +41,74 @@ describe("date helpers", () => {
   });
 });
 
-describe("classifyDay", () => {
-  it("classifies a day with an out-of-zone visit as travel (§10.2)", () => {
-    expect(
-      classifyDay({
-        date: "2025-08-10",
-        photosOutsideZone: 80,
-        photosInsideZone: 0,
-        outOfZoneVisits: 1,
-      }).kind,
-    ).toBe("travel");
+describe("kindOfDay", () => {
+  it("classifies a day with out-of-zone photos as out", () => {
+    expect(kindOfDay({ date: "2025-08-15", photosOutsideZone: 1, photosInsideZone: 0 })).toBe(
+      "out",
+    );
   });
 
-  it("classifies a mixed day (photos inside and outside exclusion) as travel (§9.4)", () => {
-    expect(
-      classifyDay({
-        date: "2025-08-15",
-        photosOutsideZone: 20,
-        photosInsideZone: 50,
-        outOfZoneVisits: 1,
-      }).kind,
-    ).toBe("travel");
+  it("classifies a mixed day (photos inside and outside exclusion) as out (§9.4)", () => {
+    expect(kindOfDay({ date: "2025-08-15", photosOutsideZone: 20, photosInsideZone: 50 })).toBe(
+      "out",
+    );
   });
 
   it("classifies a fully excluded day as excluded (§9.5)", () => {
-    expect(
-      classifyDay({
-        date: "2025-08-15",
-        photosOutsideZone: 0,
-        photosInsideZone: 50,
-        outOfZoneVisits: 0,
-      }).kind,
-    ).toBe("excluded");
+    expect(kindOfDay({ date: "2025-08-15", photosOutsideZone: 0, photosInsideZone: 50 })).toBe(
+      "excluded",
+    );
   });
 
-  it("classifies a day without photos as no_visit", () => {
-    expect(
-      classifyDay({
-        date: "2025-08-15",
-        photosOutsideZone: 0,
-        photosInsideZone: 0,
-        outOfZoneVisits: 0,
-      }).kind,
-    ).toBe("no_visit");
+  it("classifies a day without photos as off", () => {
+    expect(kindOfDay({ date: "2025-08-15", photosOutsideZone: 0, photosInsideZone: 0 })).toBe(
+      "off",
+    );
+  });
+});
+
+describe("classifyTravelDays (consecutive-days rule)", () => {
+  it("marks days in a run of at least N consecutive out-days as travel", () => {
+    const days = classifyTravelDays(
+      [facts("2025-08-10", 5), facts("2025-08-11", 1), facts("2025-08-12", 9)],
+      2,
+    );
+    expect(days).toEqual([
+      { date: "2025-08-10", kind: "travel" },
+      { date: "2025-08-11", kind: "travel" },
+      { date: "2025-08-12", kind: "travel" },
+    ]);
   });
 
-  it("classifies a day with only under-threshold out-of-zone photos as no_visit (§8)", () => {
-    expect(
-      classifyDay({
-        date: "2025-08-15",
-        photosOutsideZone: 3,
-        photosInsideZone: 0,
-        outOfZoneVisits: 0,
-      }).kind,
-    ).toBe("no_visit");
+  it("does not qualify a single isolated day with photos (run < N)", () => {
+    const days = classifyTravelDays([facts("2025-08-10", 80)], 2);
+    expect(days).toEqual([{ date: "2025-08-10", kind: "no_visit" }]);
+  });
+
+  it("does not require the same locality: any out-of-zone photos count", () => {
+    // Two consecutive days, different localities — still a run of 2
+    const days = classifyTravelDays([facts("2025-08-10", 20), facts("2025-08-11", 3)], 2);
+    expect(days.every((d) => d.kind === "travel")).toBe(true);
+  });
+
+  it("breaks runs on days without photos", () => {
+    const days = classifyTravelDays(
+      [facts("2025-08-10", 5), facts("2025-08-11", 0), facts("2025-08-12", 5)],
+      2,
+    );
+    expect(days.every((d) => d.kind === "no_visit")).toBe(true);
+  });
+
+  it("breaks runs on fully excluded days (the user was home)", () => {
+    const days = classifyTravelDays(
+      [facts("2025-08-10", 5), facts("2025-08-11", 0, 50), facts("2025-08-12", 5)],
+      2,
+    );
+    expect(days).toEqual([
+      { date: "2025-08-10", kind: "no_visit" },
+      { date: "2025-08-11", kind: "excluded" },
+      { date: "2025-08-12", kind: "no_visit" },
+    ]);
   });
 });
 
