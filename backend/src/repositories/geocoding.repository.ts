@@ -94,6 +94,7 @@ export async function getLocalityByHash(localityHash: string): Promise<LocalityR
 
 /**
  * Search localities by name substring (case-insensitive).
+ * Returns contract-conforming Locality objects (localityHash, source).
  */
 export async function searchLocalities(
   q: string,
@@ -101,6 +102,8 @@ export async function searchLocalities(
 ): Promise<
   Array<{
     id: number;
+    localityHash: string;
+    source: string;
     countryCode: string;
     name: string;
     adminLevel: number;
@@ -110,7 +113,7 @@ export async function searchLocalities(
 > {
   const pattern = `%${q}%`;
   const result = await pgPool.query(
-    `SELECT id, country_code, name, admin_level, region, county
+    `SELECT id, locality_hash, source, country_code, name, admin_level, region, county
      FROM localities
      WHERE name ILIKE $1
         OR region ILIKE $1
@@ -121,9 +124,11 @@ export async function searchLocalities(
   );
   return result.rows.map((r) => ({
     id: Number(r.id),
+    localityHash: r.locality_hash,
+    source: r.source,
     countryCode: r.country_code,
     name: r.name,
-    adminLevel: r.admin_level,
+    adminLevel: Number(r.admin_level),
     region: r.region,
     county: r.county,
   }));

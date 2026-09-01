@@ -33,6 +33,18 @@ function mockAllEndpoints(): void {
     if (url.includes("/api/photos")) {
       return Promise.resolve(jsonResponse({ items: [], page: 1, pageSize: 20, total: 0 }));
     }
+    if (url.includes("/api/exclusion-zones")) {
+      return Promise.resolve(jsonResponse({ items: [] }));
+    }
+    if (url.includes("/api/trips")) {
+      return Promise.resolve(jsonResponse({ items: [], page: 1, pageSize: 20, total: 0 }));
+    }
+    if (url.includes("/api/operations")) {
+      return Promise.resolve(jsonResponse({ items: [], page: 1, pageSize: 20, total: 0 }));
+    }
+    if (url.includes("/api/localities/search")) {
+      return Promise.resolve(jsonResponse({ items: [] }));
+    }
     return Promise.resolve(jsonResponse({}, 200));
   });
 }

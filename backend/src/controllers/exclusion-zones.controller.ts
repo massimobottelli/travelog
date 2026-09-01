@@ -4,6 +4,7 @@
 
 import type { Request, Response } from "express";
 import exclusionZonesService from "../services/exclusion-zones.service.js";
+import type { ExclusionScope } from "../services/exclusion-zones.service.js";
 
 class ExclusionZonesController {
   async listExclusionZones(_req: Request, res: Response): Promise<void> {
@@ -12,8 +13,11 @@ class ExclusionZonesController {
   }
 
   async createExclusionZone(req: Request, res: Response): Promise<void> {
-    const { localityId } = req.body as { localityId: number };
-    const zone = await exclusionZonesService.create(localityId);
+    const { localityId, scope } = req.body as {
+      localityId: number;
+      scope?: ExclusionScope;
+    };
+    const zone = await exclusionZonesService.create(localityId, scope ?? "locality");
     res.status(201).json(zone);
   }
 

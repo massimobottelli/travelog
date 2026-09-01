@@ -20,9 +20,10 @@ const ROUTE_OPS: Record<string, Record<string, string>> = {
   "/scans/:scanId/cancel": { post: "cancelScan" },
   "/photos": { get: "listPhotos" },
   "/trips": { get: "listTrips", post: "createTrip" },
-  "/trips/:tripId": { get: "getTrip", patch: "updateTrip" },
+  "/trips/:tripId": { get: "getTrip", patch: "updateTrip", delete: "deleteTrip" },
   "/trips/:tripId/split": { post: "splitTrip" },
   "/trips/merge": { post: "mergeTrips" },
+  "/operations": { get: "listTripOperations" },
   "/settings": { get: "getSettings", put: "updateSettings", post: "recalculate" },
   "/exclusion-zones": {
     get: "listExclusionZones",
@@ -57,7 +58,7 @@ const REQUIRED_BODY_FIELDS: Record<string, string[]> = {
   mergeTrips: ["tripIds"],
   updateSettings: [],
   recalculate: [],
-  createExclusionZone: ["administrativeAreaId"],
+  createExclusionZone: ["localityId"],
 };
 
 export function openApiValidator(_req: Request, _res: Response, next: NextFunction): void {

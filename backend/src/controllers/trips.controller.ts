@@ -4,6 +4,7 @@
 
 import type { Request, Response } from "express";
 import tripsService from "../services/trips.service.js";
+import tripOperationsService from "../services/trip-operations.service.js";
 
 class TripsController {
   async listTrips(req: Request, res: Response): Promise<void> {
@@ -39,6 +40,12 @@ class TripsController {
     const updates = req.body as Partial<{ name: string; startDate: string; endDate: string }>;
     const trip = await tripsService.updateTrip(tripId, updates);
     res.status(200).json(trip);
+  }
+
+  async deleteTrip(req: Request, res: Response): Promise<void> {
+    const tripId = Number(req.params.tripId);
+    await tripOperationsService.deleteTrip(tripId);
+    res.status(204).send();
   }
 }
 

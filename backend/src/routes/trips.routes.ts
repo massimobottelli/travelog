@@ -19,4 +19,7 @@ router.get("/:tripId", tripsController.getTrip);
 // PATCH /trips/:tripId — update a trip
 router.patch("/:tripId", tripsController.updateTrip);
 
+// DELETE /trips/:tripId — explicitly delete a trip
+router.delete("/:tripId", tripsController.deleteTrip);
+
 export default router;

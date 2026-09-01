@@ -51,7 +51,10 @@ export function createApp(): ReturnType<typeof express> {
   app.use(`${API_PREFIX}/settings`, settingsRoutes);
   app.use(`${API_PREFIX}/exclusion-zones`, exclusionZonesRoutes);
   app.use(`${API_PREFIX}/localities`, localitiesRoutes);
-  app.use(`${API_PREFIX}/operations`, operationsRoutes);
+  // Trip operations expose paths under /trips/* and /operations:
+  // mounted at the API root AFTER the trips router so that
+  // POST /api/trips/:id/split and /api/trips/merge resolve correctly.
+  app.use(API_PREFIX, operationsRoutes);
 
   // ── Error handler (MUST be last) ─────────────────────────────
   app.use(errorHandler);

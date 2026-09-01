@@ -23,6 +23,19 @@ export type UpdateSettingsRequest = components["schemas"]["UpdateSettingsRequest
 export type Recalculation = components["schemas"]["Recalculation"];
 export type RuntimeConfig = components["schemas"]["RuntimeConfig"];
 export type UpdateConfigRequest = components["schemas"]["UpdateConfigRequest"];
+export type Trip = components["schemas"]["Trip"];
+export type TripList = components["schemas"]["TripList"];
+export type TripDetail = components["schemas"]["TripDetail"];
+export type TripDay = components["schemas"]["TripDay"];
+export type TripDayLocality = components["schemas"]["TripDayLocality"];
+export type TripOperation = components["schemas"]["TripOperation"];
+export type TripOperationList = components["schemas"]["TripOperationList"];
+export type UpdateTripRequest = components["schemas"]["UpdateTripRequest"];
+export type SplitTripRequest = components["schemas"]["SplitTripRequest"];
+export type MergeTripsRequest = components["schemas"]["MergeTripsRequest"];
+export type TripOperationResult = components["schemas"]["TripOperationResult"];
+export type ExclusionZone = components["schemas"]["ExclusionZone"];
+export type Locality = components["schemas"]["Locality"];
 
 // ── API error contract ───────────────────────────────────────
 

@@ -10,6 +10,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { getSettings, updateSettings, recalculate } from "../api/settings";
 import { getConfig, updateConfig } from "../api/config";
 import { deleteAllData } from "../api/data";
+import ExclusionZonesPanel from "../components/ExclusionZonesPanel";
 import type { Settings, RuntimeConfig } from "../api/client";
 import Loading from "../components/Loading";
 import ErrorAlert from "../components/ErrorAlert";
@@ -252,6 +253,8 @@ export default function SettingsPage() {
         {recalcMessage && <p className="alert alert-success">{recalcMessage}</p>}
         {recalcError && <ErrorAlert message={recalcError} />}
       </section>
+
+      <ExclusionZonesPanel />
 
       <section className="panel panel-danger">
         <h2>Manutenzione</h2>

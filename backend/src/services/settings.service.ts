@@ -22,20 +22,27 @@ function toDto(row: Record<string, unknown>): SettingsDto {
 
 // ── Repository ────────────────────────────────────────────────
 
+const SETTINGS_SINGLETON_ID = 1;
+
 class SettingsRepository {
   async getOrCreate(): Promise<Record<string, unknown>> {
-    const [row] = await db.select().from(settingsTable).limit(1);
-    if (row) return row;
-
-    // Create default singleton row
-    const result = await db
+    // Idempotent singleton creation: the INSERT ... ON CONFLICT guarantees
+    // a single row even under concurrent requests (a race previously
+    // produced duplicate rows).
+    await db
       .insert(settingsTable)
       .values({
+        id: SETTINGS_SINGLETON_ID,
         minPhotoCountPerVisit: 1,
         daysWithoutPhotosThreshold: 3,
       })
-      .returning();
-    return result[0];
+      .onConflictDoNothing();
+    const [row] = await db
+      .select()
+      .from(settingsTable)
+      .where(eq(settingsTable.id, SETTINGS_SINGLETON_ID))
+      .limit(1);
+    return row;
   }
 
   async update(updates: Record<string, unknown>): Promise<Record<string, unknown> | null> {

@@ -1,0 +1,137 @@
+/**
+ * Travelog MVP1 — Trip Calculation Service (Phase 5)
+ *
+ * Application service that derives presences (day + locality) and
+ * generates trips from geolocated photos, implementing the functional
+ * requirements §7–§12:
+ *
+ * - trip generation rules live exclusively in the backend (design §44);
+ * - existing trips are NEVER modified automatically (requirements §10.6,
+ *   §11): new trips are created only for date ranges not already covered
+ *   by an active trip;
+ * - recalculation is an explicit user operation (requirements §12) and
+ *   never deletes photographic or geographic data.
+ */
+
+import presencesRepository, { type PresenceRow } from "../repositories/presences.repository.js";
+import tripsRepository from "../repositories/trips.repository.js";
+import exclusionZonesRepository from "../repositories/exclusion-zones.repository.js";
+import settingsService from "./settings.service.js";
+import {
+  classifyDay,
+  groupDaysIntoTrips,
+  clipIntervalsAgainstBlocked,
+  formatAutoTripName,
+  type DayFacts,
+} from "../domain/trip-rules.js";
+
+export interface TripGenerationResult {
+  tripsCreated: number;
+}
+
+class TripCalculationService {
+  /**
+   * Explicit recalculation: rebuild the derived presences from the
+   * photos table, then generate trips with the current settings.
+   */
+  async recalculate(): Promise<TripGenerationResult> {
+    await presencesRepository.rebuildFromPhotos();
+    return this.generateTrips();
+  }
+
+  /**
+   * Generate new trips from the current presences without touching
+   * existing trips. Safe to run repeatedly: idempotent w.r.t. trips
+   * already created.
+   */
+  async generateTrips(): Promise<TripGenerationResult> {
+    const settings = await settingsService.getSettings();
+    const zones = await exclusionZonesRepository.list();
+
+    // §9: a zone can target a single locality, a county (provincia) or a
+    // region. County/region matching is qualified by country code to
+    // avoid cross-country name collisions.
+    const excludedLocalityIds = new Set<number>();
+    const excludedCounties = new Set<string>();
+    const excludedRegions = new Set<string>();
+    for (const zone of zones) {
+      if (zone.scope === "county" && zone.county) {
+        excludedCounties.add(`${zone.countryCode}:${zone.county}`);
+      } else if (zone.scope === "region" && zone.region) {
+        excludedRegions.add(`${zone.countryCode}:${zone.region}`);
+      } else if (zone.localityId !== null) {
+        excludedLocalityIds.add(zone.localityId);
+      }
+    }
+    const isExcluded = (presence: PresenceRow): boolean =>
+      excludedLocalityIds.has(presence.localityId) ||
+      (presence.county !== null &&
+        excludedCounties.has(`${presence.countryCode}:${presence.county}`)) ||
+      (presence.region !== null &&
+        excludedRegions.has(`${presence.countryCode}:${presence.region}`));
+
+    const presences = await presencesRepository.listPresences();
+
+    // The same city can be stored under several localities rows (one per
+    // rounded coordinate hash). Aggregate them into ONE presence per
+    // day + locality name (requirements §6.3/§7.2) so the visit
+    // threshold applies to the whole administrative locality.
+    const aggregated = new Map<string, PresenceRow>();
+    for (const p of presences) {
+      const key = `${p.photoDate}|${p.countryCode}:${p.name.toLowerCase()}`;
+      const existing = aggregated.get(key);
+      if (existing) {
+        existing.photoCount += p.photoCount;
+      } else {
+        aggregated.set(key, { ...p });
+      }
+    }
+
+    const factsByDate = new Map<string, DayFacts>();
+    for (const presence of aggregated.values()) {
+      let facts = factsByDate.get(presence.photoDate);
+      if (!facts) {
+        facts = {
+          date: presence.photoDate,
+          photosOutsideZone: 0,
+          photosInsideZone: 0,
+          outOfZoneVisits: 0,
+        };
+        factsByDate.set(presence.photoDate, facts);
+      }
+      if (isExcluded(presence)) {
+        // §20: photos in exclusion zones remain valid data but do not
+        // contribute to trip statistics.
+        facts.photosInsideZone += presence.photoCount;
+      } else {
+        facts.photosOutsideZone += presence.photoCount;
+        // §8: the threshold applies to each day + locality pair.
+        if (presence.photoCount >= settings.minimumPhotosPerVisit) {
+          facts.outOfZoneVisits += 1;
+        }
+      }
+    }
+
+    const days = [...factsByDate.values()].map((facts) => classifyDay(facts));
+    const candidates = groupDaysIntoTrips(days, settings.consecutiveDaysWithoutPhotosBeforeClosing);
+
+    // §11: existing trips are immutable — new trips are created only in
+    // the date ranges not already covered by an active trip (§10.6/§21.11).
+    const blocked = await tripsRepository.listActiveTripIntervals();
+    const newTrips = clipIntervalsAgainstBlocked(candidates, blocked);
+
+    let tripsCreated = 0;
+    for (const trip of newTrips) {
+      const created = await tripsRepository.createAutoTrip({
+        name: formatAutoTripName(trip.startDate),
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+      });
+      tripsCreated += 1;
+      console.log(`[trip] trip.created id=${created.id} ${trip.startDate} → ${trip.endDate}`);
+    }
+    return { tripsCreated };
+  }
+}
+
+export default new TripCalculationService();

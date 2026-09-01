@@ -299,6 +299,8 @@ export const settings = pgTable("settings", {
 export const exclusionZones = pgTable("exclusion_zones", {
   id: serial("id").primaryKey(),
   localityId: integer("locality_id").references(() => localities.id),
+  /** Hierarchy level the exclusion applies to: locality | county | region. */
+  scope: varchar("scope", { length: 20 }).notNull().default("locality"),
   createdAt: timestamp("created_at", {
     mode: "date",
     withTimezone: false,

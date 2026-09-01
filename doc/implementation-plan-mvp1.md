@@ -644,24 +644,91 @@ Implementare il modello di presenza giorno/località e la generazione automatica
 
 ### Tasks
 
-* [ ] Implementare derivazione della data da `DateTimeOriginal`
-* [ ] Implementare presenza giorno/località
-* [ ] Implementare conteggio fotografie
-* [ ] Implementare configurazione soglia minima
-* [ ] Implementare zone di esclusione
-* [ ] Implementare classificazione delle giornate
-* [ ] Implementare giorni senza foto
-* [ ] Implementare generazione viaggi
-* [ ] Implementare regole di chiusura viaggio
-* [ ] Implementare immutabilità viaggi
-* [ ] Implementare unit test delle regole di dominio
-* [ ] Implementare integration test del calcolo
+* [x] Implementare derivazione della data da `DateTimeOriginal`
+* [x] Implementare presenza giorno/località
+* [x] Implementare conteggio fotografie
+* [x] Implementare configurazione soglia minima
+* [x] Implementare zone di esclusione
+* [x] Implementare classificazione delle giornate
+* [x] Implementare giorni senza foto
+* [x] Implementare generazione viaggi
+* [x] Implementare regole di chiusura viaggio
+* [x] Implementare immutabilità viaggi
+* [x] Implementare unit test delle regole di dominio
+* [x] Implementare integration test del calcolo
 
 ### Done when
 
 Dato un insieme di fotografie geolocalizzate, il backend produce le presenze e i viaggi secondo **esattamente** le regole definite nei requisiti funzionali.
 
 I test coprono anche i casi limite principali.
+
+---
+
+# ✅ Fase 5 — Presence and trip generation: Completata
+
+## Esecuzione Task Fase 5
+
+| # | Task | Stato | Note |
+|---|------|-------|------|
+| 1 | Derivazione data da `DateTimeOriginal` | ✅ | `photo_date = date_time_original::date` in SQL (naive local time, indipendente dal TZ server); niente conversioni JS |
+| 2 | Presenza giorno/località | ✅ | `presences.repository.ts` — `upsertPresence` incrementale (INSERT … ON CONFLICT DO UPDATE) chiamata **dentro la transazione-per-foto** della scansione (design §37); `rebuildFromPhotos` per il ricalcolo; `listPresences` con date `to_char` |
+| 3 | Conteggio fotografie | ✅ | `photo_count` incrementato per foto valida con GPS e località |
+| 4 | Soglia minima | ✅ | Letta dalle impostazioni (`minimumPhotosPerVisit`, default 1); applicata alla coppia giorno+località (§8); presenza sotto soglia non cancellata |
+| 5 | Zone di esclusione | ✅ | Matching per `locality_id` (schema attuale); foto in zona: conservate ma fuori dalle statistiche viaggio (§20). Limitazione: esclusione a livello provincia/regione richiederà estensione schema (colonna scope) con la UI zone (Fase 8) |
+| 6 | Classificazione giornate | ✅ | `domain/trip-rules.ts` — `classifyDay`: `travel` (≥1 visita fuori zona), `excluded` (foto tutte in zona → chiusura immediata §9.5), `no_visit`; giornata mista = viaggio (§9.4) |
+| 7 | Giorni senza foto | ✅ | Tolleranza `consecutiveDaysWithoutPhotosBeforeClosing` (default 3); gap di 1–2 giorni non chiude, 3 giorni chiude (§10.3) |
+| 8 | Generazione viaggi | ✅ | `groupDaysIntoTrips` — viaggio = sequenza di giorni di viaggio anche con località diverse (§10.1); `trip-calculation.service.ts` orchestrazione completa |
+| 9 | Regole di chiusura | ✅ | Chiusura a soglia gap **e** immediata su giornata completamente esclusa; data fine = ultimo giorno di viaggio (esempio §10.5 verificato in test: 10–13 agosto) |
+| 10 | Immutabilità viaggi | ✅ | `clipIntervalsAgainstBlocked` — viaggi attivi esistenti mai toccati; nuovi viaggi solo negli intervalli liberi (§10.6, §11, §21.11): es. candidato 10–13 con viaggio esistente 10–11 → nuovo viaggio 12–13 |
+| 11 | Unit test dominio | ✅ | `domain/__tests__/trip-rules.test.ts` — 21 test: esempi §9.5/§10.5/§10.6, gap 1/2/3 giorni, attraversamento mesi, clipping multipli |
+| 12 | Integration test | ✅ | `__tests__/trip-generation.integration.test.ts` — 7 test su `travelog_test`: rebuild presences (conteggi, idempotenza, anomalie spaziotemporali §7.2), generazione, idempotenza rigenerazione, contiguità §10.6, soglia §8, mista/esclusa §9.4/§9.5 |
+
+
+## Integrazione con il flusso esistente
+
+* **Scan**: `scans.service.ts` salva la presenza nella stessa transazione della foto
+  (usando il `localityId` già restituito dal geocoding) e, a scansione completata,
+  esegue la generazione viaggi (nuovi viaggi solo per dati nuovi — §10.6); un errore
+  di generazione non invalida la scansione completata.
+* **Ricalcolo**: `POST /settings/recalculate` non è più uno stub — esegue
+  `recalculate()` (rebuild presences + generazione con le soglie correnti) in
+  background e risponde `202 ACCEPTED` secondo il contratto (§12: mai modifiche
+  ai viaggi esistenti).
+* **Log eventi**: `trip.created` con id e intervallo date.
+
+## Migration 0008 (necessaria)
+
+`database/migrations/0008_presences_unique_constraint.sql` — la migration 0004 aveva
+droppato il vincolo unique su `presences` senza ricrearlo sulle nuove colonne
+(nel DB restava solo un indice non univoco, mentre `schema.ts` dichiara
+`unique(photo_date, locality_id)`). Il vincolo è l'invariante di dominio che
+garantisce l'upsert idempotente della presenza (§7.2, §21). Applicata a
+`travelog_dev` e `travelog_test`.
+
+## Decisioni di dominio registrate
+
+| Decisione | Motivazione |
+|---|---|
+| Nome automatico viaggio: `Viaggio YYYY-MM-DD` | Requisiti non definiscono il formato; scelta locale-indipendente, rinominabile dall'utente (§13.1) |
+| Giornata con foto fuori zona sotto soglia → `no_visit` (conteggia per il gap) | Solo le visite (soglia §8) qualificano un giorno di viaggio |
+| Foto geolocalizzate senza località → nessuna presenza | La presenza richiede giorno + località (§7.2); coerente con design §3.4 |
+| Esclusione solo per località esatta | Schema attuale (`exclusion_zones.locality_id` senza scope); estendibile in Fase 8 |
+| Date viaggi scritte con cast SQL (`$n::date`), mai tramite oggetti JS `Date` | Il round-trip `Date` → colonna `date` di Drizzle applica una conversione UTC che sposta il giorno di calendario (scoperto e corretto durante la fase) |
+
+## Verifiche Finali
+
+| Controllo | Risultato |
+|-----------|-----------|
+| TypeScript build backend (`tsc --noEmit`) | ✅ PASS |
+| Backend tests (Vitest) | ✅ 101/101 passati (10 file, inclusi 21 unit + 7 integration nuovi) |
+| Frontend tests | ✅ 47/47 passati |
+| Lint / Prettier | ✅ PASS |
+| Build frontend (`tsc -b && vite build`) | ✅ PASS |
+| Migration 0008 applicata a dev e test | ✅ |
+| Database di test ripulito dai dati di test | ✅ |
+
+---
 
 ---
 
@@ -673,26 +740,72 @@ Implementare tutte le operazioni manuali sui viaggi previste dall'MVP1.
 
 ### Tasks
 
-* [ ] Implementare lista viaggi
-* [ ] Implementare dettaglio viaggio
-* [ ] Implementare modifica nome/titolo
-* [ ] Implementare modifica delle date prevista dai requisiti
-* [ ] Implementare split
-* [ ] Implementare merge
-* [ ] Implementare validazione sovrapposizioni
-* [ ] Implementare storico operazioni
-* [ ] Implementare audit delle operazioni
-* [ ] Implementare API REST
-* [ ] Aggiornare OpenAPI
-* [ ] Generare tipi
-* [ ] Implementare unit test
-* [ ] Implementare integration test
+* [x] Implementare lista viaggi
+* [x] Implementare dettaglio viaggio
+* [x] Implementare modifica nome/titolo
+* [x] Implementare modifica delle date prevista dai requisiti
+* [x] Implementare split
+* [x] Implementare merge
+* [x] Implementare validazione sovrapposizioni
+* [x] Implementare storico operazioni
+* [x] Implementare audit delle operazioni
+* [x] Implementare API REST
+* [x] Aggiornare OpenAPI
+* [x] Generare tipi
+* [x] Implementare unit test
+* [x] Implementare integration test
 
 ### Done when
 
 Tutte le operazioni manuali previste dai requisiti funzionano attraverso API REST e rispettano le invarianti del dominio.
 
 Lo storico richiesto è preservato.
+
+---
+
+# ✅ Fase 6 — Trip operations: Completata
+
+## Esecuzione Task Fase 6
+
+| # | Task | Stato | Note |
+|---|------|-------|------|
+| 1 | Lista viaggi | ✅ | `GET /trips` — default **solo viaggi attivi** (contratto), filtro `status=archived` per lo storico, ricerca nome/anno, ordinamento cronologico inverso; DTO con date string naive conformi al contratto |
+| 2 | Dettaglio viaggio | ✅ | `GET /trips/:id` → `TripDetail` con cronologia giornate: località con gerarchia amministrativa e conteggi foto per giorno/località; **giorni vuoti di 1–2 giorni elencati con flag `noPhotos`** ("Nessuna foto", §16) |
+| 3 | Modifica nome | ✅ | `PATCH /trips/:id` (§13.1); viaggi archiviati non modificabili (409 `TRIP_NOT_ACTIVE`) |
+| 4 | Modifica date | ✅ | `PATCH /trips/:id` (§13.2) con validazione ordine date (400) |
+| 5 | Split | ✅ | `POST /trips/:id/split` — use case dedicato: la data di divisione appartiene al secondo viaggio, il primo mantiene il nome originale, il secondo ha nome proposto dal sistema (`(2)`) o fornito dall'utente; originale **archiviato, non cancellato** |
+| 6 | Merge | ✅ | `POST /trips/merge` — use case dedicato: intervallo unione [min start, max end], nome di default = primo viaggio selezionato o titolo fornito; originali archiviati, non cancellati |
+| 7 | Validazione sovrapposizioni | ✅ | Divieto rigoroso tra viaggi attivi (§13.2, §21.17): su create/update/merge (409 `TRIP_OVERLAP`). **Fix bug pre-esistente**: `findOverlappingTrips` escludeva il viaggio stesso con `lt(id)` invece di `ne(id)` — la modifica date di un viaggio indicava sovrapposizione con sé stesso |
+| 8 | Storico operazioni | ✅ | `GET /operations` (nuovo endpoint nel contratto) con paginazione |
+| 9 | Audit operazioni | ✅ | Ogni split/merge scrive su `trip_history`: viaggio(i) origine, tipo, viaggi risultanti, timestamp (§14); operazioni **atomiche** in transazione (design §64) |
+| 10 | API REST | ✅ | Fix mounting: le rotte operations erano montate sotto `/api/operations` e i path del contratto (`/trips/:id/split`, `/trips/merge`) non risolvevano (404). Ora montate alla root API dopo il router trips |
+| 11 | OpenAPI | ✅ | Nuovo path `/operations` (`listTripOperations`), `TripDetail`/`TripDay`/`TripDayLocality` per il dettaglio, `SplitTripRequest.name` opzionale, `TripOperationList` |
+| 12 | Tipi generati | ✅ | `npm run gen:types` (backend + frontend) |
+| 13 | Unit test | ✅ | `domain/__tests__/trip-operations.test.ts` — 9 test: validità data split, intervalli risultanti (§13.3), nome proposto, intervallo merge (§13.4) |
+| 14 | Integration test | ✅ | `__tests__/trip-operations.integration.test.ts` — 16 test API su `travelog_test`: rename, blocco sovrapposizioni, date invalide, split completo (originali archiviati + audit), split con nome custom, merge (nome dal primo selezionato + archiviazione), merge con sovrapposizione 409, merge di archiviati 409, storico operazioni, dettaglio con giorni "Nessuna foto", default lista = solo attivi |
+
+## Decisioni di dominio registrate
+
+| Decisione | Motivazione |
+|---|---|
+| Split/merge: originali **archiviati** (`status=archived`) e nuovi viaggi creati | Coerente con §13.4 ("marcati come superati/uniti") e con il filtro "viaggi archiviati" (§15); gli intervalli attivi restano sempre non sovrapposti |
+| Il primo viaggio dello split mantiene il flag `autoGenerated` dell'originale; i viaggi risultanti da merge/split-secondo sono manuali | Riflette la provenienza dei dati |
+| Viaggi archiviati non modificabili con le operazioni manuali | Sono record storici dell'audit trail |
+| `GET /trips` senza `status` → solo attivi | Conforme alla descrizione del contratto OpenAPI |
+| Test backend sequenziali (`fileParallelism: false`) | I file di integration test condividono `travelog_test`: elimina la flakiness da interferenza tra file (riscontrata nelle fasi precedenti) |
+
+## Verifiche Finali
+
+| Controllo | Risultato |
+|-----------|-----------|
+| TypeScript build backend (`tsc --noEmit`) | ✅ PASS |
+| Backend tests (Vitest) | ✅ 124/124 passati (12 file; +9 unit, +16 integration nuovi) |
+| Frontend tests | ✅ 47/47 passati |
+| Lint / Prettier | ✅ PASS |
+| Build frontend (`tsc -b && vite build`) | ✅ PASS |
+| Contratto OpenAPI rigenerato (tipi backend + frontend) | ✅ |
+| Database di test ripulito (tutte le tabelle a 0) | ✅ |
+| `travelog_dev` intatto (219 foto, 0 viaggi) | ✅ |
 
 ---
 
@@ -762,14 +875,14 @@ Implementare l'interfaccia completa delle funzionalità MVP1.
 
 ### Tasks
 
-* [ ] Implementare schermata principale
-* [ ] Implementare visualizzazione viaggi
-* [ ] Implementare dettaglio viaggio
-* [ ] Implementare operazioni manuali sui viaggi
-* [ ] Implementare split
-* [ ] Implementare merge
-* [ ] Implementare impostazioni
-* [ ] Implementare zone di esclusione
+* [x] Implementare schermata principale
+* [x] Implementare visualizzazione viaggi
+* [x] Implementare dettaglio viaggio
+* [x] Implementare operazioni manuali sui viaggi
+* [x] Implementare split
+* [x] Implementare merge
+* [x] Implementare impostazioni
+* [x] Implementare zone di esclusione
 * [x] Implementare avvio scansione
 * [x] Implementare scan progress
 * [x] Implementare polling
@@ -778,13 +891,57 @@ Implementare l'interfaccia completa delle funzionalità MVP1.
 * [x] Implementare visualizzazione errori
 * [x] Implementare ricalcolo esplicito
 * [x] Implementare vista tecnica elenco foto (data, coordinate GPS, località gerarchica) — sezione tecnica richiesta in anticipo
-* [ ] Verificare comportamento UI con API reali
+* [x] Verificare comportamento UI con API reali
 
 ### Done when
 
 Tutte le funzionalità MVP1 previste dai requisiti sono utilizzabili dalla UI.
 
 Le fotografie non vengono visualizzate.
+
+---
+
+# ✅ Fase 8 — Frontend functional UI: Completata (UI viaggi + zone di esclusione)
+
+## UI aggiunta sulle API delle fasi 5–6
+
+| Funzionalità | Dettaglio |
+|---|---|
+| Tab "Viaggi" | Nuova voce di navigazione con icona (`TripIcon`), `TripsPage` |
+| Lista viaggi (§15) | Tabella con Anno, Mese (italiano), Data inizio/fine, Nome, Durata in giorni derivata dall'intervallo; ordinamento cronologico inverso dal backend |
+| Ricerca rapida | Parametro `search` del contratto (nome o anno) |
+| Filtro archiviati | Toggle "Mostra viaggi archiviati/superati" → `status=archived`; badge "Archiviato" sulle righe |
+| Dettaglio viaggio (§16) | Pannello con cronologia giornate: località con gerarchia amministrativa (county/region/country) e conteggi foto; **giorni vuoti elencati con dicitura "Nessuna foto"** |
+| Rinomina (§13.1) | Dialog con form nome |
+| Modifica date (§13.2) | Dialog date con nota sul blocco sovrapposizioni (gestito dal backend, 409 `TRIP_OVERLAP` mostrato all'utente) |
+| Dividi (§13.3) | Dialog con data di divisione (min/max coerenti col viaggio) e nome proposto `${name} (2)` modificabile |
+| Unisci (§13.4) | Modalità unione: checkbox multi-selezione, nome opzionale (default = primo selezionato), chiamata `POST /trips/merge` |
+| Storico operazioni (§14) | Sezione con le operazioni registrate (origine → risultati, timestamp) quando presenti |
+| Zone di esclusione (§9) | Nuovo pannello in Impostazioni: elenco zone con gerarchia, aggiunta tramite ricerca località (`GET /localities/search`), rimozione |
+
+## Moduli API frontend (nessun fetch nei componenti)
+
+* `api/trips.ts` — `listTrips`, `getTrip`, `updateTrip`
+* `api/operations.ts` — `splitTrip`, `mergeTrips`, `listTripOperations`
+* `api/exclusion-zones.ts` — `listExclusionZones`, `createExclusionZone`, `deleteExclusionZone`, `searchLocalities`
+* Tipi contratto aggiunti a `api/client.ts` (Trip, TripDetail, TripOperation, ExclusionZone, Locality, …)
+
+## Fix di conformità al contratto (backend)
+
+* `GET /exclusion-zones` ora restituisce `{items: [{id, locality: Locality}]}` come da schema (`ExclusionZone` con oggetto `locality` completo)
+* `GET /localities/search` restituisce oggetti `Locality` completi (`localityHash`, `source`, nuovo campo opzionale `country` aggiunto allo schema)
+* Contratto OpenAPI aggiornato (campo `country` in `Locality`) e tipi rigenerati per backend e frontend
+
+## Verifiche eseguite
+
+| Controllo | Risultato |
+|-----------|-----------|
+| Frontend tests (Vitest + Testing Library) | ✅ 53/53 passati (+6 nuovi: lista §15, dettaglio con "Nessuna foto" §16, flusso unione §13.4, zone di esclusione §9) |
+| Backend tests | ✅ 124/124 passati |
+| TypeScript backend + frontend | ✅ PASS |
+| Build frontend (Tailwind + Vite) | ✅ PASS |
+| Lint / Prettier | ✅ PASS |
+| Nessuna visualizzazione di fotografie in UI (§17) | ✅ |
 
 ---
 
@@ -1091,6 +1248,89 @@ usa lo stato `failed` con messaggio diagnostico invece di introdurne uno nuovo
 * 76 test backend + 47 test frontend; lint e build OK.
 
 ---
+
+---
+
+> **Aggiornamento (richiesta utente): "Elimina viaggio" + diagnosi ricalcolo — Completati**
+>
+> **1. Elimina viaggio.** Nuova operazione manuale `DELETE /trips/{tripId}`
+> (contratto OpenAPI `deleteTrip`, 204/404; `TripOperationType` esteso a
+> `DELETE`, migration 0009 `ALTER TYPE trip_operation ADD VALUE 'delete'`,
+> applicata a dev e test). Il backend (`trip-operations.service.deleteTrip`,
+> transazione atomica) registra **prima** l'operazione nell'audit trail —
+> con snapshot del viaggio eliminato (nome, date, flag) e `tripId` NULL,
+> perché le righe `trip_history` riferite al viaggio verrebbero eliminate a
+> cascata — poi rimuove fisicamente la riga. Foto e presenze **non** vengono
+> toccate. UI: bottone rosso "Elimina" su ogni riga (anche per viaggi
+> archiviati) con conferma a due step; le eliminazioni compaiono nello
+> storico operazioni come "Eliminazione". 3 integration test + 1 test UI.
+>
+> **2. Diagnosi "Ricalcola ha creato un viaggio più corto".** Non è un
+> accorciamento del viaggio di Sicilia (10→24/08): il ricalcolo ha creato un
+> viaggio **aggiuntivo** 01→09/08 (Pusiano, Cesate, Cusano Milanino, Milano,
+> Bosisio Parini) perché (a) **nessuna zona di esclusione era configurata**,
+> quindi le giornate a casa contano come viaggio; (b) il candidato 01→24/08
+> è stato **ritagliato** contro il viaggio attivo 10→24/08 (immutabilità
+> §10.6/§11), restando solo 01→09/08. Rimedio: configurare le zone di
+> esclusione di casa dalla nuova UI e rilanciare il ricalcolo. Il viaggio
+> "di casa" non voluto può essere eliminato con la nuova funzione.
+>
+> **3. Fix bug dati: righe `settings` duplicate** (race nel `getOrCreate`).
+> Il singleton ora usa `INSERT … ON CONFLICT (id) DO NOTHING` con `id=1`
+> fisso; riga duplicata rimossa da `travelog_dev`.
+
+---
+
+> **Aggiornamento (richiesta utente): scope zone di esclusione + fix validazione — Completati**
+>
+> **1. Fix bug "Missing required fields: administrativeAreaId".** Il middleware
+> di validazione OpenAPI richiedeva ancora il vecchio campo della Fase 4.
+> Ora richiede `localityId` (il campo del contratto attuale).
+>
+> **2. Ambito delle zone di esclusione (§9.1).** Estensione funzionale
+> richiesta dall'utente: una zona può mirare al **comune/località**, alla
+> **provincia (county)** o alla **regione** della località cercata.
+> Migration 0010 (`exclusion_zones.scope`, default `locality`, CHECK sui
+> valori; applicata a dev e test). Matching nel calcolo viaggi qualificato
+> per paese (`IT:Milano`) per evitare collisioni tra Stati; il servizio
+> valida che la località ancorata abbia provincia/regione quando richiesto.
+> Contratto: `CreateExclusionZoneRequest.scope` + `ExclusionZone.scope`
+> (tipi rigenerati). UI: selettore "Comune/Provincia/Regione" sui risultati
+> di ricerca (disabilitato se il livello non esiste) e badge sull'elenco.
+>
+> **3. Test perducati.** Scoperto durante la verifica: il describe
+> "contiguity and exclusion rules" era finito **dentro** il callback del
+> test §10.5 — i suoi 5 test (§10.6, soglia, mista/esclusa, county, no
+> foto) non venivano raccolti né eseguiti da Vitest. Ristrutturato a
+> livello top: ora tutti vengono eseguiti (8 test nel file). Aggiunto test
+> county-scope. Totale backend: **132 test**.
+>
+> **Nota operativa**: dopo l'aggiunta delle zone di esclusione di casa
+> (es. "Milano" con ambito Regione) e un **Ricalcola**, i viaggi "di casa"
+> non vengono più generati.
+
+---
+
+> **Aggiornamento (richiesta utente): aggregazione località duplicate — Completato**
+>
+> La stessa città può esistere più volte in `localities` (una riga per
+> hash di coordinate arrotondate: es. "Marsala 6" e "Marsala 3" lo stesso
+> giorno), quindi dettaglio viaggio e calcolo mostravano/trattavano righe
+> duplicate. Corretto aggregando **per nome località** (requisiti §6.3/§7.2):
+>
+> * **Dettaglio viaggio** (`getTripDays`): le righe con lo stesso nome
+>   (name+provincia+regione) vengono accorpate sommando i conteggi foto —
+>   una sola riga per località e giorno;
+> * **Calcolo viaggi** (`generateTrips`): le presenze duplicate vengono
+>   aggregate **prima** di applicare la soglia §8, così 2+3 foto della
+>   stessa città raggiungono la soglia 5 anche se separate sotto hash
+>   diversi (test dedicato);
+> * Nessuna modifica schema: l'aggregazione avviene nel service/repository.
+> * 2 nuovi test (aggregazione soglia + dettaglio riga unica). Totale
+>   backend: **134 test**.
+>
+> Possibile evoluzione futura (non MVP1): deduplicare fisicamente le
+> righe `localities` per (paese, nome) al momento del geocoding.
 
 ---
 
@@ -1418,6 +1658,6 @@ Cline deve aggiornare le checkbox **solo dopo aver verificato il completamento d
 
 Il piano deve rimanere aggiornato durante tutto lo sviluppo MVP1.
 
-**Fasi completate:** Phase 0, Phase 1, Phase 2, Phase 3, **Phase 4**, **Phase 7**, **Phase 8 (scope anticipato: scansioni, ricalcolo, vista tecnica foto)**
+**Fasi completate:** Phase 0, Phase 1, Phase 2, Phase 3, **Phase 4**, **Phase 5**, **Phase 6**, **Phase 7**, **Phase 8**
 
-**Nota sull'ordine:** la Fase 7 e una parte della Fase 8 sono state implementate in anticipo rispetto alle fasi 5–6 (presenze/generazione viaggi e operazioni sui viaggi), su richiesta esplicita, limitandosi alle funzionalità già supportate dal backend.
+**Nota sull'ordine:** la Fase 7 e una parte della Fase 8 sono state implementate in anticipo rispetto alle fasi 5–6, su richiesta esplicita, limitandosi alle funzionalità già supportate dal backend. Le Fasi 5, 6 e la parte restante della 8 (UI viaggi, operazioni manuali, zone di esclusione) sono state completate successivamente: il backend e la UI coprono ora l'intero dominio MVP1. Restano aperte le Fasi 9 (integrazione/hardening) e 10 (release Debian).

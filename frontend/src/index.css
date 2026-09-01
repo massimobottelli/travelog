@@ -359,3 +359,115 @@ button.secondary:hover:not(:disabled) {
   display: flex;
   gap: 0.6rem;
 }
+
+/* ── Trips (§15/§16) ────────────────────────────────────────── */
+
+.trips-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.trips-toolbar input[type="search"],
+.trips-toolbar input[type="text"] {
+  flex: 1 1 220px;
+}
+
+.trips-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.trips-table th,
+.trips-table td {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.trips-table tr.selected td {
+  background: #eef5ff;
+}
+
+.trips-table .link {
+  background: none;
+  border: none;
+  color: #1d4ed8;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.badge-archived {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #4b5563;
+  font-size: 0.75rem;
+}
+
+.merge-bar {
+  border: 1px dashed #93c5fd;
+  background: #eff6ff;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.merge-bar p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.trip-days {
+  list-style: none;
+  padding-left: 0;
+}
+
+.trip-days > li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.trip-localities {
+  list-style: none;
+  padding-left: 1.2rem;
+}
+
+/* ── Exclusion zones (§9) ───────────────────────────────────── */
+
+.exclusion-list,
+.exclusion-results {
+  list-style: none;
+  padding-left: 0;
+}
+
+.exclusion-list li,
+.exclusion-results li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.exclusion-list button,
+.exclusion-results button {
+  margin-left: auto;
+}

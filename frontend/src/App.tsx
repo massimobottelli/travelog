@@ -9,6 +9,7 @@ import { useState } from "react";
 import Navbar, { type Page } from "./components/Navbar";
 import ScansPage from "./pages/ScansPage";
 import PhotosPage from "./pages/PhotosPage";
+import TripsPage from "./pages/TripsPage";
 import SettingsPage from "./pages/SettingsPage";
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
       <main className="app-main">
         {page === "scans" && <ScansPage />}
         {page === "photos" && <PhotosPage />}
+        {page === "trips" && <TripsPage />}
         {page === "settings" && <SettingsPage />}
       </main>
     </div>

@@ -17,6 +17,9 @@ import scanErrorsRepository, {
   type ScanErrorRecord,
 } from "../repositories/scan-errors.repository.js";
 import geocodingService from "../services/geocoding.service.js";
+import type { ReverseGeocodeResult } from "../services/geocoding.service.js";
+import tripCalculationService from "../services/trip-calculation.service.js";
+import { upsertPresence } from "../repositories/presences.repository.js";
 import { NotFoundError, ConflictError, ValidationError } from "../models/errors.js";
 import { SCAN_LOCK_ID } from "../config/locks.js";
 import { env } from "../utils/env.js";
@@ -180,6 +183,17 @@ class ScansService {
       } else {
         console.log(`[scanner] Scan ${scanId} completed`);
         await this.finalizeSuccess(scanId, cnt);
+        // Phase 5 (requirements §10.6): new photos may create new trips;
+        // existing trips are never modified automatically (§11). A failure
+        // here must not invalidate the completed scan.
+        try {
+          const result = await tripCalculationService.generateTrips();
+          console.log(
+            `[scanner] Trip generation after scan ${scanId}: ${result.tripsCreated} new trip(s)`,
+          );
+        } catch (err) {
+          console.error(`[scanner] Trip generation after scan ${scanId} failed:`, err);
+        }
       }
       this.cancelledScans.delete(scanId);
     } catch (err) {
@@ -222,9 +236,10 @@ class ScansService {
     const input = photosRepository.buildPhotoInput(entry, exif);
     if (input.status === "valid") {
       // Run geocoding before saving so cache is populated for future lookups
+      let geo: ReverseGeocodeResult | null = null;
       if (input.latitude !== null && input.longitude !== null) {
         try {
-          await geocodingService.reverseGeocode(input.latitude, input.longitude);
+          geo = await geocodingService.reverseGeocode(input.latitude, input.longitude);
         } catch {
           /* geo fail does not block scan */
         }
@@ -235,6 +250,12 @@ class ScansService {
           try {
             await cl.query("BEGIN");
             await photosRepository.upsertPhoto(input);
+            // Phase 5 (technical design §37): the derived presence
+            // day + locality is persisted inside the same per-photo
+            // transaction as the photo.
+            if (geo !== null && geo.localityId !== null && input.dateTimeOriginal !== null) {
+              await upsertPresence(cl, input.dateTimeOriginal, geo.localityId);
+            }
             await cl.query("COMMIT");
             cnt.np++;
           } catch (e) {

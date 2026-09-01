@@ -5,9 +5,9 @@
  * on every screen size, same style as the previous mobile view).
  */
 
-import { ScanIcon, PhotoIcon, SettingsIcon } from "./icons";
+import { ScanIcon, PhotoIcon, TripIcon, SettingsIcon } from "./icons";
 
-export type Page = "scans" | "photos" | "settings";
+export type Page = "scans" | "photos" | "trips" | "settings";
 
 interface NavItem {
   key: Page;
@@ -18,6 +18,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { key: "scans", label: "Scansioni", icon: ScanIcon },
   { key: "photos", label: "Foto", icon: PhotoIcon },
+  { key: "trips", label: "Viaggi", icon: TripIcon },
   { key: "settings", label: "Impostazioni", icon: SettingsIcon },
 ];
 
