@@ -17,6 +17,7 @@ const ROUTE_OPS: Record<string, Record<string, string>> = {
   "/scans": { post: "startScan", get: "listScans" },
   "/scans/:scanId": { get: "getScan" },
   "/scans/:scanId/errors": { get: "listScanErrors" },
+  "/scans/:scanId/cancel": { post: "cancelScan" },
   "/photos": { get: "listPhotos" },
   "/trips": { get: "listTrips", post: "createTrip" },
   "/trips/:tripId": { get: "getTrip", patch: "updateTrip" },

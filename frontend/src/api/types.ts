@@ -79,6 +79,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scans/{scanId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request cancellation of a running scan
+         * @description Asks the running scan to stop after the photo currently being
+         *     processed. The scan is then marked as failed with a diagnostic
+         *     message ("Scan cancelled by the user"); photos already saved
+         *     remain in the database.
+         *
+         *     The response returns immediately with the current scan snapshot.
+         */
+        post: operations["cancelScan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/photos": {
         parameters: {
             query?: never;
@@ -367,7 +392,7 @@ export interface components {
             photoRoot: string | null;
         };
         /** @enum {string} */
-        ScanStatus: "pending" | "running" | "completed" | "completed_with_errors" | "failed";
+        ScanStatus: "pending" | "running" | "completed" | "completed_with_errors" | "failed" | "stopped";
         Scan: {
             /** Format: int64 */
             id: number;
@@ -428,9 +453,9 @@ export interface components {
             fileType: string;
             /**
              * Format: date-time
-             * @description EXIF DateTimeOriginal as naive local time
+             * @description EXIF DateTimeOriginal as naive local time; null when unreadable/missing (excluded photos)
              */
-            dateTimeOriginal: string;
+            dateTimeOriginal: string | null;
             originalLatitude: number | null;
             originalLongitude: number | null;
             metadataStatus: components["schemas"]["PhotoMetadataStatus"];
@@ -700,6 +725,46 @@ export interface operations {
             };
             /** @description Scan not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    cancelScan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scanId: components["parameters"]["ScanId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancellation requested */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scan"];
+                };
+            };
+            /** @description Scan not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Scan is not running */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

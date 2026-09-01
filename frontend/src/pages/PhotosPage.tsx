@@ -111,7 +111,7 @@ export default function PhotosPage() {
               <tbody>
                 {data.items.map((photo) => (
                   <tr key={photo.id}>
-                    <td>{formatDateTime(photo.dateTimeOriginal)}</td>
+                    <td>{photo.dateTimeOriginal ? formatDateTime(photo.dateTimeOriginal) : "—"}</td>
                     <td className="mono">{photo.fileName}</td>
                     <td className="mono">
                       {formatCoordinates(photo.originalLatitude, photo.originalLongitude)}

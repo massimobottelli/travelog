@@ -43,4 +43,5 @@ export const SCAN_STATUS_LABELS: Record<string, string> = {
   completed: "Completata",
   completed_with_errors: "Completata con errori",
   failed: "Fallita",
+  stopped: "Fermata",
 };

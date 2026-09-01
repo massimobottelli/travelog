@@ -98,7 +98,9 @@ async function traverseDirectory(
         fileName: entry.name,
         fileType: path.extname(entry.name).toLowerCase(),
         size: stat.size,
-        mtime: stat.mtimeMs,
+        // mtimeMs is fractional on some filesystems: the fingerprint
+        // stores it as bigint, so it must be an integer.
+        mtime: Math.floor(stat.mtimeMs),
       });
     }
   }

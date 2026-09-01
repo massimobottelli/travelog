@@ -103,6 +103,7 @@ export const TERMINAL_SCAN_STATUSES: readonly ScanStatus[] = [
   "completed",
   "completed_with_errors",
   "failed",
+  "stopped",
 ];
 
 export function isTerminalScanStatus(status: ScanStatus): boolean {

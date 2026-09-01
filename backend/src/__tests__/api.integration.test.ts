@@ -10,6 +10,7 @@ import { describe, it, expect, afterAll } from "vitest";
 import request from "supertest";
 import { createApp } from "../app.js";
 import { pool } from "../db/client.js";
+import { upsertExcludedPhoto } from "../repositories/photos.repository.js";
 
 const server = createApp();
 
@@ -82,7 +83,7 @@ async function cleanup(): Promise<void> {
   await pool.query("DELETE FROM photos WHERE file_path LIKE 'api-test/%'");
   await pool.query("DELETE FROM geocoding_cache WHERE original_latitude = 45.5641");
   await pool.query("DELETE FROM localities WHERE locality_hash LIKE 'test-hash-%'");
-  await pool.query("DELETE FROM scans WHERE folder = 'test-folder'");
+  await pool.query("DELETE FROM scans WHERE folder IN ('test-folder', 'cancel-test')");
   await pool.query("DELETE FROM settings");
 }
 
@@ -270,6 +271,66 @@ describe("POST /api/scans", () => {
     const res = await request(server).post("/api/scans").send({});
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("VALIDATION_ERROR");
+  });
+});
+
+describe("excluded photos registration (functional requirements §5.5)", () => {
+  it("registers excluded photos without a shoot date and exposes them via the filter", async () => {
+    const entry = {
+      absolutePath: "api-test/no-exif.jpg",
+      fileName: "no-exif.jpg",
+      fileType: ".jpg",
+      size: 555,
+      mtime: 111,
+    };
+
+    await upsertExcludedPhoto(entry, "MissingGPS");
+
+    const res = await request(server).get("/api/photos?metadataStatus=excluded");
+    expect(res.status).toBe(200);
+    const photo = res.body.items.find((p: { fileName: string }) => p.fileName === "no-exif.jpg");
+    expect(photo).toBeDefined();
+    expect(photo.metadataStatus).toBe("excluded");
+    expect(photo.exclusionReason).toBe("MissingGPS");
+    // No shoot date is available for this photo
+    expect(photo.dateTimeOriginal).toBeNull();
+    expect(photo.originalLatitude).toBeNull();
+
+    // Re-scanning the same file must not duplicate it (fingerprint upsert)
+    await upsertExcludedPhoto(entry, "MissingGPS");
+    const again = await request(server).get("/api/photos?metadataStatus=excluded");
+    const duplicates = again.body.items.filter(
+      (p: { fileName: string }) => p.fileName === "no-exif.jpg",
+    );
+    expect(duplicates).toHaveLength(1);
+  });
+});
+
+describe("POST /api/scans/:scanId/cancel", () => {
+  it("accepts the cancellation request for a running scan", async () => {
+    // Seed a scan still marked as running (no actual job attached)
+    const res0 = await pool.query(
+      `INSERT INTO scans (folder, started_at, status, files_analyzed, files_total, new_photos, existing_photos, excluded_photos, errors)
+       VALUES ('cancel-test', now(), 'running', 2, 10, 2, 0, 0, 0) RETURNING id`,
+    );
+    const scanId = res0.rows[0].id as number;
+
+    const res = await request(server).post(`/api/scans/${scanId}/cancel`);
+    expect(res.status).toBe(202);
+    expect(res.body.id).toBe(scanId);
+  });
+
+  it("rejects cancellation of a scan that is not running", async () => {
+    const scanId = await insertScanWithErrors(); // status completed_with_errors
+
+    const res = await request(server).post(`/api/scans/${scanId}/cancel`);
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("SCAN_NOT_RUNNING");
+  });
+
+  it("returns 404 for an unknown scan", async () => {
+    const res = await request(server).post("/api/scans/999999/cancel");
+    expect(res.status).toBe(404);
   });
 });
 

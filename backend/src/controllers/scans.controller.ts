@@ -25,6 +25,12 @@ class ScansController {
     res.status(200).json(scan);
   }
 
+  async cancelScan(req: Request, res: Response): Promise<void> {
+    const scanId = Number(req.params.scanId);
+    const scan = await scansService.cancelScan(scanId);
+    res.status(202).json(scan);
+  }
+
   async listScanErrors(req: Request, res: Response): Promise<void> {
     const scanId = Number(req.params.scanId);
     const items = await scansService.listScanErrors(scanId);

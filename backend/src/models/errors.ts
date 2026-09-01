@@ -10,6 +10,7 @@ export type ErrorCode =
   | "BANK_NOT_FOUND"
   | "SCAN_NOT_FOUND"
   | "SCAN_ALREADY_RUNNING"
+  | "SCAN_NOT_RUNNING"
   | "PHOTO_NOT_FOUND"
   | "EXIF_READ_ERROR"
   | "FILE_NOT_FOUND"

@@ -19,4 +19,7 @@ router.get("/:scanId", scansController.getScan);
 // GET /scans/:id/errors — list per-file errors of a scan
 router.get("/:scanId/errors", scansController.listScanErrors);
 
+// POST /scans/:id/cancel — request cancellation of a running scan
+router.post("/:scanId/cancel", scansController.cancelScan);
+
 export default router;

@@ -58,6 +58,114 @@ describe("App", () => {
     });
   });
 
+  it("restores the running scan progress when returning to the scans page", async () => {
+    // History contains a scan still running: opening the page must
+    // resume its progress view and polling automatically.
+    fetchMock.mockImplementation((input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/scans?page=")) {
+        return Promise.resolve(
+          jsonResponse({
+            items: [
+              {
+                id: 5,
+                folder: "test",
+                status: "running",
+                startedAt: "2026-01-09T10:00:00Z",
+                endedAt: null,
+                filesAnalyzed: 3,
+                filesTotal: 10,
+                newPhotos: 2,
+                existingPhotos: 0,
+                excludedPhotos: 0,
+                errors: 0,
+                errorMessage: null,
+              },
+            ],
+            page: 1,
+            pageSize: 20,
+            total: 1,
+          }),
+        );
+      }
+      if (url.includes("/api/scans/5")) {
+        return Promise.resolve(
+          jsonResponse({
+            id: 5,
+            folder: "test",
+            status: "running",
+            startedAt: "2026-01-09T10:00:00Z",
+            endedAt: null,
+            filesAnalyzed: 5,
+            filesTotal: 10,
+            newPhotos: 4,
+            existingPhotos: 0,
+            excludedPhotos: 0,
+            errors: 0,
+            errorMessage: null,
+          }),
+        );
+      }
+      return Promise.resolve(jsonResponse({}, 200));
+    });
+
+    render(<App />);
+
+    // The running scan's progress panel appears without any user click
+    await waitFor(() => {
+      expect(screen.getByText("Scansione #5")).not.toBeNull();
+    });
+    // Total photos found to scan is displayed among the counters
+    expect(screen.getByText("Totale da scansionare")).not.toBeNull();
+    await waitFor(() => {
+      expect(screen.getByText("10")).not.toBeNull();
+    });
+
+    // Stopping the scan: after the cancel request the polling picks up
+    // the "stopped" status and the panel shows the info message.
+    let cancelled = false;
+    fetchMock.mockImplementation((input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/scans/5/cancel")) {
+        cancelled = true;
+        return Promise.resolve(jsonResponse({ id: 5, status: "running" }, 202));
+      }
+      if (url.includes("/api/scans/5")) {
+        return Promise.resolve(
+          jsonResponse({
+            id: 5,
+            folder: "test",
+            status: cancelled ? "stopped" : "running",
+            startedAt: "2026-01-09T10:00:00Z",
+            endedAt: null,
+            filesAnalyzed: 5,
+            filesTotal: 10,
+            newPhotos: 4,
+            existingPhotos: 0,
+            excludedPhotos: 0,
+            errors: 0,
+            errorMessage: null,
+          }),
+        );
+      }
+      return Promise.resolve(jsonResponse({}, 200));
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Ferma scansione" }));
+
+    // The polling interval is 2s: allow enough time for the next poll
+    await waitFor(
+      () => {
+        expect(screen.getByText("Fermata")).not.toBeNull();
+      },
+      { timeout: 5000 },
+    );
+    expect(screen.getByText(/Scansione interrotta dall'utente/)).not.toBeNull();
+    expect(screen.getByText(/Interrotta dall'utente a 5 di 10 file/)).not.toBeNull();
+    // The stop button disappears once the scan is in a terminal state
+    expect(screen.queryByRole("button", { name: "Ferma scansione" })).toBeNull();
+  });
+
   it("shows the photo technical section with the expected caption", async () => {
     mockAllEndpoints();
 

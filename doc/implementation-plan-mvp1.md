@@ -966,6 +966,132 @@ l'enumerazione ricorsiva):
 
 ---
 
+# ✅ Ripristino del progresso al ritorno sulla pagina Scansioni — Completato
+
+## Comportamento
+
+Se l'utente cambia pagina durante una scansione e torna su "Scansioni", il
+pannello di progresso viene **ripristinato automaticamente** (senza click):
+
+* Al mount, `ScansPage` carica lo storico e cerca una scansione con stato
+  `running`/`pending` (le più recenti sono in testa); se trovata, imposta lo
+  `scanId` e `useScanProgress` riprende il polling.
+* Aggiunto il contatore **"Totale da scansionare"** (`scan.filesTotal`) accanto
+  agli altri contatori del pannello di progresso.
+
+## Verifiche
+
+* Test UI: storico con scansione `running` (filesTotal 10) → aprendo la pagina
+  il pannello "Scansione #5" compare senza interazione, il contatore totale è
+  mostrato e il polling riprende: ✅
+* 73 test backend + 46 test frontend; typecheck, lint e build OK.
+
+---
+
+> **Aggiornamento:** su richiesta dell'utente la scansione fermata non è più
+> segnalata come "Fallita" ma con il nuovo stato **"Fermata"**:
+> migration 0006 (`ALTER TYPE scan_status ADD VALUE 'stopped'`, applicata a
+> dev e test), enum aggiornato in `schema.ts` e contratto OpenAPI,
+> etichetta "Fermata" + badge dedicato in UI, pannello che mostra
+> "Interrotta dall'utente a X di Y file" mantenendo la percentuale
+> proporzionale raggiunta. Il recupero delle scansioni stale all'avvio del
+> server resta su `failed` ("riavvio del server"). L'input della cartella
+> da scansionare non viene più svuotato dopo l'avvio.
+
+---
+
+# ✅ Fix: le foto escluse ora vengono registrate nel database — Completato
+
+## Problema
+
+Il report finale contava le foto "escluse (EXIF incompleto)" ma la pagina Foto
+con filtro "Escluse" non ne mostrava nessuna: `markPhotoExcluded` eseguiva solo
+un **UPDATE** su una riga che non era mai stata inserita (0 righe interessate).
+Le foto escluse erano quindi contate ma **mai salvate** — violazione del
+requisito funzionale §5.5.
+
+## Fix
+
+| Livello | Modifica |
+|---|---|
+| Migration 0007 | `photos.date_time_original` resa **nullable** (le foto escluse spesso non hanno data leggibile) — applicata a dev e test |
+| `photos.repository` | `markPhotoExcluded` → `upsertExcludedPhoto`: **INSERT ... ON CONFLICT (fingerprint) DO UPDATE**, registra percorso/nome/tipo/dimensione/mtime con stato `excluded` e motivo |
+| `buildPhotoInput` | Niente più data fittizia 1970: `dateTimeOriginal: null` quando assente |
+| Ordinamento pagina Foto | `ORDER BY date_time_original DESC NULLS LAST` (le escluse senza data vanno in fondo) |
+| Contratto OpenAPI | `Photo.dateTimeOriginal` nullable |
+| Frontend | Data assente visualizzata come "—" |
+| Bug collegato | `mtime` da `stats.mtimeMs` (float) rifiutato da PostgreSQL per la colonna bigint → `Math.floor()` in `photo-enumeration.ts` |
+
+## Verifiche
+
+* Integration: foto esclusa registrata con data null e motivo; ri-scan dello
+  stesso file non duplica (fingerprint upsert): ✅
+* **Smoke end-to-end reale** (cartella con 1 JPEG senza EXIF + 1 JPEG valido):
+  scan `completed 2/2`, 1 esclusa ("MissingDateTimeOriginal; MissingGPS", data
+  null) + 1 valida con data: ✅
+* 77 test backend + 47 test frontend; lint e build OK; DB di test ripulito.
+
+**Nota:** le 14 foto escluse delle scansioni precedenti non erano state salvate
+(bug); per registrarle è sufficiente **ri-eseguire la scansione** della stessa
+cartella — grazie alla fingerprint verranno riconosciute come nuove ed email
+salvate con stato "esclusa".
+
+> **Aggiornamento:** su richiesta dell'utente la scansione fermata non è più
+> segnalata come "Fallita" ma con il nuovo stato **"Fermata"**:
+> migration 0006 (`ALTER TYPE scan_status ADD VALUE 'stopped'`, applicata a
+> dev e test), enum aggiornato in `schema.ts` e contratto OpenAPI,
+> etichetta "Fermata" + badge dedicato in UI, pannello che mostra
+> "Interrotta dall'utente a X di Y file" mantenendo la percentuale
+> proporzionale raggiunta. Il recupero delle scansioni stale all'avvio del
+> server resta su `failed` ("riavvio del server"). L'input della cartella
+> da scansionare non viene più svuotato dopo l'avvio.
+
+## Comportamento
+
+Pulsante rosso **"Ferma scansione"** nel pannello di progresso (visibile solo
+mentre la scansione è in corso). Al click:
+
+* `POST /scans/{id}/cancel` → `202` con lo snapshot corrente;
+* la scansione **si ferma dopo la foto correntemente in elaborazione**
+  (flag in-process controllato tra un file e l'altro, design §31/§35);
+* viene finalizzata come `failed` con messaggio diagnostico
+  *"Scansione interrotta dall'utente"*; le foto già salvate **restano nel DB**
+  (append-only, requisito §3.1/§21);
+* il polling aggiorna automaticamente il pannello (badge "Fallita" + messaggio).
+
+## Scelta di dominio (registrata)
+
+I requisiti §4.1 definiscono 5 stati senza uno "stoppato": la cancellazione
+usa lo stato `failed` con messaggio diagnostico invece di introdurne uno nuovo
+(evitate migration + modifica contratto). Se si vorrà uno stato dedicato
+(es. `stopped`) serve una migration e un aggiornamento del contratto.
+
+## Contratto e backend
+
+* OpenAPI: `POST /scans/{scanId}/cancel` → `cancelScan` (202 / 404 / 409
+  `SCAN_NOT_RUNNING` se non in corso); errore `SCAN_NOT_RUNNING` aggiunto
+  ai codici.
+* `ScansService.cancelScan()`: valida stato, registra la richiesta di
+  cancellazione; il loop del distruttore la verifica tra un file e l'altro.
+
+## Verifiche
+
+* Integration: cancel su scan `running` → 202; su scan conclusa → 409
+  `SCAN_NOT_RUNNING`; scan inesistente → 404: ✅
+* Test UI: pannello running → click "Ferma scansione" → 202 → polling aggiorna
+  a "Fallita" + messaggio, bottone scomparso: ✅
+* **Smoke reale su cartella NAS (219 foto)**: scan in corso a 9/219 → cancel →
+  202 → ferma a 10/219 (solo la foto in corso) → `failed` +
+  "Scansione interrotta dall'utente" → lock rilasciato: ✅
+* Fix incluso: il flag di cancellazione veniva letto una sola volta prima del
+  loop; ora è ricontrollato a ogni iterazione (era la causa del "non succede
+  niente").
+* UX: il bottone resta "Interruzione richiesta…" (disabilitato) finché il
+  polling non osserva lo stato terminale.
+* 76 test backend + 47 test frontend; lint e build OK.
+
+---
+
 ---
 
 # Phase 9 — Integration and hardening

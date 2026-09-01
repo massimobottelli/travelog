@@ -14,7 +14,8 @@ export interface PhotoDto {
   filePath: string;
   fileName: string;
   fileType: string;
-  dateTimeOriginal: string;
+  /** Naive local time; null for excluded photos without a readable date. */
+  dateTimeOriginal: string | null;
   originalLatitude: number | null;
   originalLongitude: number | null;
   metadataStatus: string;

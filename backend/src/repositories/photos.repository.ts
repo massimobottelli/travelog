@@ -31,7 +31,8 @@ interface UpsertPhotoInput {
   fileType: string;
   size: number;
   mtime: number;
-  dateTimeOriginal: Date;
+  /** Null for excluded photos without a readable DateTimeOriginal. */
+  dateTimeOriginal: Date | null;
   latitude: number | null;
   longitude: number | null;
   status: "valid" | "excluded";
@@ -102,22 +103,40 @@ export async function upsertPhoto(input: UpsertPhotoInput): Promise<number> {
 }
 
 /**
- * Mark a photo as excluded due to incomplete/missing EXIF metadata.
- * Called within a DB transaction during the scan pipeline.
+ * Insert (or update) a photo as excluded due to incomplete/missing
+ * EXIF metadata (functional requirements §5.5: excluded photos must be
+ * registered in the database with their exclusion state and reason,
+ * and must not be re-imported on subsequent scans).
+ *
+ * The shoot timestamp is unknown for these photos (often it is exactly
+ * what is missing), so it is stored as null.
  */
-export async function markPhotoExcluded(
-  filePath: string,
-  size: number,
-  mtime: number,
+export async function upsertExcludedPhoto(
+  entry: Pick<ScanEntry, "absolutePath" | "fileName" | "fileType" | "size" | "mtime">,
   reason: string,
 ): Promise<void> {
   await db
-    .update(photos)
-    .set({
+    .insert(photos)
+    .values({
+      filePath: entry.absolutePath,
+      fileName: entry.fileName,
+      fileType: entry.fileType,
+      size: entry.size,
+      mtime: entry.mtime,
+      dateTimeOriginal: null,
+      originalLatitude: null,
+      originalLongitude: null,
       metadataStatus: "excluded",
       exclusionReason: reason,
     })
-    .where(and(eq(photos.filePath, filePath), eq(photos.size, size), eq(photos.mtime, mtime)));
+    .onConflictDoUpdate({
+      target: [photos.filePath, photos.size, photos.mtime],
+      set: {
+        metadataStatus: "excluded",
+        exclusionReason: reason,
+        updatedAt: new Date(),
+      },
+    });
 }
 
 export interface PhotoLocality {
@@ -193,7 +212,8 @@ export async function listPhotos(
     )
     .leftJoin(localities, eq(localities.id, geocodingCache.localityId))
     .where(where)
-    .orderBy(desc(photos.dateTimeOriginal), desc(photos.id))
+    // Excluded photos have no shoot date: sort them last
+    .orderBy(sql`photos.date_time_original desc nulls last`, desc(photos.id))
     .limit(pageSize)
     .offset(offset);
 
@@ -245,9 +265,7 @@ export function buildPhotoInput(entry: ScanEntry, exif: RawExifData): UpsertPhot
     fileType: entry.fileType,
     size: entry.size,
     mtime: entry.mtime,
-    dateTimeOriginal: exif.dateTimeOriginal
-      ? new Date(exif.dateTimeOriginal)
-      : new Date("1970-01-01"),
+    dateTimeOriginal: exif.dateTimeOriginal ? new Date(exif.dateTimeOriginal) : null,
     latitude: exif.latitude,
     longitude: exif.longitude,
     status: isValid ? metadataStatusEnum.enumValues[0] : metadataStatusEnum.enumValues[1],
@@ -258,7 +276,7 @@ export function buildPhotoInput(entry: ScanEntry, exif: RawExifData): UpsertPhot
 export default {
   findPhotoByFingerprint,
   upsertPhoto,
-  markPhotoExcluded,
+  upsertExcludedPhoto,
   buildPhotoInput,
   listPhotos,
 };

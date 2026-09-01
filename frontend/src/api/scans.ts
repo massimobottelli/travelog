@@ -25,3 +25,11 @@ export function listScans(page = 1, pageSize = 20): Promise<ScanList> {
 export function listScanErrors(scanId: number): Promise<ScanErrorList> {
   return apiRequest<ScanErrorList>(`/scans/${scanId}/errors`);
 }
+
+/**
+ * Request cancellation of a running scan. Returns immediately with the
+ * current snapshot; the scan finalizes as failed after the current photo.
+ */
+export function cancelScan(scanId: number): Promise<Scan> {
+  return apiRequest<Scan>(`/scans/${scanId}/cancel`, { method: "POST" });
+}

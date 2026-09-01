@@ -95,10 +95,16 @@ describe("apiRequest", () => {
 
 describe("isTerminalScanStatus", () => {
   it("recognizes terminal statuses", () => {
-    expect(TERMINAL_SCAN_STATUSES).toEqual(["completed", "completed_with_errors", "failed"]);
+    expect(TERMINAL_SCAN_STATUSES).toEqual([
+      "completed",
+      "completed_with_errors",
+      "failed",
+      "stopped",
+    ]);
     expect(isTerminalScanStatus("completed")).toBe(true);
     expect(isTerminalScanStatus("completed_with_errors")).toBe(true);
     expect(isTerminalScanStatus("failed")).toBe(true);
+    expect(isTerminalScanStatus("stopped")).toBe(true);
   });
 
   it("does not treat non-terminal statuses as terminal", () => {

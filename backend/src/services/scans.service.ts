@@ -48,6 +48,13 @@ export interface ScanListResult {
 class ScansService {
   private readonly lockID = SCAN_LOCK_ID;
 
+  /**
+   * In-process cancellation requests. A scan checks this flag between
+   * photos and finalizes itself when it is set (single-process design,
+   * technical design §31).
+   */
+  private readonly cancelledScans = new Set<number>();
+
   async startScan(folder: string): Promise<ScanRecord> {
     // An empty folder scans the whole configured photo root
     if (typeof folder !== "string") {
@@ -97,6 +104,21 @@ class ScansService {
     return scanRecord;
   }
 
+  /**
+   * Request cancellation of a running scan. The scan stops after the
+   * photo currently being processed and is finalized as failed with a
+   * diagnostic message; photos already saved remain in the database.
+   */
+  async cancelScan(scanId: number): Promise<ScanRecord> {
+    const scan = await scansRepository.getScan(scanId);
+    if (!scan) throw new NotFoundError("Scan", scanId);
+    if (scan.status !== "running" && scan.status !== "pending") {
+      throw new ConflictError("La scansione non è in corso", "SCAN_NOT_RUNNING");
+    }
+    this.cancelledScans.add(scanId);
+    return scan;
+  }
+
   private async runScan(scanId: number, folder: string): Promise<void> {
     const photoRoot = env.photoRoot;
     if (!photoRoot) {
@@ -114,7 +136,14 @@ class ScansService {
       await scansRepository
         .updateScan(scanId, { filesTotal: entries.length })
         .catch(() => undefined);
+      let cancelled = this.cancelledScans.has(scanId);
       for (const entry of entries) {
+        // Re-check on every iteration: the cancel request may arrive
+        // while the loop is already running.
+        if (cancelled || this.cancelledScans.has(scanId)) {
+          cancelled = true;
+          break;
+        }
         cnt.fa++;
         try {
           await this.processPhoto(entry, scanId, cnt);
@@ -142,8 +171,17 @@ class ScansService {
             .catch(() => {});
         }
       }
-      console.log(`[scanner] Scan ${scanId} completed`);
-      await this.finalizeSuccess(scanId, cnt);
+      if (cancelled) {
+        console.log(`[scanner] Scan ${scanId} cancelled by user after ${cnt.fa} file(s)`);
+        await scansRepository.updateScan(scanId, {
+          status: "stopped",
+          endedAt: new Date(),
+        });
+      } else {
+        console.log(`[scanner] Scan ${scanId} completed`);
+        await this.finalizeSuccess(scanId, cnt);
+      }
+      this.cancelledScans.delete(scanId);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Fatal error";
       await this.finalizeWithError(scanId, msg);
@@ -200,8 +238,12 @@ class ScansService {
             await cl.query("COMMIT");
             cnt.np++;
           } catch (e) {
-            await cl.query("ROLLBACK");
+            await cl.query("ROLLBACK").catch(() => undefined);
             throw e;
+          } finally {
+            // Always return the client to the pool, otherwise the pool
+            // is exhausted after ~10 photos and the scan freezes.
+            cl.release();
           }
         })
         .catch((err) => {
@@ -219,16 +261,22 @@ class ScansService {
       await dbPool.connect().then(async (cl) => {
         try {
           await cl.query("BEGIN");
-          await photosRepository.markPhotoExcluded(
-            entry.absolutePath,
-            entry.size,
-            entry.mtime,
+          await photosRepository.upsertExcludedPhoto(
+            {
+              absolutePath: entry.absolutePath,
+              fileName: entry.fileName,
+              fileType: entry.fileType,
+              size: entry.size,
+              mtime: entry.mtime,
+            },
             reason,
           );
           await cl.query("COMMIT");
         } catch (e) {
-          await cl.query("ROLLBACK");
+          await cl.query("ROLLBACK").catch(() => undefined);
           throw e;
+        } finally {
+          cl.release();
         }
       });
     } catch {}

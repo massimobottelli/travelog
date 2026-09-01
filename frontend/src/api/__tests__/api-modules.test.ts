@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { startScan, getScan, listScans, listScanErrors } from "../scans";
+import { startScan, getScan, listScans, listScanErrors, cancelScan } from "../scans";
 import { getSettings, updateSettings, recalculate } from "../settings";
 import { listPhotos } from "../photos";
 import { getConfig, updateConfig } from "../config";
@@ -148,6 +148,16 @@ describe("data API", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/data",
       expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+  it("cancelScan posts to /scans/:id/cancel", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 7, status: "running" }, 202));
+
+    await cancelScan(7);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/scans/7/cancel",
+      expect.objectContaining({ method: "POST" }),
     );
   });
 });

@@ -27,6 +27,7 @@ export const scanStatusEnum = pgEnum("scan_status", [
   "completed",
   "completed_with_errors",
   "failed",
+  "stopped",
 ]);
 
 export const tripOperationEnum = pgEnum("trip_operation", [
@@ -52,7 +53,7 @@ export const photos = pgTable(
     dateTimeOriginal: timestamp("date_time_original", {
       mode: "date",
       withTimezone: false,
-    }).notNull(),
+    }),
     originalLatitude: doublePrecision("original_latitude"),
     originalLongitude: doublePrecision("original_longitude"),
     metadataStatus: metadataStatusEnum("metadata_status").notNull().default("valid"),

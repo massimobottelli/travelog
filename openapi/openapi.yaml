@@ -135,6 +135,40 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /scans/{scanId}/cancel:
+    post:
+      tags: [Scans]
+      operationId: cancelScan
+      summary: Request cancellation of a running scan
+      description: |
+        Asks the running scan to stop after the photo currently being
+        processed. The scan is then marked as failed with a diagnostic
+        message ("Scan cancelled by the user"); photos already saved
+        remain in the database.
+
+        The response returns immediately with the current scan snapshot.
+      parameters:
+        - $ref: "#/components/parameters/ScanId"
+      responses:
+        "202":
+          description: Cancellation requested
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+        "404":
+          description: Scan not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Scan is not running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
   /photos:
     get:
       tags: [Photos]
@@ -761,6 +795,7 @@ components:
         - completed
         - completed_with_errors
         - failed
+        - stopped
 
     Scan:
       type: object
@@ -912,7 +947,8 @@ components:
         dateTimeOriginal:
           type: string
           format: date-time
-          description: EXIF DateTimeOriginal as naive local time
+          nullable: true
+          description: EXIF DateTimeOriginal as naive local time; null when unreadable/missing (excluded photos)
         originalLatitude:
           type: number
           nullable: true

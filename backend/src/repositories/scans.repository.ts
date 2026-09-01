@@ -6,7 +6,7 @@
 
 import { db, pool as dbPool } from "../db/client.js";
 import { scans, scanStatusEnum } from "../db/schema.js";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, inArray } from "drizzle-orm";
 import type { PoolClient } from "pg";
 import type { ScanRecord } from "../services/scans.service.js";
 
@@ -76,6 +76,27 @@ class ScansRepository {
     const [updated] = await db.update(scans).set(values).where(eq(scans.id, id)).returning();
 
     return updated ?? null;
+  }
+
+  /**
+   * Mark scans left in "running"/"pending" as failed.
+   *
+   * Called on backend startup: a scan job lives in this process
+   * (technical design §31), so any running scan found at boot belongs
+   * to a dead process (crash or restart) and can never finish.
+   * Photos already saved remain in the database.
+   */
+  async failStaleRunningScans(): Promise<number> {
+    const updated = await db
+      .update(scans)
+      .set({
+        status: scanStatusEnum.enumValues[4], // failed
+        endedAt: new Date(),
+        errorMessage: "Scansione interrotta: riavvio del server",
+      })
+      .where(inArray(scans.status, ["pending", "running"]))
+      .returning({ id: scans.id });
+    return updated.length;
   }
 
   /**
