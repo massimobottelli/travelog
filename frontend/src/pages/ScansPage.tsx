@@ -25,18 +25,10 @@ function formatTimestamp(value: string): string {
 interface ScanProgressPanelProps {
   scan: Scan;
   showErrors: boolean;
-  onCancel: () => void;
-  cancelling: boolean;
-  cancelError: string | null;
+  onNavigateTrips: () => void;
 }
 
-function ScanProgressPanel({
-  scan,
-  showErrors,
-  onCancel,
-  cancelling,
-  cancelError,
-}: ScanProgressPanelProps) {
+function ScanProgressPanel({ scan, showErrors, onNavigateTrips }: ScanProgressPanelProps) {
   const terminal = isTerminalScanStatus(scan.status);
   // Proportional progress: analyzed files over the total found by
   // enumeration (includes subfolders). Indeterminate while the total
@@ -69,17 +61,6 @@ function ScanProgressPanel({
                 ? `Elaborazione: ${analyzed} di ${total} file (${percent}%)`
                 : "Elaborazione in corso…"}
         </p>
-        {!terminal && (
-          <button
-            type="button"
-            className="danger"
-            onClick={onCancel}
-            disabled={cancelling}
-            title="Interrompe la scansione dopo la foto corrente"
-          >
-            {cancelling ? "Interruzione richiesta…" : "Ferma scansione"}
-          </button>
-        )}
       </div>
 
       <dl className="counters">
@@ -110,12 +91,23 @@ function ScanProgressPanel({
       </dl>
 
       {scan.status === "completed" && (
-        <p className="alert alert-success">Scansione completata con successo.</p>
+        <p className="alert alert-success">
+          Scansione completata con successo. I nuovi viaggi sono disponibili nella pagina{" "}
+          <button type="button" className="link" onClick={onNavigateTrips}>
+            Viaggi
+          </button>
+          .
+        </p>
       )}
 
       {scan.status === "completed_with_errors" && (
         <p className="alert alert-warning">
-          Scansione completata, ma {scan.errors} file hanno generato errori.
+          Scansione completata, ma {scan.errors} file hanno generato errori. I nuovi viaggi sono
+          disponibili nella pagina{" "}
+          <button type="button" className="link" onClick={onNavigateTrips}>
+            Viaggi
+          </button>
+          .
         </p>
       )}
 
@@ -128,8 +120,6 @@ function ScanProgressPanel({
           message={`Scansione fallita${scan.errorMessage ? `: ${scan.errorMessage}` : ""}`}
         />
       )}
-
-      {cancelError && <ErrorAlert message={cancelError} />}
 
       {showErrorList && <ScanErrors scanId={scan.id} />}
     </section>
@@ -198,7 +188,7 @@ function ScanHistoryTable({ history, selectedScanId, onSelect }: ScanHistoryTabl
   );
 }
 
-export default function ScansPage() {
+export default function ScansPage({ onNavigateTrips }: { onNavigateTrips: () => void }) {
   const [folder, setFolder] = useState("");
   const [scanId, setScanId] = useState<number | null>(null);
   const [starting, setStarting] = useState(false);
@@ -279,6 +269,7 @@ export default function ScansPage() {
 
   return (
     <div>
+      <h1 className="page-title">Scansioni</h1>
       <section className="panel">
         <h2>Nuova scansione</h2>
         <PhotoRootBanner />
@@ -291,23 +282,31 @@ export default function ScansPage() {
             onChange={(e) => setFolder(e.target.value)}
             placeholder="es. 2025/Vacanze (vuoto = intera root)"
           />
-          <button type="submit" disabled={starting || isRunning}>
-            {isRunning ? "Scansione in corso…" : "Avvia scansione"}
-          </button>
+          <div className="scan-actions">
+            <button type="submit" disabled={starting || isRunning}>
+              {isRunning ? "Scansione in corso…" : "Avvia scansione"}
+            </button>
+            {isRunning && (
+              <button
+                type="button"
+                className="danger"
+                onClick={handleCancel}
+                disabled={cancelling}
+                title="Interrompe la scansione dopo la foto corrente"
+              >
+                {cancelling ? "Interruzione richiesta…" : "Ferma scansione"}
+              </button>
+            )}
+          </div>
         </form>
         {startError && <ErrorAlert message={startError} />}
+        {cancelError && <ErrorAlert message={cancelError} />}
         {pollingError && <ErrorAlert message={pollingError} />}
         {loading && scan === null && <p>Avvio scansione…</p>}
       </section>
 
       {scan !== null && (
-        <ScanProgressPanel
-          scan={scan}
-          showErrors={true}
-          onCancel={handleCancel}
-          cancelling={cancelling}
-          cancelError={cancelError}
-        />
+        <ScanProgressPanel scan={scan} showErrors={true} onNavigateTrips={onNavigateTrips} />
       )}
 
       {historyError && <ErrorAlert message={`Impossibile caricare lo storico: ${historyError}`} />}

@@ -19,7 +19,7 @@ function App() {
     <div className="app">
       <Navbar page={page} onNavigate={setPage} />
       <main className="app-main">
-        {page === "scans" && <ScansPage />}
+        {page === "scans" && <ScansPage onNavigateTrips={() => setPage("trips")} />}
         {page === "photos" && <PhotosPage />}
         {page === "trips" && <TripsPage />}
         {page === "settings" && <SettingsPage />}

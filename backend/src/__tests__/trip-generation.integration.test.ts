@@ -211,6 +211,28 @@ describe("trip generation", () => {
 });
 
 describe("contiguity and exclusion rules", () => {
+  it("does NOT create trips from clipping fragments shorter than the minimum consecutive days", async () => {
+    const erice = await insertLocality("trip-test-frag-erice", "Erice");
+    await insertCache(38.03, 12.58, "trip-test-frag-erice", erice);
+    await setSettings(3, 3);
+
+    // An existing trip blocks most of the candidate run, leaving a
+    // 1-day fragment (02 July) — exactly the user-reported scenario.
+    await insertManualTrip("2025-07-03", "2025-07-31");
+
+    await insertPhotos("trip-test/frag-a", 1, "2025-07-02 10:30:00", 38.03, 12.58);
+    await insertPhotos("trip-test/frag-b", 1, "2025-07-03 10:30:00", 38.03, 12.58);
+    await insertPhotos("trip-test/frag-c", 1, "2025-07-04 10:30:00", 38.03, 12.58);
+
+    await presencesRepository.rebuildFromPhotos();
+    const result = await tripCalculationService.generateTrips();
+
+    // The 1-day fragment 02/07 must NOT become a trip.
+    expect(result.tripsCreated).toBe(0);
+    const trips = await listTrips();
+    expect(trips.every((t) => t.startDate !== "2025-07-02")).toBe(true);
+  });
+
   it("creates a NEW trip for photos contiguous to an existing trip (§10.6)", async () => {
     const erice = await insertLocality("trip-test-erice", "Erice");
     await insertCache(38.03, 12.58, "trip-test-erice", erice);

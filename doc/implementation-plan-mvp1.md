@@ -1375,6 +1375,19 @@ usa lo stato `failed` con messaggio diagnostico invece di introdurne uno nuovo
 
 ---
 
+> **Aggiornamento: fix viaggi "frammento" sotto la soglia — Completato**
+>
+> Quando una sequenza valida di giorni veniva tagliata dalla regola di
+> immutabilità contro viaggi esistenti (es. "Valle d'Aosta" 03→31/07),
+> il frammento residuo (es. il solo 02/07) **bypassava** il controllo dei
+> giorni consecutivi minimi e veniva creato comunque come viaggio di 1
+> giorno. Ora, dopo il clipping, i frammenti più corti di
+> `minimumConsecutiveDaysWithPhotos` **non generano viaggi**
+> (`trip-calculation.service`, + integration test dedicato che riproduce
+> lo scenario segnalato).
+
+---
+
 # Phase 9 — Integration and hardening
 
 ## Goal

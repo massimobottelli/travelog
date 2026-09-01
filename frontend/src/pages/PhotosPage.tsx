@@ -67,6 +67,7 @@ export default function PhotosPage() {
 
   return (
     <div>
+      <h1 className="page-title">Foto</h1>
       <section className="panel">
         <div className="panel-header">
           <h2>Foto catalogate</h2>

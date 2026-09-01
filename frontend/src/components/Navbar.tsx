@@ -17,8 +17,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "scans", label: "Scansioni", icon: ScanIcon },
-  { key: "photos", label: "Foto", icon: PhotoIcon },
   { key: "trips", label: "Viaggi", icon: TripIcon },
+  { key: "photos", label: "Foto", icon: PhotoIcon },
   { key: "settings", label: "Impostazioni", icon: SettingsIcon },
 ];
 

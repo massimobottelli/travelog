@@ -196,8 +196,8 @@ export default function TripsPage() {
 
   return (
     <div className="page">
+      <h1 className="page-title">Viaggi</h1>
       <section className="panel">
-        <h1>Viaggi</h1>
         <div className="trips-toolbar">
           <input
             type="search"

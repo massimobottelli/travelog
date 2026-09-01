@@ -152,6 +152,7 @@ export default function SettingsPage() {
 
   return (
     <div>
+      <h1 className="page-title">Impostazioni</h1>
       <section className="panel">
         <h2>Percorso foto</h2>
         {photoRootLoading ? (

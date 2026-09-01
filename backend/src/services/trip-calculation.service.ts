@@ -22,6 +22,7 @@ import {
   clipIntervalsAgainstBlocked,
   formatAutoTripName,
   classifyTravelDays,
+  diffInDays,
   type DayFacts,
 } from "../domain/trip-rules.js";
 
@@ -120,7 +121,16 @@ class TripCalculationService {
     // §11: existing trips are immutable — new trips are created only in
     // the date ranges not already covered by an active trip (§10.6/§21.11).
     const blocked = await tripsRepository.listActiveTripIntervals();
-    const newTrips = clipIntervalsAgainstBlocked(candidates, blocked);
+    const fragments = clipIntervalsAgainstBlocked(candidates, blocked);
+
+    // Clipping can leave fragments shorter than the consecutive-days
+    // minimum (e.g. a single day left over beside an existing trip).
+    // Those fragments do not satisfy the visit rule and must NOT become
+    // trips — otherwise short spurious trips appear next to existing ones.
+    const minDays = settings.minimumConsecutiveDaysWithPhotos;
+    const newTrips = fragments.filter(
+      (trip) => diffInDays(trip.startDate, trip.endDate) + 1 >= minDays,
+    );
 
     let tripsCreated = 0;
     for (const trip of newTrips) {

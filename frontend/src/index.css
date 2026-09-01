@@ -111,6 +111,29 @@ body {
   margin-top: 0;
 }
 
+/* Section (box) titles — consistent style for panel headings such as
+   "Nuova scansione", "Foto catalogate", "Percorso foto", … */
+.panel h2 {
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.4rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #2d3748;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* ── Page titles ───────────────────────────────────────── */
+
+.page-title {
+  margin: 0 0 1rem;
+  padding-bottom: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a202c;
+  border-bottom: 2px solid #2b6cb0;
+}
+
 /* ── Forms ─────────────────────────────────────────────── */
 
 .scan-form,
@@ -127,6 +150,13 @@ body {
   border: 1px solid #cbd5e0;
   border-radius: 6px;
   font-size: 0.95rem;
+}
+
+.scan-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .field {
