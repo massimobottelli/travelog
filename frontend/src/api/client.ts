@@ -109,6 +109,50 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return (await response.json()) as T;
 }
 
+/**
+ * Perform an API request that returns a binary/text file (e.g. CSV
+ * export) and trigger a browser download with the filename advertised
+ * by the Content-Disposition header. Throws ApiError like apiRequest.
+ */
+export async function apiDownload(path: string, fallbackFilename: string): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, { method: "GET" });
+  } catch {
+    throw new ApiError(0, {
+      code: "NETWORK_ERROR",
+      message: "Impossibile contattare il server. Verifica che il backend sia in esecuzione.",
+      details: {},
+    });
+  }
+
+  if (!response.ok) {
+    let errorBody: ApiErrorBody = {
+      code: "INTERNAL_ERROR",
+      message: `Richiesta fallita con stato HTTP ${response.status}`,
+      details: {},
+    };
+    try {
+      errorBody = (await response.json()) as ApiErrorBody;
+    } catch {
+      // Response body was not JSON; keep the generic error body
+    }
+    throw new ApiError(response.status, errorBody);
+  }
+
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const match = /filename="?([^";]+)"?/.exec(disposition);
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = match?.[1] ?? fallbackFilename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 // ── Shared helpers ───────────────────────────────────────────
 
 /** Scan statuses that end the polling lifecycle. */

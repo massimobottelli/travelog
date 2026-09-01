@@ -5,6 +5,7 @@
 import { db } from "../db/client.js";
 import { settings as settingsTable } from "../db/schema.js";
 import { eq } from "drizzle-orm";
+import { env } from "../utils/env.js";
 
 // ── Contract DTO (OpenAPI Settings schema) ────────────────────
 
@@ -13,10 +14,16 @@ export interface SettingsDto {
   consecutiveDaysWithoutPhotosBeforeClosing: number;
 }
 
+/** Defaults configurable via environment (.env); DB stores the current values. */
+const DEFAULT_MIN_CONSECUTIVE_DAYS_WITH_PHOTOS = env.defaultMinConsecutiveDaysWithPhotos;
+const DEFAULT_DAYS_WITHOUT_PHOTOS_THRESHOLD = env.defaultDaysWithoutPhotosThreshold;
+
 function toDto(row: Record<string, unknown>): SettingsDto {
   return {
-    minimumConsecutiveDaysWithPhotos: Number(row.minConsecutiveDaysWithPhotos ?? 2),
-    consecutiveDaysWithoutPhotosBeforeClosing: Number(row.daysWithoutPhotosThreshold ?? 3),
+    minimumConsecutiveDaysWithPhotos:
+      Number(row.minConsecutiveDaysWithPhotos) || DEFAULT_MIN_CONSECUTIVE_DAYS_WITH_PHOTOS,
+    consecutiveDaysWithoutPhotosBeforeClosing:
+      Number(row.daysWithoutPhotosThreshold) || DEFAULT_DAYS_WITHOUT_PHOTOS_THRESHOLD,
   };
 }
 
@@ -33,8 +40,8 @@ class SettingsRepository {
       .insert(settingsTable)
       .values({
         id: SETTINGS_SINGLETON_ID,
-        minConsecutiveDaysWithPhotos: 2,
-        daysWithoutPhotosThreshold: 3,
+        minConsecutiveDaysWithPhotos: DEFAULT_MIN_CONSECUTIVE_DAYS_WITH_PHOTOS,
+        daysWithoutPhotosThreshold: DEFAULT_DAYS_WITHOUT_PHOTOS_THRESHOLD,
       })
       .onConflictDoNothing();
     const [row] = await db

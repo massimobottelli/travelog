@@ -286,6 +286,8 @@ export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
   minConsecutiveDaysWithPhotos: integer("min_consecutive_days_with_photos").notNull().default(2),
   daysWithoutPhotosThreshold: integer("days_without_photos_threshold").notNull().default(3),
+  /** Photo archive root (user-configurable from the Settings page). */
+  photoRoot: text("photo_root").notNull().default(""),
   updatedAt: timestamp("updated_at", {
     mode: "date",
     withTimezone: false,

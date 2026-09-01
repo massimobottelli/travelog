@@ -1388,6 +1388,22 @@ usa lo stato `failed` con messaggio diagnostico invece di introdurne uno nuovo
 
 ---
 
+> **Aggiornamento (richiesta utente): photo root spostato nel database — Completato**
+>
+> * Migration 0012: `settings.photo_root text NOT NULL DEFAULT ''`.
+> * `GET/PUT /api/config` legge/scrive la tabella `settings` (niente più
+>   writer del file `.env`); la validazione (percorso assoluto, directory
+>   esistente) resta nel backend; il valore è letto dal DB ad ogni avvio
+>   scansione (nessun riavvio richiesto).
+> * **`TRAVELOG_PHOTO_ROOT` rimossa dall'ambiente**: `.env` e `.env.example`
+>   contengono ora **tutti i default espliciti** (HOST, PORT, API_PREFIX,
+>   CORS_ORIGIN, NODE_ENV, LOG_LEVEL, EXIFTOOL_PATH, DATABASE_POOL_MAX);
+>   i fallback hardcoded nel codice restano come rete di sicurezza.
+> * Documentazione §8 aggiornata (tabella env vs DB). Test config riscritti
+>   su DB. Il valore esistente dell'utente è stato migrato nel DB.
+
+---
+
 # Phase 9 — Integration and hardening
 
 ## Goal

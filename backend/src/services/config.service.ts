@@ -1,72 +1,46 @@
 /**
  * Travelog MVP1 — Config Service
  *
- * Runtime configuration management. The photo root (TRAVELOG_PHOTO_ROOT)
- * is configured by the user from the Settings page and persisted in the
- * root .env file; the change applies immediately to the running process.
- *
- * The .env writer accepts a custom file path for testability: tests
- * operate on temporary files, never on the real .env.
+ * Runtime configuration management. The photo root is a functional
+ * setting configured by the user from the Settings page and persisted
+ * in the PostgreSQL `settings` table (migration 0012), like the other
+ * functional settings. The change applies immediately to the running
+ * process (read from the DB on each scan start).
  */
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { ValidationError } from "../models/errors.js";
-
-const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-// backend/src/services/ → ../../../ = repository root
-export const ROOT_ENV_PATH = path.resolve(moduleDir, "../../../.env");
-
-const PHOTO_ROOT_KEY = "TRAVELOG_PHOTO_ROOT";
 
 export interface RuntimeConfig {
   photoRoot: string | null;
 }
 
-/**
- * Replace (or append) a KEY=VALUE line in an .env file, preserving
- * everything else. The file is created if missing. The value is cut at
- * the first newline to prevent injection of additional env keys.
- */
-export function writeEnvValue(envFilePath: string, key: string, value: string): void {
-  const safeValue = value.split(/[\r\n]+/)[0]?.trim() ?? "";
-  const line = `${key}=${safeValue}`;
-
-  let content = "";
-  try {
-    content = fs.readFileSync(envFilePath, "utf-8");
-  } catch {
-    // File missing: start from an empty content
-  }
-
-  const lineRegex = new RegExp(`^${key}=.*$`, "m");
-  if (lineRegex.test(content)) {
-    content = content.replace(lineRegex, line);
-  } else {
-    content =
-      content === "" || content.endsWith("\n") ? `${content}${line}\n` : `${content}\n${line}\n`;
-  }
-
-  fs.writeFileSync(envFilePath, content, "utf-8");
-}
+/** Singleton id of the settings row (shared with the settings service). */
+const SETTINGS_SINGLETON_ID = 1;
 
 class ConfigService {
-  getRuntimeConfig(): RuntimeConfig {
-    const value = process.env[PHOTO_ROOT_KEY]?.trim();
+  /**
+   * Read the photo root from the settings table. A small direct query
+   * avoids a circular dependency with the settings repository while
+   * keeping the singleton-get semantics identical.
+   */
+  async getRuntimeConfig(): Promise<RuntimeConfig> {
+    const { pool: pgPool } = await import("../db/client.js");
+    const result = await pgPool.query<{ photo_root: string }>(
+      "SELECT photo_root FROM settings WHERE id = $1",
+      [SETTINGS_SINGLETON_ID],
+    );
+    const value = result.rows[0]?.photo_root?.trim();
     return { photoRoot: value ? value : null };
   }
 
-  updatePhotoRoot(
-    photoRoot: string | null | undefined,
-    envFilePath = ROOT_ENV_PATH,
-  ): RuntimeConfig {
+  async updatePhotoRoot(photoRoot: string | null | undefined): Promise<RuntimeConfig> {
     const trimmed = typeof photoRoot === "string" ? photoRoot.trim() : "";
 
     // Clearing the configuration is allowed
     if (trimmed === "" || photoRoot === null) {
-      writeEnvValue(envFilePath, PHOTO_ROOT_KEY, "");
-      process.env[PHOTO_ROOT_KEY] = "";
+      await this.persistPhotoRoot("");
       return { photoRoot: null };
     }
 
@@ -88,9 +62,20 @@ class ConfigService {
       });
     }
 
-    writeEnvValue(envFilePath, PHOTO_ROOT_KEY, trimmed);
-    process.env[PHOTO_ROOT_KEY] = trimmed;
+    await this.persistPhotoRoot(trimmed);
     return { photoRoot: trimmed };
+  }
+
+  private async persistPhotoRoot(value: string): Promise<void> {
+    const { pool: pgPool } = await import("../db/client.js");
+    // Ensure the singleton row exists (same semantics as the settings repo)
+    await pgPool.query(`INSERT INTO settings (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`, [
+      SETTINGS_SINGLETON_ID,
+    ]);
+    await pgPool.query("UPDATE settings SET photo_root = $2, updated_at = now() WHERE id = $1", [
+      SETTINGS_SINGLETON_ID,
+      value,
+    ]);
   }
 }
 

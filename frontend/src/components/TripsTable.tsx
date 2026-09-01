@@ -13,6 +13,7 @@ import TripDetailPanel from "./TripDetailPanel";
 import TripDialog, { type TripDialogState } from "./TripDialog";
 import Loading from "./Loading";
 import ErrorAlert from "./ErrorAlert";
+import { PencilIcon, CalendarIcon, ScissorsIcon, TrashIcon } from "./icons";
 
 interface TripsTableProps {
   trips: Trip[];
@@ -73,7 +74,7 @@ export default function TripsTable({
           <th>Data fine</th>
           <th>Nome viaggio</th>
           <th>Durata</th>
-          <th aria-label="Azioni" />
+          <th>Modifica</th>
         </tr>
       </thead>
       <tbody>
@@ -113,19 +114,43 @@ export default function TripsTable({
                   <span className="row-actions">
                     {trip.status === "active" && (
                       <>
-                        <button type="button" className="secondary" onClick={() => onRename(trip)}>
-                          Rinomina
+                        <button
+                          type="button"
+                          className="icon-button"
+                          aria-label={`Rinomina ${trip.name || "(senza nome)"}`}
+                          title="Rinomina"
+                          onClick={() => onRename(trip)}
+                        >
+                          <PencilIcon size={14} />
                         </button>
-                        <button type="button" className="secondary" onClick={() => onDates(trip)}>
-                          Date
+                        <button
+                          type="button"
+                          className="icon-button"
+                          aria-label={`Modifica date di ${trip.name || "(senza nome)"}`}
+                          title="Modifica date"
+                          onClick={() => onDates(trip)}
+                        >
+                          <CalendarIcon size={14} />
                         </button>
-                        <button type="button" className="secondary" onClick={() => onSplit(trip)}>
-                          Dividi
+                        <button
+                          type="button"
+                          className="icon-button"
+                          aria-label={`Dividi ${trip.name || "(senza nome)"}`}
+                          title="Dividi"
+                          onClick={() => onSplit(trip)}
+                        >
+                          <ScissorsIcon size={14} />
                         </button>
                       </>
                     )}
-                    <button type="button" className="danger" onClick={() => onDelete(trip)}>
-                      Elimina
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={`Elimina ${trip.name || "(senza nome)"}`}
+                      title="Elimina"
+                      onClick={() => onDelete(trip)}
+                    >
+                      <TrashIcon size={14} />
                     </button>
                   </span>
                 )}

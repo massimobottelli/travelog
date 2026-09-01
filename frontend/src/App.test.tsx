@@ -64,7 +64,8 @@ describe("App", () => {
 
     expect(screen.getByText("Travelog")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Scansioni" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Foto" })).not.toBeNull();
+    // The technical photos page is hidden from the navigation
+    expect(screen.queryByRole("button", { name: "Foto" })).toBeNull();
     expect(screen.getByRole("button", { name: "Impostazioni" })).not.toBeNull();
 
     // Scans page is the default page
@@ -181,18 +182,13 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Ferma scansione" })).toBeNull();
   });
 
-  it("shows the photo technical section with the expected caption", async () => {
+  it("does not show the photos page in the navigation (hidden feature)", async () => {
     mockAllEndpoints();
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Foto" }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Foto catalogate" })).not.toBeNull();
-    });
-    // No gallery in MVP1: only the technical data listing is present
-    expect(screen.getByText(/Vista tecnica/)).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Foto" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Foto catalogate" })).toBeNull();
   });
 
   it("shows the settings page with thresholds", async () => {

@@ -3,7 +3,12 @@
 @import "tailwindcss";
 
 :root {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
   color: #1f2933;
   background: #f5f7fa;
   line-height: 1.5;
@@ -414,6 +419,20 @@ button.secondary:hover:not(:disabled) {
   flex: 1 1 220px;
 }
 
+/* Toolbar action buttons: equal width, icon + label on one line. */
+.trips-toolbar > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  flex: 0 0 12rem;
+}
+
+.trips-toolbar > button svg {
+  flex-shrink: 0;
+}
+
 .trips-table {
   width: 100%;
   border-collapse: collapse;
@@ -477,6 +496,24 @@ button.secondary:hover:not(:disabled) {
   flex-wrap: wrap;
 }
 
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0.3rem;
+  color: #374151;
+}
+
+.icon-button:hover {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
 .badge-archived {
   display: inline-block;
   margin-left: 0.5rem;
@@ -517,6 +554,16 @@ button.secondary:hover:not(:disabled) {
 .trip-localities {
   list-style: none;
   padding-left: 1.2rem;
+}
+
+/* ── Trips pagination ───────────────────────────────────────── */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.9rem;
 }
 
 /* ── Exclusion zones (§9) ───────────────────────────────────── */

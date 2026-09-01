@@ -22,7 +22,7 @@ import tripCalculationService from "../services/trip-calculation.service.js";
 import { upsertPresence } from "../repositories/presences.repository.js";
 import { NotFoundError, ConflictError, ValidationError } from "../models/errors.js";
 import { SCAN_LOCK_ID } from "../config/locks.js";
-import { env } from "../utils/env.js";
+import configService from "./config.service.js";
 import { enumerateSupportedFiles, type ScanEntry } from "../scans/photo-enumeration.js";
 import { readExif } from "../scans/exiftool.js";
 
@@ -65,7 +65,7 @@ class ScansService {
     }
     // Fail fast when the photo root is not configured yet (user must set
     // it from the Settings page) or does not exist.
-    const configuredRoot = env.photoRoot;
+    const { photoRoot: configuredRoot } = await configService.getRuntimeConfig();
     if (!configuredRoot) {
       throw new ValidationError(
         "Percorso foto non configurato: impostalo nella pagina Impostazioni",
@@ -123,9 +123,9 @@ class ScansService {
   }
 
   private async runScan(scanId: number, folder: string): Promise<void> {
-    const photoRoot = env.photoRoot;
+    const { photoRoot } = await configService.getRuntimeConfig();
     if (!photoRoot) {
-      await this.finalizeWithError(scanId, "TRAVELOG_PHOTO_ROOT not configured");
+      await this.finalizeWithError(scanId, "Percorso foto non configurato");
       await scansRepository.releaseLock(this.lockID).catch(() => undefined);
       return;
     }

@@ -5,7 +5,7 @@
  * on every screen size, same style as the previous mobile view).
  */
 
-import { ScanIcon, PhotoIcon, TripIcon, SettingsIcon } from "./icons";
+import { ScanIcon, TripIcon, SettingsIcon } from "./icons";
 
 export type Page = "scans" | "photos" | "trips" | "settings";
 
@@ -15,10 +15,10 @@ interface NavItem {
   icon: typeof ScanIcon;
 }
 
+// The technical photos page is no longer exposed in the navigation.
 const NAV_ITEMS: NavItem[] = [
   { key: "scans", label: "Scansioni", icon: ScanIcon },
   { key: "trips", label: "Viaggi", icon: TripIcon },
-  { key: "photos", label: "Foto", icon: PhotoIcon },
   { key: "settings", label: "Impostazioni", icon: SettingsIcon },
 ];
 

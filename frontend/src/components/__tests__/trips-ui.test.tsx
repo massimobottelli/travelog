@@ -217,7 +217,7 @@ describe("TripsPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Vacanza in Toscana")).not.toBeNull();
     });
-    fireEvent.click(screen.getAllByRole("button", { name: "Elimina" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Elimina Vacanza in Toscana" })[0]);
 
     const dialog = screen.getByRole("alertdialog", {
       name: "Conferma eliminazione viaggio",

@@ -222,8 +222,9 @@ paths:
       operationId: updateConfig
       summary: Update the photo root path
       description: |
-        Persists TRAVELOG_PHOTO_ROOT in the root .env file and applies
-        the change immediately. An empty value clears the configuration.
+        Persists the photo root in the PostgreSQL `settings` table and
+        applies the change immediately. An empty value clears the
+        configuration.
 
         The path must be absolute and must exist as a directory.
       requestBody:
@@ -256,7 +257,7 @@ paths:
         geocoding cache entry, presence, trip, trip history record and
         application setting.
 
-        The photo root configuration (.env) is not modified.
+        The photo root configuration (settings table) is not modified.
 
         The operation is rejected while a scan is running.
       responses:
@@ -341,6 +342,34 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Trip overlaps another active trip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /trips/export:
+    get:
+      tags: [Trips]
+      operationId: exportTrips
+      summary: Export the active trips as CSV
+      description: |
+        Downloads a CSV file describing every active trip exactly as shown
+        in the trips page: year, Italian month, start/end dates, name and
+        duration, plus one row per day and visited locality with the
+        locality hierarchy in a single comma-joined column and the photo
+        count. Days without photos (gaps of 1–2 days) are exported with
+        the "Nessuna foto" note.
+
+        The file uses a `;` field separator and a UTF-8 BOM.
+      responses:
+        "200":
+          description: CSV export of the active trips
+          content:
+            text/csv:
+              schema:
+                type: string
+        "500":
+          description: Unexpected error
           content:
             application/json:
               schema:
@@ -819,8 +848,9 @@ components:
           type: string
           nullable: true
           description: |
-            Root directory of the photo archive (TRAVELOG_PHOTO_ROOT).
-            Null when not yet configured.
+            Root directory of the photo archive (Settings → Percorso
+            foto; stored in the settings table). Null when not yet
+            configured.
 
     UpdateConfigRequest:
       type: object

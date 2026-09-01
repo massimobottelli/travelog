@@ -454,7 +454,6 @@ The MVP1 environment configuration is:
 | --------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
 | `DATABASE_URL`        | PostgreSQL connection string                             | `postgresql://travelog:password@localhost:5432/travelog` |
 | `DATABASE_POOL_MAX`   | Maximum PostgreSQL connection pool size                  | `10`                                                     |
-| `TRAVELOG_PHOTO_ROOT` | Root directory of the photo archive mounted from the NAS | `/path/to/photo/archive`                                 |
 | `HOST`                | HTTP server bind address                                 | `0.0.0.0`                                                |
 | `PORT`                | HTTP server port                                         | `3000`                                                   |
 | `API_PREFIX`          | REST API path prefix                                     | `/api`                                                   |
@@ -462,31 +461,75 @@ The MVP1 environment configuration is:
 | `NODE_ENV`            | Node.js runtime environment                              | `development`                                            |
 | `LOG_LEVEL`           | Application log level                                    | `info`                                                   |
 | `EXIFTOOL_PATH`       | Path/name of the `exiftool` executable                   | `exiftool`                                               |
+| `GEOCOAPIFY_API_KEY`  | Geoapify reverse-geocoding API key (optional)            | `your-api-key` (empty = geocoding skipped, scan continues) |
+| `DEFAULT_MIN_CONSECUTIVE_DAYS_WITH_PHOTOS` | Default for the "Giorni consecutivi con foto" setting | `2` |
+| `DEFAULT_DAYS_WITHOUT_PHOTOS_THRESHOLD`    | Default for the "Giorni consecutivi senza foto" setting | `3` |
 
-No environment variables are used for trip-detection thresholds or other
-functional settings.
+The `.env` file carries the visible default values for every variable; the
+code keeps the same values as hardcoded fallbacks. **`TRAVELOG_PHOTO_ROOT`
+has been removed from the environment**: the photo root is a functional
+setting stored in the PostgreSQL `settings` table (migration 0012) and is
+configured from the Settings page like the other thresholds.
 
 The canonical example configuration is stored in `.env.example` at the
 repository root.
 
-### Photo root configuration (updated)
+### Configuration summary — env vs database (authoritative)
 
-In MVP1 the photo root is **user-configurable at runtime**: `TRAVELOG_PHOTO_ROOT`
-ships empty in `.env` and the user sets it from the **Settings page**
-(Impostazioni → Percorso foto).
+Deployment/runtime configuration lives in the environment (`.env` file at
+the repository root); functional settings live in the PostgreSQL `settings`
+singleton table (`id=1`) and are editable from the Settings page.
+
+**Environment variables** (`.env`, restart or live-update for photo root):
+
+| Variable              | Default (if unset)  | Purpose                                  |
+| --------------------- | ------------------- | ---------------------------------------- |
+| `DATABASE_URL`        | — (required)        | PostgreSQL connection string             |
+| `DATABASE_POOL_MAX`   | `10`                | Connection pool size                     |
+| `TRAVELOG_PHOTO_ROOT` | empty (set via UI)  | Photo archive root, persisted in `.env`  |
+| `HOST`                | `0.0.0.0`           | HTTP bind address                        |
+| `PORT`                | `3000`              | HTTP port                                |
+| `API_PREFIX`          | `/api`              | REST API path prefix                     |
+| `CORS_ORIGIN`         | `http://localhost:5173` | Allowed frontend origin              |
+| `NODE_ENV`            | `development`       | Runtime environment                      |
+| `LOG_LEVEL`           | `info`              | Log level                                |
+| `EXIFTOOL_PATH`       | `exiftool`          | ExifTool executable path                 |
+| `GEOCOAPIFY_API_KEY`  | empty (geocoding skipped) | Geoapify API key                   |
+
+**Database settings** (table `settings`, single row `id=1`, Settings page →
+"Salva impostazioni"; they affect only the generation of NEW trips):
+
+| Column                                       | UI label                              | Default (env) | Editable via     |
+| -------------------------------------------- | ------------------------------------- | ------- | ---------------- |
+| `min_consecutive_days_with_photos`           | Giorni consecutivi con foto           | `DEFAULT_MIN_CONSECUTIVE_DAYS_WITH_PHOTOS` (`2`) | `PUT /settings`  |
+| `days_without_photos_threshold`              | Giorni consecutivi senza foto prima della chiusura | `DEFAULT_DAYS_WITHOUT_PHOTOS_THRESHOLD` (`3`) | `PUT /settings` |
+| `photo_root`                                 | Percorso foto                         | empty   | `PUT /config`    |
+
+The `DEFAULT_*` environment variables seed the settings row when it is
+first created; the values saved by the user from the Settings page are
+stored in the database and always take precedence over the defaults.
+
+Exclusion zones (`exclusion_zones`) are functional configuration too and
+live in PostgreSQL, managed from the Settings page (§49).
+
+### Photo root configuration (DB-backed, updated)
+
+In MVP1 the photo root is **user-configurable at runtime** and stored in the
+`settings` table (migration 0012) — no longer in the `.env` file:
 
 * `GET /api/config` returns the current value (null when unset).
-* `PUT /api/config` validates the path (absolute, existing directory),
-  rewrites the `TRAVELOG_PHOTO_ROOT` line in the root `.env` (upsert,
-  preserving other variables) and applies the change immediately to the
-  running process — no restart required.
+* `PUT /api/config` validates the path (absolute, existing directory) and
+  persists it in `settings.photo_root`; the change applies immediately —
+  every scan start reads the value from the database, no restart required.
+
 * The Scans page shows the currently configured root; starting a scan
   without a configured root fails fast with a validation error.
 
 This is a deliberate deviation from the original "environment-only"
 deployment configuration: the app is single-user and trusted (network-local),
 so the photo root boundary is chosen by the operator through the UI. All
-other functional settings (thresholds, exclusion zones) remain in PostgreSQL.
+functional settings (thresholds, photo root, exclusion zones) live in
+PostgreSQL.
 
 ---
 

@@ -13,6 +13,10 @@ router.get("/", tripsController.listTrips);
 // POST /trips — create a trip manually
 router.post("/", tripsController.createTrip);
 
+// GET /trips/export — CSV export of all active trips
+// (registered before /:tripId so "export" is not treated as an id)
+router.get("/export", tripsController.exportTripsCsv);
+
 // GET /trips/:tripId — get trip details
 router.get("/:tripId", tripsController.getTrip);
 

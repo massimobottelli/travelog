@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { listTrips, getTrip, updateTrip, deleteTrip } from "../api/trips";
+import { listTrips, getTrip, updateTrip, deleteTrip, exportTripsCsv } from "../api/trips";
 import { splitTrip, mergeTrips, listTripOperations } from "../api/operations";
 import { recalculate } from "../api/settings";
 import type { Trip, TripDetail, TripOperation } from "../api/client";
@@ -19,6 +19,7 @@ import Loading from "../components/Loading";
 import ErrorAlert from "../components/ErrorAlert";
 import { errorToMessage } from "../utils/error";
 import { useAutoDismiss } from "../hooks/useAutoDismiss";
+import { RefreshIcon, MergeIcon, DownloadIcon } from "../components/icons";
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[] | null>(null);
@@ -42,19 +43,32 @@ export default function TripsPage() {
   const [history, setHistory] = useState<TripOperation[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
+  // Pagination: the backend page size is capped at 100; the controls are
+  // shown only when the active trips exceed one page.
+  const PAGE_SIZE = 100;
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [recalculating, setRecalculating] = useState(false);
   const [recalcMessage, setRecalcMessage] = useState<string | null>(null);
   const [recalcError, setRecalcError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useAutoDismiss(recalcMessage, () => setRecalcMessage(null));
   useAutoDismiss(actionMessage, () => setActionMessage(null));
 
-  const reload = useCallback(async (query: string) => {
+  const reload = useCallback(async (query: string, requestedPage: number) => {
     setLoading(true);
     setLoadError(null);
     try {
-      const result = await listTrips({ status: "active", search: query || undefined });
+      const result = await listTrips({
+        status: "active",
+        search: query || undefined,
+        pageSize: PAGE_SIZE,
+        page: requestedPage,
+      });
       setTrips(result.items);
+      setTotalPages(Math.max(1, Math.ceil(result.total / PAGE_SIZE)));
       setSelectedIds((ids) => ids.filter((id) => result.items.some((t) => t.id === id)));
     } catch (err: unknown) {
       setLoadError(errorToMessage(err));
@@ -64,8 +78,17 @@ export default function TripsPage() {
   }, []);
 
   useEffect(() => {
-    void reload(search);
-  }, [reload, search]);
+    void reload(search, page);
+  }, [reload, search, page]);
+
+  const handleSearchChange = (value: string): void => {
+    setSearch(value);
+    setPage(1); // a new search always starts from the first page
+  };
+
+  const goToPage = (target: number): void => {
+    setPage(Math.min(Math.max(1, target), totalPages));
+  };
 
   const loadDetail = useCallback(async (tripId: number) => {
     setDetailLoading(true);
@@ -99,10 +122,10 @@ export default function TripsPage() {
       setDialog(null);
       setSelectedTripId(null);
       setDetail(null);
-      await reload(search);
+      await reload(search, page);
       reloadHistory();
     },
-    [reload, search, reloadHistory],
+    [reload, search, page, reloadHistory],
   );
 
   const handleDialogSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -193,6 +216,18 @@ export default function TripsPage() {
     }
   };
 
+  const handleExportCsv = async (): Promise<void> => {
+    setExporting(true);
+    setRecalcError(null);
+    try {
+      await exportTripsCsv();
+    } catch (err: unknown) {
+      setRecalcError(errorToMessage(err));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="page">
       <h1 className="page-title">Viaggi</h1>
@@ -203,8 +238,11 @@ export default function TripsPage() {
             placeholder="Cerca per nome o anno…"
             aria-label="Ricerca rapida viaggi"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
+          <button type="button" onClick={handleRecalculate} disabled={recalculating}>
+            <RefreshIcon size={18} /> {recalculating ? "Richiesta in corso…" : "Ricalcola"}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -214,10 +252,14 @@ export default function TripsPage() {
             }}
             disabled={trips !== null && trips.length < 2}
           >
-            {mergeMode ? "Annulla unione" : "Unisci viaggi"}
+            <MergeIcon size={18} /> {mergeMode ? "Annulla unione" : "Unisci viaggi"}
           </button>
-          <button type="button" onClick={handleRecalculate} disabled={recalculating}>
-            {recalculating ? "Richiesta in corso…" : "Ricalcola"}
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={exporting || (trips !== null && trips.length === 0)}
+          >
+            <DownloadIcon size={18} /> {exporting ? "Esportazione…" : "Esporta CSV"}
           </button>
         </div>
         {recalcMessage && <p className="alert alert-success">{recalcMessage}</p>}
@@ -294,6 +336,30 @@ export default function TripsPage() {
             onDialogSubmit={handleDialogSubmit}
             onDialogCancel={() => setDialog(null)}
           />
+        )}
+
+        {totalPages > 1 && !loading && (
+          <nav className="pagination" aria-label="Paginazione viaggi">
+            <button
+              type="button"
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+              aria-label="Pagina precedente"
+            >
+              ‹ Precedente
+            </button>
+            <span className="hint">
+              Pagina {page} di {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+              aria-label="Pagina successiva"
+            >
+              Successiva ›
+            </button>
+          </nav>
         )}
 
         {actionMessage && <p className="alert alert-success">{actionMessage}</p>}

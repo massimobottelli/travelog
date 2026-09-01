@@ -12,6 +12,7 @@ import tripsRepository, {
 } from "../repositories/trips.repository.js";
 import { NotFoundError, ConflictError, ValidationError } from "../models/errors.js";
 import { addDays } from "../domain/trip-rules.js";
+import { buildTripsCsv } from "../utils/trips-export.js";
 
 export interface TripQueryOptions {
   status?: "active" | "archived";
@@ -91,6 +92,31 @@ class TripsService {
     if (!trip) throw new NotFoundError("Trip", id);
     const days = await tripsRepository.getTripDays(trip.startDate, trip.endDate);
     return { ...trip, days: withNoPhotoDays(days, trip.startDate, trip.endDate) };
+  }
+
+  /**
+   * CSV export of the active trips (user-requested feature): one row per
+   * trip × day × locality, with the trip columns (Anno, Mese, Data
+   * inizio/fine, Nome, Durata) repeated on every row and the locality
+   * hierarchy in a single comma-joined column. Days without photos
+   * (gaps of 1–2 days) are exported with the "Nessuna foto" note.
+   */
+  async exportTripsCsv(): Promise<string> {
+    const { items } = await tripsRepository.listTrips({
+      status: "active",
+      sort: "startDateDesc",
+      page: 1,
+      // No upper cap here (the 100 cap is a controller concern): the
+      // export must cover every active trip in a single pass.
+      pageSize: 1_000_000,
+    });
+
+    const exportTrips: TripDetailDto[] = [];
+    for (const trip of items) {
+      const days = await tripsRepository.getTripDays(trip.startDate, trip.endDate);
+      exportTrips.push({ ...trip, days: withNoPhotoDays(days, trip.startDate, trip.endDate) });
+    }
+    return buildTripsCsv(exportTrips);
   }
 
   async createTrip(input: CreateTripInput): Promise<TripDto> {

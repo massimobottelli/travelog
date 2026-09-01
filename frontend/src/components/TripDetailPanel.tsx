@@ -16,10 +16,10 @@ interface TripDetailPanelProps {
 export default function TripDetailPanel({ detail }: TripDetailPanelProps) {
   return (
     <div>
-      <h3>
+      <h2>
         {detail.name || "(senza nome)"} · {formatTripDate(detail.startDate)} –{" "}
         {formatTripDate(detail.endDate)} · {tripDurationDays(detail.startDate, detail.endDate)} gg
-      </h3>
+      </h2>
       <ul className="trip-days">
         {detail.days.map((day) => (
           <li key={day.date}>

@@ -47,6 +47,20 @@ class TripsController {
     await tripOperationsService.deleteTrip(tripId);
     res.status(204).send();
   }
+
+  /**
+   * CSV export of all active trips. Responds with a text/csv attachment
+   * (UTF-8 BOM, `;` separator) instead of JSON.
+   */
+  async exportTripsCsv(_req: Request, res: Response): Promise<void> {
+    const csv = await tripsService.exportTripsCsv();
+    const today = new Date().toISOString().slice(0, 10);
+    res
+      .status(200)
+      .set("Content-Type", "text/csv; charset=utf-8")
+      .set("Content-Disposition", `attachment; filename="travelog-viaggi-${today}.csv"`)
+      .send(csv);
+  }
 }
 
 export default new TripsController();

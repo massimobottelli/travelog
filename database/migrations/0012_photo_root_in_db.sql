@@ -1,0 +1,1 @@
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS photo_root text NOT NULL DEFAULT '';

@@ -13,9 +13,6 @@ export const env = {
   get databasePoolMax() {
     return numberEnv("DATABASE_POOL_MAX", 10);
   },
-  get photoRoot() {
-    return process.env.TRAVELOG_PHOTO_ROOT;
-  },
   get host() {
     return process.env.HOST ?? "0.0.0.0";
   },
@@ -39,6 +36,13 @@ export const env = {
   },
   get geoapifyApiKey() {
     return process.env.GEOCOAPIFY_API_KEY;
+  },
+  /** Functional defaults (used when the settings row is created). */
+  get defaultMinConsecutiveDaysWithPhotos() {
+    return numberEnv("DEFAULT_MIN_CONSECUTIVE_DAYS_WITH_PHOTOS", 2);
+  },
+  get defaultDaysWithoutPhotosThreshold() {
+    return numberEnv("DEFAULT_DAYS_WITHOUT_PHOTOS_THRESHOLD", 3);
   },
 } as const;
 
