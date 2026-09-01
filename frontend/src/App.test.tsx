@@ -195,7 +195,7 @@ describe("App", () => {
     expect(screen.getByText(/Vista tecnica/)).not.toBeNull();
   });
 
-  it("shows the settings page with thresholds and explicit recalculation", async () => {
+  it("shows the settings page with thresholds", async () => {
     mockAllEndpoints();
 
     render(<App />);
@@ -206,7 +206,6 @@ describe("App", () => {
       const input = screen.getByLabelText("Giorni consecutivi con foto") as HTMLInputElement;
       expect(input.value).toBe("2");
     });
-    expect(screen.getByRole("button", { name: "Ricalcola" })).not.toBeNull();
   });
 
   it("asks for explicit confirmation before clearing the database", async () => {

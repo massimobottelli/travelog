@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState, type FormEvent } from "react";
-import { getSettings, updateSettings, recalculate } from "../api/settings";
+import { getSettings, updateSettings } from "../api/settings";
 import { getConfig, updateConfig } from "../api/config";
 import { deleteAllData } from "../api/data";
 import ExclusionZonesPanel from "../components/ExclusionZonesPanel";
@@ -15,6 +15,7 @@ import type { Settings, RuntimeConfig } from "../api/client";
 import Loading from "../components/Loading";
 import ErrorAlert from "../components/ErrorAlert";
 import { errorToMessage } from "../utils/error";
+import { useAutoDismiss } from "../hooks/useAutoDismiss";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -38,9 +39,10 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [recalculating, setRecalculating] = useState(false);
-  const [recalcError, setRecalcError] = useState<string | null>(null);
-  const [recalcMessage, setRecalcMessage] = useState<string | null>(null);
+
+  useAutoDismiss(photoRootMessage, () => setPhotoRootMessage(null));
+  useAutoDismiss(saveMessage, () => setSaveMessage(null));
+  useAutoDismiss(resetMessage, () => setResetMessage(null));
 
   useEffect(() => {
     let active = true;
@@ -140,22 +142,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleRecalculate = async (): Promise<void> => {
-    setRecalculating(true);
-    setRecalcError(null);
-    setRecalcMessage(null);
-    try {
-      await recalculate();
-      setRecalcMessage(
-        "Ricalcolo richiesto: l'operazione è stata accettata e procederà in background. I viaggi già creati non vengono modificati.",
-      );
-    } catch (err: unknown) {
-      setRecalcError(errorToMessage(err));
-    } finally {
-      setRecalculating(false);
-    }
-  };
-
   if (loadError) {
     return <ErrorAlert message={`Impossibile caricare le impostazioni: ${loadError}`} />;
   }
@@ -241,19 +227,6 @@ export default function SettingsPage() {
         </form>
         {saveMessage && <p className="alert alert-success">{saveMessage}</p>}
         {saveError && <ErrorAlert message={saveError} />}
-      </section>
-
-      <section className="panel">
-        <h2>Ricalcolo</h2>
-        <p className="hint">
-          Il ricalcolo è un'operazione esplicita: utilizza le nuove impostazioni per i dati non
-          ancora consolidati. I viaggi già creati non vengono mai modificati o eliminati.
-        </p>
-        <button type="button" onClick={handleRecalculate} disabled={recalculating}>
-          {recalculating ? "Richiesta in corso…" : "Ricalcola"}
-        </button>
-        {recalcMessage && <p className="alert alert-success">{recalcMessage}</p>}
-        {recalcError && <ErrorAlert message={recalcError} />}
       </section>
 
       <ExclusionZonesPanel />

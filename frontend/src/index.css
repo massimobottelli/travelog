@@ -386,6 +386,21 @@ button.secondary:hover:not(:disabled) {
   text-align: left;
   padding: 0.45rem 0.6rem;
   border-bottom: 1px solid #e5e7eb;
+  vertical-align: middle;
+}
+
+.trips-table td {
+  white-space: nowrap;
+}
+
+.trips-table td:nth-child(6) {
+  white-space: normal;
+}
+
+.trip-detail-row > td {
+  white-space: normal;
+  background: rgba(0, 0, 0, 0.03);
+  border-top: 1px dashed #d1d5db;
 }
 
 .trips-table tr.selected td {

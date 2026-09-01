@@ -7,9 +7,11 @@
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
+import { useState } from "react";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import TripsPage from "../../pages/TripsPage";
 import ExclusionZonesPanel from "../../components/ExclusionZonesPanel";
+import { useAutoDismiss } from "../../hooks/useAutoDismiss";
 
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
@@ -126,6 +128,32 @@ describe("TripsPage", () => {
     expect(screen.getAllByText("2025").length).toBeGreaterThan(0);
   });
 
+  it("offers the explicit recalculation command on the trips page", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/settings" && init?.method === "POST") {
+        return jsonResponse({ status: "ACCEPTED" });
+      }
+      if (/^\/api\/trips\?/.test(url) || url === "/api/trips") return jsonResponse(TRIPS);
+      if (url.startsWith("/api/operations")) {
+        return jsonResponse({ items: [], page: 1, pageSize: 20, total: 0 });
+      }
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
+    render(<TripsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Vacanza in Toscana")).not.toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Ricalcola" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Ricalcolo richiesto/)).not.toBeNull();
+    });
+  });
+
   it("opens the trip detail with day/locality chronology and 'Nessuna foto' gaps (§16)", async () => {
     mockApi();
 
@@ -209,6 +237,25 @@ describe("TripsPage", () => {
       );
       expect(del).toBeDefined();
     });
+  });
+});
+
+describe("useAutoDismiss", () => {
+  it("clears the message after the delay", async () => {
+    function Probe(): React.ReactElement {
+      const [msg, setMsg] = useState<string | null>("ciao");
+      useAutoDismiss(msg, () => setMsg(null), 30);
+      return <p>{msg ?? "(vuoto)"}</p>;
+    }
+
+    render(<Probe />);
+    expect(screen.getByText("ciao")).not.toBeNull();
+    await waitFor(
+      () => {
+        expect(screen.getByText("(vuoto)")).not.toBeNull();
+      },
+      { timeout: 2000 },
+    );
   });
 });
 

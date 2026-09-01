@@ -10,18 +10,18 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { listTrips, getTrip, updateTrip, deleteTrip } from "../api/trips";
 import { splitTrip, mergeTrips, listTripOperations } from "../api/operations";
+import { recalculate } from "../api/settings";
 import type { Trip, TripDetail, TripOperation } from "../api/client";
 import type { TripDialogState } from "../components/TripDialog";
 import TripDialog from "../components/TripDialog";
-import TripDetailPanel from "../components/TripDetailPanel";
 import TripsTable from "../components/TripsTable";
 import Loading from "../components/Loading";
 import ErrorAlert from "../components/ErrorAlert";
 import { errorToMessage } from "../utils/error";
+import { useAutoDismiss } from "../hooks/useAutoDismiss";
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[] | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -42,11 +42,18 @@ export default function TripsPage() {
   const [history, setHistory] = useState<TripOperation[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
 
-  const reload = useCallback(async (status: "active" | "archived", query: string) => {
+  const [recalculating, setRecalculating] = useState(false);
+  const [recalcMessage, setRecalcMessage] = useState<string | null>(null);
+  const [recalcError, setRecalcError] = useState<string | null>(null);
+
+  useAutoDismiss(recalcMessage, () => setRecalcMessage(null));
+  useAutoDismiss(actionMessage, () => setActionMessage(null));
+
+  const reload = useCallback(async (query: string) => {
     setLoading(true);
     setLoadError(null);
     try {
-      const result = await listTrips({ status, search: query || undefined });
+      const result = await listTrips({ status: "active", search: query || undefined });
       setTrips(result.items);
       setSelectedIds((ids) => ids.filter((id) => result.items.some((t) => t.id === id)));
     } catch (err: unknown) {
@@ -57,8 +64,8 @@ export default function TripsPage() {
   }, []);
 
   useEffect(() => {
-    void reload(showArchived ? "archived" : "active", search);
-  }, [reload, showArchived, search]);
+    void reload(search);
+  }, [reload, search]);
 
   const loadDetail = useCallback(async (tripId: number) => {
     setDetailLoading(true);
@@ -92,10 +99,10 @@ export default function TripsPage() {
       setDialog(null);
       setSelectedTripId(null);
       setDetail(null);
-      await reload(showArchived ? "archived" : "active", search);
+      await reload(search);
       reloadHistory();
     },
-    [reload, showArchived, search, reloadHistory],
+    [reload, search, reloadHistory],
   );
 
   const handleDialogSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -171,6 +178,22 @@ export default function TripsPage() {
     }
   };
 
+  const handleRecalculate = async (): Promise<void> => {
+    setRecalculating(true);
+    setRecalcError(null);
+    try {
+      await recalculate();
+      setRecalcMessage(
+        "Ricalcolo richiesto: l'operazione è stata accettata e procederà in background. I viaggi già creati non vengono modificati.",
+      );
+    } catch (err: unknown) {
+      setRecalcError(errorToMessage(err));
+      setRecalcMessage(null);
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   return (
     <div className="page">
       <section className="panel">
@@ -183,14 +206,6 @@ export default function TripsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <label className="hint">
-            <input
-              type="checkbox"
-              checked={showArchived}
-              onChange={(e) => setShowArchived(e.target.checked)}
-            />
-            Mostra viaggi archiviati/superati
-          </label>
           <button
             type="button"
             onClick={() => {
@@ -202,7 +217,12 @@ export default function TripsPage() {
           >
             {mergeMode ? "Annulla unione" : "Unisci viaggi"}
           </button>
+          <button type="button" onClick={handleRecalculate} disabled={recalculating}>
+            {recalculating ? "Richiesta in corso…" : "Ricalcola"}
+          </button>
         </div>
+        {recalcMessage && <p className="alert alert-success">{recalcMessage}</p>}
+        {recalcError && <ErrorAlert message={recalcError} />}
 
         {mergeMode && (
           <div className="merge-bar">
@@ -240,9 +260,12 @@ export default function TripsPage() {
             mergeMode={mergeMode}
             selectedIds={selectedIds}
             selectedTripId={selectedTripId}
-            onSelectTrip={setSelectedTripId}
-            onToggleSelected={toggleSelected}
             confirmDeleteId={confirmDelete?.id ?? null}
+            detail={detail}
+            detailLoading={detailLoading}
+            detailError={detailError}
+            onToggleSelected={toggleSelected}
+            onSelectTrip={(id) => setSelectedTripId((current) => (current === id ? null : id))}
             onRename={(trip) =>
               setDialog({ type: "rename", tripId: trip.id, currentName: trip.name })
             }
@@ -295,18 +318,17 @@ export default function TripsPage() {
           </div>
         )}
 
+        {dialog && (
+          <TripDialog
+            dialog={dialog}
+            operating={operating}
+            onSubmit={handleDialogSubmit}
+            onCancel={() => setDialog(null)}
+          />
+        )}
+
         {actionMessage && <p className="alert alert-success">{actionMessage}</p>}
         {actionError && <ErrorAlert message={actionError} />}
-      </section>
-
-      <section className="panel" aria-label="Scheda dettaglio viaggio">
-        <h2>Dettaglio viaggio</h2>
-        {detailLoading && <Loading />}
-        {detailError && <ErrorAlert message={detailError} />}
-        {!detailLoading && !detail && !detailError && (
-          <p className="hint">Seleziona un viaggio dall'elenco per aprire la scheda dettaglio.</p>
-        )}
-        {detail && <TripDetailPanel detail={detail} />}
       </section>
 
       {history.length > 0 && (
@@ -327,15 +349,6 @@ export default function TripsPage() {
             ))}
           </ul>
         </section>
-      )}
-
-      {dialog && (
-        <TripDialog
-          dialog={dialog}
-          operating={operating}
-          onSubmit={handleDialogSubmit}
-          onCancel={() => setDialog(null)}
-        />
       )}
     </div>
   );

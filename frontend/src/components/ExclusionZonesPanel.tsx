@@ -18,6 +18,7 @@ import {
 } from "../api/exclusion-zones";
 import ErrorAlert from "./ErrorAlert";
 import { errorToMessage } from "../utils/error";
+import { useAutoDismiss } from "../hooks/useAutoDismiss";
 
 export default function ExclusionZonesPanel() {
   const [zones, setZones] = useState<ExclusionZone[] | null>(null);
@@ -31,6 +32,7 @@ export default function ExclusionZonesPanel() {
   const [removing, setRemoving] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  useAutoDismiss(message, () => setMessage(null));
   const [searched, setSearched] = useState<string | null>(null);
   /** Chosen scope per search result locality (default: the locality itself). */
   const [scopes, setScopes] = useState<Record<number, "locality" | "county" | "region">>({});

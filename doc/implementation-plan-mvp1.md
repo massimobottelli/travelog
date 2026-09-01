@@ -1359,6 +1359,22 @@ usa lo stato `failed` con messaggio diagnostico invece di introdurne uno nuovo
 
 ---
 
+> **Aggiornamento (richiesta utente): miglioramenti UI pagina Viaggi — Completato**
+>
+> * Rinomina / Modifica date / Dividi: il form ora appare **inline subito
+>   sotto l'elenco viaggi** (non più in fondo alla pagina), prima del dettaglio
+>   e dello storico operazioni.
+> * **Dettaglio viaggio come accordion**: cliccando il nome di un viaggio la
+>   riga si espande mostrando la cronologia giornate/località direttamente
+>   nella tabella (`aria-expanded`, toggle apri/chiudi).
+> * **Allineamento verticale** nelle righe della tabella (`vertical-align:
+>   middle`, `white-space: nowrap` su anno/mese/date/durata).
+> * **Rimosso** il filtro "Mostra viaggi archiviati/superati" (l'elenco mostra
+>   sempre solo i viaggi attivi).
+> * **"Ricalcola" spostato** da Impostazioni alla pagina Viaggi (toolbar).
+
+---
+
 # Phase 9 — Integration and hardening
 
 ## Goal
