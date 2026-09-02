@@ -68,9 +68,9 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Foto" })).toBeNull();
     expect(screen.getByRole("button", { name: "Impostazioni" })).not.toBeNull();
 
-    // Scans page is the default page
+    // Trips page is the default page
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Avvia scansione" })).not.toBeNull();
+      expect(screen.getByRole("heading", { name: "Viaggi" })).not.toBeNull();
     });
   });
 
@@ -126,6 +126,9 @@ describe("App", () => {
     });
 
     render(<App />);
+
+    // The default page is Trips: navigate to the Scans page
+    fireEvent.click(screen.getByRole("button", { name: "Scansioni" }));
 
     // The running scan's progress panel appears without any user click
     await waitFor(() => {

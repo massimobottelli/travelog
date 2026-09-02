@@ -13,7 +13,7 @@ import TripsPage from "./pages/TripsPage";
 import SettingsPage from "./pages/SettingsPage";
 
 function App() {
-  const [page, setPage] = useState<Page>("scans");
+  const [page, setPage] = useState<Page>("trips");
 
   return (
     <div className="app">

@@ -7,7 +7,7 @@
 
 import { ScanIcon, TripIcon, SettingsIcon, CompassIcon } from "./icons";
 
-export type Page = "scans" | "photos" | "trips" | "settings";
+export type Page = "photos" | "scans" | "trips" | "settings";
 
 interface NavItem {
   key: Page;
@@ -17,8 +17,8 @@ interface NavItem {
 
 // The technical photos page is no longer exposed in the navigation.
 const NAV_ITEMS: NavItem[] = [
-  { key: "scans", label: "Scansioni", icon: ScanIcon },
   { key: "trips", label: "Viaggi", icon: TripIcon },
+  { key: "scans", label: "Scansioni", icon: ScanIcon },
   { key: "settings", label: "Impostazioni", icon: SettingsIcon },
 ];
 
