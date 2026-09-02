@@ -705,6 +705,7 @@ button.secondary:hover:not(:disabled) {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  width: 100%;
 }
 
 .locality-card {
@@ -712,6 +713,7 @@ button.secondary:hover:not(:disabled) {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  width: 100%;
   padding: 0.6rem 0.9rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -850,11 +852,6 @@ button.icon-button:hover {
   border-bottom: 1px solid #f3f4f6;
 }
 
-.trip-localities {
-  list-style: none;
-  padding-left: 1.2rem;
-}
-
 /* ── Trips pagination ───────────────────────────────────────── */
 
 .pagination {
@@ -934,16 +931,34 @@ button.icon-button:hover {
     gap: 1rem;
   }
 
-  /* Compact trip timeline marker. */
+  /* Trip diary: date above the content so the locality cards span
+     the full panel width instead of being offset by the marker. */
+  .trip-timeline-day {
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
   .trip-day-marker {
-    width: 5.5rem;
+    width: auto;
+    padding-top: 0;
   }
 
   .trip-timeline-day:not(:last-child) .trip-day-marker::after {
-    left: calc(5.5rem - 8px);
+    display: none;
+  }
+
+  .trip-day-dot {
+    display: none;
+  }
+
+  /* Locality cards span the full panel width. */
+  .trip-localities {
+    padding-left: 0;
+    width: 100%;
   }
 
   .locality-card {
+    width: 100%;
     flex-wrap: wrap;
   }
 
@@ -996,6 +1011,11 @@ button.icon-button:hover {
     padding: 0.75rem 0.85rem;
   }
 
+  /* Detail row inside the trips table: slimmer padding on phones. */
+  .trip-detail-row > td {
+    padding: 0.9rem 0.6rem;
+  }
+
   .page-title {
     font-size: 1.2rem;
   }
@@ -1008,6 +1028,13 @@ button.icon-button:hover {
   .trips-toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  /* In column layout the search box flex-basis (220px) would become
+     its HEIGHT; reset it so the field stays single-line. */
+  .trips-toolbar > .search-box {
+    flex: 0 0 auto;
+    width: 100%;
   }
 
   .trips-toolbar > button {
@@ -1092,24 +1119,8 @@ button.icon-button:hover {
     padding: 0.35rem 0.4rem;
   }
 
-  /* Timeline: date above the content instead of beside it. */
-  .trip-timeline-day {
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-
-  .trip-day-marker {
-    width: auto;
-    padding-top: 0;
-  }
-
-  .trip-timeline-day:not(:last-child) .trip-day-marker::after {
-    display: none;
-  }
-
-  .trip-day-dot {
-    display: none;
-  }
+  /* Timeline layout (date above, cards full width) is inherited
+     from the ≤768px block; nothing extra needed here. */
 
   .locality-card {
     flex-direction: column;
