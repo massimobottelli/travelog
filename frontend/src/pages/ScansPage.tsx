@@ -157,6 +157,7 @@ function ScanHistoryTable({ history, selectedScanId, onSelect }: ScanHistoryTabl
       {items.length === 0 ? (
         <p>Nessuna scansione registrata.</p>
       ) : (
+        <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -195,6 +196,7 @@ function ScanHistoryTable({ history, selectedScanId, onSelect }: ScanHistoryTabl
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </Accordion>
   );

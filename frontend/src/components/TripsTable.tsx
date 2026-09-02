@@ -64,12 +64,13 @@ export default function TripsTable({
 }: TripsTableProps) {
   const colSpan = 6 + (mergeMode ? 1 : 0);
   return (
+    <div className="table-scroll">
     <table className="trips-table">
       <thead>
         <tr>
           {mergeMode && <th aria-label="Selezione unione" />}
-          <th>Anno</th>
-          <th>Mese</th>
+          <th className="col-year">Anno</th>
+          <th className="col-month">Mese</th>
           <th>Periodo</th>
           <th>Nome viaggio</th>
           <th>Durata</th>
@@ -93,8 +94,8 @@ export default function TripsTable({
                   />
                 </td>
               )}
-              <td>{tripYear(trip.startDate)}</td>
-              <td>{tripMonth(trip.startDate)}</td>
+              <td className="col-year">{tripYear(trip.startDate)}</td>
+              <td className="col-month">{tripMonth(trip.startDate)}</td>
               <td>{formatTripPeriod(trip.startDate, trip.endDate)}</td>
               <td>
                 <button
@@ -226,5 +227,6 @@ export default function TripsTable({
         ))}
       </tbody>
     </table>
+    </div>
   );
 }

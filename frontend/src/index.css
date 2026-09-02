@@ -886,3 +886,251 @@ button.icon-button:hover {
 .exclusion-results button {
   margin-left: auto;
 }
+
+/* ── Responsive layout (iPad portrait + iPhone) ─────────────── */
+
+/* Horizontal safety scroll for wide tables on narrow screens. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Tablet / small desktop (iPad portrait, ≤ 768px) ────────── */
+@media (max-width: 768px) {
+  .app-header {
+    gap: 0.75rem;
+    padding: 0 0.9rem;
+  }
+
+  .app-main {
+    padding: 1rem 0.9rem;
+  }
+
+  .page-header-row {
+    flex-wrap: wrap;
+  }
+
+  .trips-toolbar {
+    flex-wrap: wrap;
+  }
+
+  /* Two form fields side by side stack vertically on narrow screens. */
+  .field-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  /* Input row: the action buttons wrap below the input. */
+  .inline-input-row {
+    flex-wrap: wrap;
+  }
+
+  .inline-input-row .scan-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .counters {
+    gap: 1rem;
+  }
+
+  /* Compact trip timeline marker. */
+  .trip-day-marker {
+    width: 5.5rem;
+  }
+
+  .trip-timeline-day:not(:last-child) .trip-day-marker::after {
+    left: calc(5.5rem - 8px);
+  }
+
+  .locality-card {
+    flex-wrap: wrap;
+  }
+
+  .confirm-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* ── Phones (iPhone, ≤ 560px) ───────────────────────────────── */
+@media (max-width: 560px) {
+  /* Header: brand on its own row, nav below, items compressed. */
+  .app-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    gap: 0;
+  }
+
+  .brand {
+    justify-content: center;
+    padding: 0.55rem 0 0.35rem;
+    font-size: 1.1rem;
+  }
+
+  .app-nav {
+    justify-content: space-between;
+    gap: 0;
+  }
+
+  .nav-button {
+    flex: 1;
+    gap: 0.3rem;
+    padding: 0.6rem 0.3rem;
+    font-size: 0.85rem;
+  }
+
+  .nav-button.active {
+    box-shadow: inset 0 -2px 0 #fff;
+  }
+
+  .nav-button svg {
+    flex-shrink: 0;
+  }
+
+  .app-main {
+    padding: 0.75rem 0.6rem;
+  }
+
+  .panel {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .page-title {
+    font-size: 1.2rem;
+  }
+
+  .panel h2 {
+    font-size: 1.05rem;
+  }
+
+  /* Toolbar: search field and action buttons full width, stacked. */
+  .trips-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .trips-toolbar > button {
+    width: 100%;
+  }
+
+  .merge-bar input[type="text"] {
+    width: 100%;
+  }
+
+  /* Trips table: drop the year/month columns (the info is already
+     visible in the "Periodo" cell) and let text wrap. */
+  .trips-table .col-year,
+  .trips-table .col-month {
+    display: none;
+  }
+
+  .trips-table th,
+  .trips-table td {
+    padding: 0.6rem 0.45rem;
+    white-space: normal;
+  }
+
+  .trips-table {
+    font-size: 0.85rem;
+  }
+
+  /* Action icons stay on one line under the trip name. */
+  .trips-table td .row-actions {
+    white-space: nowrap;
+  }
+
+  /* Confirmation / operation forms inside table rows. */
+  .trip-detail-row td > form.dialog .confirm-actions,
+  .confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .confirm-actions > button {
+    width: 100%;
+    align-self: stretch;
+  }
+
+  /* Scan form: stacked input and buttons. */
+  .inline-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inline-input-row .scan-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inline-input-row .scan-actions > button {
+    width: 100%;
+  }
+
+  .scan-form input[type="text"],
+  input[type="text"],
+  input[type="search"],
+  input[type="number"],
+  input[type="date"] {
+    font-size: 1rem; /* ≥16px prevents iOS zoom on focus */
+  }
+
+  .counters {
+    gap: 0.75rem;
+  }
+
+  .counters dd {
+    font-size: 1.05rem;
+  }
+
+  /* Very compact scan history table. */
+  table {
+    font-size: 0.8rem;
+  }
+
+  th,
+  td {
+    padding: 0.35rem 0.4rem;
+  }
+
+  /* Timeline: date above the content instead of beside it. */
+  .trip-timeline-day {
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .trip-day-marker {
+    width: auto;
+    padding-top: 0;
+  }
+
+  .trip-timeline-day:not(:last-child) .trip-day-marker::after {
+    display: none;
+  }
+
+  .trip-day-dot {
+    display: none;
+  }
+
+  .locality-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  /* Long paths (photo root, scan folders) wrap instead of overflowing. */
+  .mono {
+    word-break: break-all;
+  }
+
+  .exclusion-list li,
+  .exclusion-results li {
+    flex-wrap: wrap;
+  }
+
+  .exclusion-list button,
+  .exclusion-results button {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
