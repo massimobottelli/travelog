@@ -16,7 +16,7 @@ Procedura di deployment per il server Debian target del progetto.
 sudo apt-get update
 sudo apt-get install -y curl gnupg ca-certificates \
     postgresql postgresql-contrib \
-    postgresql-<versione>-postgis-3 \
+    postgresql-17-postgis-3 \
     nginx libimage-exiftool-perl
 ```
 
