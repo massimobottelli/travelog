@@ -39,3 +39,6 @@ pids
 .tmp
 .tsbuildinfo
 test/
+
+# Database export dumps
+*.dump

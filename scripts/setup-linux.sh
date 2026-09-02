@@ -111,10 +111,10 @@ done
 echo "✅ PostgreSQL is ready"
 echo ""
 
-# Create databases
+# Create databases (owned by the application user so migrations can run)
 su - postgres -c "psql -c \"ALTER USER postgres PASSWORD 'travelog';\"" 2>/dev/null || true
-su - postgres -c "psql -c \"CREATE DATABASE travelog_dev;\"" 2>/dev/null || true
-su - postgres -c "psql -c \"CREATE DATABASE travelog_test;\"" 2>/dev/null || true
+su - postgres -c "psql -c 'CREATE DATABASE travelog_dev OWNER travelog;'" 2>/dev/null || true
+su - postgres -c "psql -c 'CREATE DATABASE travelog_test OWNER travelog;'" 2>/dev/null || true
 
 for DB_NAME in travelog_dev travelog_test; do
     HAS_EXT=$(su - postgres -c "psql -d $DB_NAME -tAc \"SELECT extname FROM pg_extension WHERE extname='postgis';\"" 2>/dev/null || echo "")
@@ -128,21 +128,31 @@ echo ""
 
 # ----------------------------------------------------------
 # 2c. Dedicated PostgreSQL user
+# NOTE: identifiers (travelog, travelog_dev, travelog_test) are fixed,
+# lowercase PostgreSQL names - they never need double quotes in SQL.
 # ----------------------------------------------------------
 PG_USER="travelog"
-if su - postgres -c "psql -tc \"SELECT 1 FROM pg_roles WHERE rolname='$PG_USER';\"" | grep -q 1; then
-    echo "ℹ️  Database user '$PG_USER' already exists"
+if su - postgres -c "psql -tc 'SELECT 1 FROM pg_roles WHERE rolname=$PG_USER;'" | grep -q 1; then
+    echo "INFO  Database user '$PG_USER' already exists"
 else
-    echo "📦 Creating database user '$PG_USER'…"
-    su - postgres -c "psql -c \"CREATE USER \\\"$PG_USER\\\" WITH PASSWORD 'travelog';\""
-    for DB_NAME in travelog_dev travelog_test; do
-        su - postgres -c "psql -c \"GRANT CONNECT ON DATABASE \\\"$DB_NAME\\\" TO \\\"$PG_USER\\\";\""
-        su - postgres -c "psql -c \"GRANT USAGE ON SCHEMA public TO \\\"$PG_USER\\\";\""
-        su - postgres -c "psql -d \"$DB_NAME\" -c \"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO \\\"$PG_USER\\\";\""
-        su - postgres -c "psql -d \"$DB_NAME\" -c \"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO \\\"$PG_USER\\\";\""
-    done
-    echo "✅ User '$PG_USER' created and granted access"
+    echo "Creating database user '$PG_USER'..."
+    su - postgres -c "psql -c \\\"CREATE USER $PG_USER WITH PASSWORD 'travelog';\\\""
+    echo "OK User '$PG_USER' created"
 fi
+
+# Ownership and grants are applied unconditionally: they are needed even when
+# the user or the databases already exist (e.g. databases created earlier
+# without OWNER, which otherwise blocks migrations with
+# "permission denied for database").
+for DB_NAME in travelog_dev travelog_test; do
+    su - postgres -c "psql -c \\\"ALTER DATABASE $DB_NAME OWNER TO $PG_USER;\\\""
+    su - postgres -c "psql -d $DB_NAME -c 'GRANT ALL ON SCHEMA public TO $PG_USER;'"
+    su - postgres -c "psql -d $DB_NAME -c 'GRANT ALL ON ALL TABLES IN SCHEMA public TO $PG_USER;'"
+    su - postgres -c "psql -d $DB_NAME -c 'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO $PG_USER;'"
+    su - postgres -c "psql -d $DB_NAME -c 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $PG_USER;'"
+    su - postgres -c "psql -d $DB_NAME -c 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $PG_USER;'"
+done
+echo "OK Database ownership and privileges granted to '$PG_USER'"
 echo ""
 
 # ----------------------------------------------------------

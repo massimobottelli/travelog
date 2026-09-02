@@ -60,7 +60,15 @@ sudo systemctl enable --now postgresql
 sudo -u postgres psql -c "CREATE USER travelog WITH PASSWORD '<password>';"
 sudo -u postgres psql -c "CREATE DATABASE travelog OWNER travelog;"
 sudo -u postgres psql -d travelog -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+
+# Se il database esiste già ma con owner diverso (errore tipico:
+# "permission denied for database" durante db:migrate):
+sudo -u postgres psql -c "ALTER DATABASE travelog OWNER TO travelog;"
+sudo -u postgres psql -d travelog -c "GRANT ALL ON SCHEMA public TO travelog;"
 ```
+
+> Il database deve essere di proprietà di `travelog`: le migration creano le
+> tabelle con l'utente della `DATABASE_URL`.
 
 ## 4. NAS
 
