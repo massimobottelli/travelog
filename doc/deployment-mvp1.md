@@ -96,8 +96,12 @@ Variabili principali (vedi `.env.example` e technical design §8):
 cd /opt/travelog
 npm ci
 npm run build          # backend (tsc) + frontend (Vite)
-cd backend && npm run db:migrate   # applica le migrations versionate
+npm run db:migrate --workspace=@travelog/backend   # applica le migrations versionate
 ```
+
+> **Nota:** lo script `db:migrate` è definito nel workspace backend
+> (`backend/package.json`); il comando sopra usa `--workspace` per eseguirlo
+> dalla root `/opt/travelog`. In alternativa: `cd backend && npm run db:migrate`.
 
 ## 7. systemd
 
