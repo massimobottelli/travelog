@@ -12,8 +12,8 @@ MVP1 provides:
 
 * scanning a photo directory;
 * extracting photo metadata from JPEG and HEIC/HEIF files;
-* storing photo metadata in PostgreSQL/PostGIS;
-* reverse-geocoding photo coordinates against imported geographic datasets;
+* storing photo metadata in PostgreSQL;
+* reverse-geocoding photo coordinates via the external Geoapify API (with a persistent geocoding cache);
 * identifying visits and trips from photo dates and locations;
 * viewing trips and their daily/location details;
 * manually renaming trips;
@@ -63,8 +63,9 @@ Travelog is composed of separate frontend and backend applications.
         │         └──────────────┐
         ▼                        ▼
 ┌───────────────┐       ┌──────────────────┐
-│ PostgreSQL +  │       │ Photo archive    │
-│    PostGIS    │       │      / NAS       │
+│ PostgreSQL    │       │ Photo archive    │
+│ (+ ExifTool,  │       │      / NAS       │
+│ Geoapify API) │       │                  │
 └───────────────┘       └──────────────────┘
 ```
 
@@ -84,8 +85,8 @@ Scanning is asynchronous and can be monitored through the REST API using polling
 * JSON Schema/OpenAPI validation
 * Drizzle ORM
 * PostgreSQL
-* PostGIS
 * `exiftool` as an external process
+* Geoapify reverse geocoding API (external HTTP service)
 
 ### Frontend
 
@@ -116,27 +117,30 @@ The photo archive is provided through a filesystem path mounted from the NAS.
 
 ## Configuration
 
-The application uses environment variables for environment-specific configuration.
+Deployment/runtime configuration is provided through environment variables in
+a single `.env` file at the repository root (see [`.env.example`](.env.example)):
+database connection, HTTP server settings, ExifTool path and the optional
+Geoapify API key.
 
-The photo archive root is configured through:
+Functional application settings (photo archive root, trip-detection
+thresholds, exclusion zones) are **not** environment variables: they are
+persisted in the PostgreSQL `settings` table and managed from the app
+Settings page.
 
-```text
-TRAVELOG_PHOTO_ROOT
-```
-
-Photo paths supplied to the API are relative to this root.
-
-See [`.env.example`](.env.example) for the complete list of required configuration variables.
+See [`doc/deployment-mvp1.md`](doc/deployment-mvp1.md) for the full Debian
+deployment procedure.
 
 ## Database
 
-Travelog uses PostgreSQL with PostGIS.
+Travelog uses PostgreSQL.
 
 Database schema changes are managed through versioned Drizzle migrations stored in the repository.
 
 The application domain model is persisted in PostgreSQL rather than being derived directly from filesystem state.
 
-Geographic datasets are imported manually/offline using dedicated tools or scripts.
+Reverse geocoding is performed through the external Geoapify API during photo
+scans, with results cached persistently in the `geocoding_cache` table.
+No offline geographic datasets are imported.
 
 ## Photo scanning
 
@@ -219,8 +223,8 @@ Changes should be small, incremental, and validated with the relevant tests afte
 
 ## Current status
 
-MVP1 is in the design/planning phase.
+MVP1 is released: all implementation phases (0–10) are complete.
 
-The next step is implementation according to:
-
-[`doc/implementation-plan-mvp1.md`](doc/implementation-plan-mvp1.md)
+* Functional behavior: [`doc/functional-requirements-mvp1.md`](doc/functional-requirements-mvp1.md)
+* Technical design: [`doc/technical-design-mvp1.md`](doc/technical-design-mvp1.md)
+* Deployment procedure: [`doc/deployment-mvp1.md`](doc/deployment-mvp1.md)

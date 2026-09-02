@@ -165,9 +165,7 @@ export default function SettingsPage() {
         ) : (
           <form onSubmit={handleSavePhotoRoot} className="settings-form">
             <div className="field">
-              <label htmlFor="photo-root">
-                Percorso dell'archivio fotografico
-              </label>
+              <label htmlFor="photo-root">Percorso dell'archivio fotografico</label>
               <div className="inline-input-row">
                 <input
                   id="photo-root"
@@ -181,8 +179,8 @@ export default function SettingsPage() {
                 </button>
               </div>
               <p className="hint">
-                Directory che contiene tutte le foto. Le cartelle da scansionare
-                vengono indicate relative a questo percorso.
+                Directory che contiene tutte le foto. Le cartelle da scansionare vengono indicate
+                relative a questo percorso.
               </p>
             </div>
           </form>

@@ -166,15 +166,10 @@ else
     apt-get install -y nginx
 fi
 
+# Install the canonical Nginx site from the repository
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NGINX_SITE="/etc/nginx/sites-available/travelog"
-cat > "$NGINX_SITE" << 'NGINX_EOF'
-server {
-    listen 80 default_server;
-    server_name _;
-    location / { root /opt/travelog/frontend/dist; try_files $uri $uri/ /index.html; }
-    location /api { proxy_pass http://localhost:3000; proxy_http_version 1.1; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_cache_bypass $http_upgrade; }
-}
-NGINX_EOF
+cp "$SCRIPT_DIR/../deploy/nginx-travelog.conf" "$NGINX_SITE"
 
 rm -f /etc/nginx/sites-enabled/default
 ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/
@@ -192,41 +187,17 @@ else
     echo "✅ User 'travelog-service' created"
 fi
 
-PHOTO_ROOT="${TRAVELOG_PHOTO_ROOT:-/opt/travelog/photos}"
-if [[ ! -d "$PHOTO_ROOT" ]]; then
-    echo "⚠️  Photo root directory not found at $PHOTO_ROOT — creating it."
-    mkdir -p "$PHOTO_ROOT"
-    chown travelog-service:root "$PHOTO_ROOT"
-    chmod 750 "$PHOTO_ROOT"
-    echo "✅ Directory '$PHOTO_ROOT' created"
-else
-    echo "ℹ️  Photo root directory '$PHOTO_ROOT' already exists"
-fi
-echo ""
+# The photo root is a functional setting stored in the PostgreSQL `settings`
+# table (migration 0012) and configured from the app Settings page after the
+# first startup — not via environment variable (technical design §8).
+echo "ℹ️  The photo root will be configured from the app Settings page"
+echo "   (Impostazioni → Percorso foto) after the first startup."
 
 # ----------------------------------------------------------
-# 5. Systemd service
+# 5. Systemd service (canonical unit from deploy/)
 # ----------------------------------------------------------
-cat > /etc/systemd/system/travelog.service << SVCEOF
-[Unit]
-Description=Travelog Backend Service
-After=network.target postgresql.service
-Wants=postgresql.service
-
-[Service]
-Type=simple
-User=travelog-service
-WorkingDirectory=/opt/travelog
-ExecStart=/usr/bin/node backend/dist/index.js
-Restart=on-failure
-RestartSec=10
-Environment=NODE_ENV=production
-Environment=LOG_LEVEL=warn
-Environment=TRAVELOG_PHOTO_ROOT=$PHOTO_ROOT
-
-[Install]
-WantedBy=multi-user.target
-SVCEOF
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cp "$SCRIPT_DIR/../deploy/travelog.service" /etc/systemd/system/travelog.service
 
 # Ensure /opt/travelog ownership for service user
 chown -R travelog-service:root /opt/travelog/backend /opt/travelog/frontend
@@ -253,9 +224,12 @@ echo " Setup complete!"
 echo "========================================================"
 echo ""
 echo "Next steps:"
-echo "  1. cp .env.example .env"
-echo "  2. Edit .env with your configuration (set DATABASE_URL password, TRAVELOG_PHOTO_ROOT)"
+echo "  1. cd /opt/travelog && cp .env.example .env"
+echo "  2. Edit .env with your configuration (set DATABASE_URL, CORS_ORIGIN, GEOCOAPIFY_API_KEY)"
 echo "  3. npm run build             # compile TypeScript + Vite production build"
-echo "  4. systemctl start travelog   # start backend service"
-echo "  5. journalctl -u travelog -f  # watch logs"
+echo "  4. npm run db:migrate        # apply database migrations (from backend workspace)"
+echo "  5. systemctl start travelog   # start backend service"
+echo "  6. journalctl -u travelog -f  # watch logs (journald)"
+echo "  7. Configure the photo root from the app Settings page, then run:"
+echo "     scripts/smoke-test.sh http://localhost/api [photo-folder]"
 echo ""

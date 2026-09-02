@@ -12,8 +12,78 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1788178154767,
+      "when": 1788223576436,
+      "tag": "0001_add_geographic_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788309976436,
       "tag": "0001_outstanding_malice",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788396376436,
+      "tag": "0004_reverse_geocoding_api",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788482776436,
+      "tag": "0005_add_files_total",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788569176436,
+      "tag": "0006_add_stopped_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788655576436,
+      "tag": "0007_photos_date_nullable",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788741976436,
+      "tag": "0008_presences_unique_constraint",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788828376436,
+      "tag": "0009_trip_operation_delete",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788914776436,
+      "tag": "0010_exclusion_zone_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789001176436,
+      "tag": "0011_min_consecutive_days",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789087576436,
+      "tag": "0012_photo_root_in_db",
       "breakpoints": true
     }
   ]

@@ -1,0 +1,30 @@
+# Travelog backend — systemd service (MVP1)
+#
+# Install:  sudo cp deploy/travelog.service /etc/systemd/system/travelog.service
+#           sudo systemctl daemon-reload
+#           sudo systemctl enable --now travelog
+#
+# Logs are written to stdout/stderr and collected by journald:
+#           journalctl -u travelog -f
+#
+# The application reads its configuration from the single `.env` file at the
+# repository root (/opt/travelog/.env) with a module-relative path, so no
+# Environment= lines are required here (technical design §8).
+
+[Unit]
+Description=Travelog Backend Service
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=travelog-service
+Group=travelog-service
+WorkingDirectory=/opt/travelog
+ExecStart=/usr/bin/node backend/dist/index.js
+Restart=on-failure
+RestartSec=10
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

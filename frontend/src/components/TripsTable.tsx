@@ -13,13 +13,7 @@ import TripDetailPanel from "./TripDetailPanel";
 import TripDialog, { type TripDialogState } from "./TripDialog";
 import Loading from "./Loading";
 import ErrorAlert from "./ErrorAlert";
-import {
-  PencilIcon,
-  CalendarIcon,
-  ScissorsIcon,
-  TrashIcon,
-  ChevronDownIcon,
-} from "./icons";
+import { PencilIcon, CalendarIcon, ScissorsIcon, TrashIcon, ChevronDownIcon } from "./icons";
 
 interface TripsTableProps {
   trips: Trip[];
@@ -112,9 +106,7 @@ export default function TripsTable({
                     onSelectTrip(trip.id);
                   }}
                 >
-                  {selectedTripId === trip.id && (
-                    <ChevronDownIcon size={14} />
-                  )}
+                  {selectedTripId === trip.id && <ChevronDownIcon size={14} />}
                   {trip.name || "(senza nome)"}
                 </button>
                 {trip.status === "archived" && (

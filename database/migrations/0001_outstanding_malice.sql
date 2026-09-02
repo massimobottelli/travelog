@@ -1,4 +1,4 @@
-CREATE TABLE "dataset_versions" (
+CREATE TABLE IF NOT EXISTS "dataset_versions" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" varchar(50) NOT NULL,
 	"version" varchar(50) NOT NULL,
