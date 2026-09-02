@@ -7,7 +7,7 @@
  * All validation rules are enforced by the backend.
  */
 
-import type { FormEvent } from "react";
+import { useEffect, useRef, type FormEvent } from "react";
 import { addDaysIso } from "../utils/format";
 
 export type TripDialogState =
@@ -35,6 +35,17 @@ const TITLES: Record<TripDialogState["type"], string> = {
 };
 
 export default function TripDialog({ dialog, operating, onSubmit, onCancel }: TripDialogProps) {
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  // On rename, focus the input and select the current name so the user can
+  // type the new name immediately.
+  useEffect(() => {
+    if (dialog.type === "rename") {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }
+  }, [dialog]);
+
   return (
     <form className="panel dialog" onSubmit={onSubmit}>
       <h2>{TITLES[dialog.type]}</h2>
@@ -45,6 +56,7 @@ export default function TripDialog({ dialog, operating, onSubmit, onCancel }: Tr
             id="trip-name"
             name="name"
             type="text"
+            ref={renameInputRef}
             defaultValue={dialog.currentName}
             maxLength={200}
             required
@@ -53,25 +65,27 @@ export default function TripDialog({ dialog, operating, onSubmit, onCancel }: Tr
       )}
       {dialog.type === "dates" && (
         <>
-          <div className="field">
-            <label htmlFor="trip-start">Data inizio</label>
-            <input
-              id="trip-start"
-              name="startDate"
-              type="date"
-              defaultValue={dialog.startDate}
-              required
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="trip-end">Data fine</label>
-            <input
-              id="trip-end"
-              name="endDate"
-              type="date"
-              defaultValue={dialog.endDate}
-              required
-            />
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="trip-start">Data inizio</label>
+              <input
+                id="trip-start"
+                name="startDate"
+                type="date"
+                defaultValue={dialog.startDate}
+                required
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="trip-end">Data fine</label>
+              <input
+                id="trip-end"
+                name="endDate"
+                type="date"
+                defaultValue={dialog.endDate}
+                required
+              />
+            </div>
           </div>
           <p className="hint">
             Il sistema blocca qualsiasi sovrapposizione temporale con altri viaggi attivi.
@@ -84,26 +98,28 @@ export default function TripDialog({ dialog, operating, onSubmit, onCancel }: Tr
             La data di divisione appartiene al secondo viaggio. Il viaggio originale resta nello
             storico.
           </p>
-          <div className="field">
-            <label htmlFor="split-date">Data di divisione</label>
-            <input
-              id="split-date"
-              name="splitDate"
-              type="date"
-              min={addDaysIso(dialog.startDate, 1)}
-              max={dialog.endDate}
-              required
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="split-name">Nome del secondo viaggio</label>
-            <input
-              id="split-name"
-              name="name"
-              type="text"
-              defaultValue={dialog.proposedName}
-              maxLength={200}
-            />
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="split-date">Data di divisione</label>
+              <input
+                id="split-date"
+                name="splitDate"
+                type="date"
+                min={addDaysIso(dialog.startDate, 1)}
+                max={dialog.endDate}
+                required
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="split-name">Nome del secondo viaggio</label>
+              <input
+                id="split-name"
+                name="name"
+                type="text"
+                defaultValue={dialog.proposedName}
+                maxLength={200}
+              />
+            </div>
           </div>
         </>
       )}

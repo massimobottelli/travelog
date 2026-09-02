@@ -170,6 +170,17 @@ body {
   gap: 0.25rem;
 }
 
+/* Two form fields side by side (e.g. trip start/end dates). */
+.field-row {
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+}
+
+.field-row .field {
+  flex: 1;
+}
+
 button {
   padding: 0.45rem 1rem;
   border: 1px solid #2b6cb0;
