@@ -83,7 +83,23 @@ sudo systemctl restart travelog
 systemctl is-active --quiet travelog || fail "il servizio travelog non è attivo dopo il restart"
 
 # ---------------------------------------------------------------
-# 6. Smoke test
+# 6. Attesa readiness: il backend impiega qualche secondo ad avviarsi
+#    (connessione al pool PostgreSQL); senza attesa lo smoke test
+#    riceve un 502 da Nginx anche se l'avvio è poi riuscito.
+# ---------------------------------------------------------------
+log "Attendo che il backend risponda su /api/health"
+READY=0
+for _ in $(seq 1 30); do
+    if curl -fsS -o /dev/null http://localhost/api/health 2>/dev/null; then
+        READY=1
+        break
+    fi
+    sleep 1
+done
+[ "$READY" = "1" ] || fail "il backend non risponde su /api/health entro 30s (vedi: journalctl -u travelog)"
+
+# ---------------------------------------------------------------
+# 7. Smoke test
 # ---------------------------------------------------------------
 if [ "${TRAVELOG_SKIP_SMOKE:-0}" = "1" ]; then
     log "Smoke test saltato (TRAVELOG_SKIP_SMOKE=1)"
