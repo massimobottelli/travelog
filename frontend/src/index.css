@@ -516,13 +516,13 @@ button.secondary:hover:not(:disabled) {
   border-radius: 6px;
   cursor: pointer;
   padding: 0.3rem;
-  color: #374151;
+  color: #888888;
 }
 
-.icon-button:hover {
-  border-color: #2563eb;
-  background: #2563eb;
-  color: #ffffff;
+button.icon-button:hover {
+  background: none;
+  border-color: transparent;
+  color: #164fca;
 }
 
 .badge-archived {
