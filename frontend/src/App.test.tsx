@@ -129,7 +129,7 @@ describe("App", () => {
 
     // The running scan's progress panel appears without any user click
     await waitFor(() => {
-      expect(screen.getByText("Scansione #5")).not.toBeNull();
+      expect(screen.getByText("Scansione test")).not.toBeNull();
     });
     // Total photos found to scan is displayed among the counters
     expect(screen.getByText("Totale da scansionare")).not.toBeNull();
@@ -199,7 +199,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Impostazioni" }));
 
     await waitFor(() => {
-      const input = screen.getByLabelText("Giorni consecutivi con foto") as HTMLInputElement;
+      const input = screen.getByLabelText(/giorni consecutivi con foto/i) as HTMLInputElement;
       expect(input.value).toBe("2");
     });
   });

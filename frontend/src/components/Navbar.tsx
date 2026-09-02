@@ -5,7 +5,7 @@
  * on every screen size, same style as the previous mobile view).
  */
 
-import { ScanIcon, TripIcon, SettingsIcon, CompassIcon, BellIcon, UserIcon } from "./icons";
+import { ScanIcon, TripIcon, SettingsIcon, CompassIcon } from "./icons";
 
 export type Page = "scans" | "photos" | "trips" | "settings";
 
@@ -51,10 +51,6 @@ export default function Navbar({ page, onNavigate }: NavbarProps) {
           );
         })}
       </nav>
-      <div className="header-actions" aria-hidden="true">
-        <BellIcon size={20} />
-        <UserIcon size={20} />
-      </div>
     </header>
   );
 }

@@ -57,11 +57,13 @@ function ScanProgressPanel({ scan, showErrors, onNavigateTrips }: ScanProgressPa
   return (
     <section className="panel" aria-label="Avanzamento scansione">
       <div className="panel-header">
-        <h3>Scansione #{scan.id}</h3>
-        <StatusBadge status={scan.status} />
+        <h2>Scansione {scan.folder || "(root)"}</h2>
       </div>
 
-      <ProgressBar percent={percent} />
+      <div className="progress-row">
+        <ProgressBar percent={percent} />
+        <StatusBadge status={scan.status} />
+      </div>
       <div className="panel-header">
         <p className="progress-label">
           {scan.status === "stopped"
@@ -278,35 +280,42 @@ export default function ScansPage({ onNavigateTrips }: { onNavigateTrips: () => 
   };
 
   return (
-    <div>
-      <h1 className="page-title">Scansioni</h1>
+    <div className="page">
+      <section className="panel page-header-card">
+        <div className="page-header-row">
+          <h1 className="page-title">Scansioni</h1>
+        </div>
+      </section>
+
       <section className="panel">
         <h2>Nuova scansione</h2>
         <PhotoRootBanner />
         <form onSubmit={handleStart} className="scan-form">
           <label htmlFor="scan-folder">Cartella da scansionare (relativa alla root foto)</label>
-          <input
-            id="scan-folder"
-            type="text"
-            value={folder}
-            onChange={(e) => setFolder(e.target.value)}
-            placeholder="es. 2025/Vacanze (vuoto = intera root)"
-          />
-          <div className="scan-actions">
-            <button type="submit" disabled={starting || isRunning}>
-              {isRunning ? "Scansione in corso…" : "Avvia scansione"}
-            </button>
-            {isRunning && (
-              <button
-                type="button"
-                className="danger"
-                onClick={handleCancel}
-                disabled={cancelling}
-                title="Interrompe la scansione dopo la foto corrente"
-              >
-                {cancelling ? "Interruzione richiesta…" : "Ferma scansione"}
+          <div className="inline-input-row">
+            <input
+              id="scan-folder"
+              type="text"
+              value={folder}
+              onChange={(e) => setFolder(e.target.value)}
+              placeholder="es. 2025/Vacanze (vuoto = intera root)"
+            />
+            <div className="scan-actions">
+              <button type="submit" disabled={starting || isRunning}>
+                {isRunning ? "Scansione in corso…" : "Avvia scansione"}
               </button>
-            )}
+              {isRunning && (
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={handleCancel}
+                  disabled={cancelling}
+                  title="Interrompe la scansione dopo la foto corrente"
+                >
+                  {cancelling ? "Interruzione richiesta…" : "Ferma scansione"}
+                </button>
+              )}
+            </div>
           </div>
         </form>
         {startError && <ErrorAlert message={startError} />}

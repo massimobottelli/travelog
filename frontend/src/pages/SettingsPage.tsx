@@ -151,8 +151,13 @@ export default function SettingsPage() {
   }
 
   return (
-    <div>
-      <h1 className="page-title">Impostazioni</h1>
+    <div className="page">
+      <section className="panel page-header-card">
+        <div className="page-header-row">
+          <h1 className="page-title">Impostazioni</h1>
+        </div>
+      </section>
+
       <section className="panel">
         <h2>Percorso foto</h2>
         {photoRootLoading ? (
@@ -161,23 +166,25 @@ export default function SettingsPage() {
           <form onSubmit={handleSavePhotoRoot} className="settings-form">
             <div className="field">
               <label htmlFor="photo-root">
-                Root dell'archivio fotografico (TRAVELOG_PHOTO_ROOT)
+                Percorso dell'archivio fotografico
               </label>
-              <input
-                id="photo-root"
-                type="text"
-                value={photoRootInput}
-                onChange={(e) => setPhotoRootInput(e.target.value)}
-                placeholder="es. /mnt/travelog/photos"
-              />
+              <div className="inline-input-row">
+                <input
+                  id="photo-root"
+                  type="text"
+                  value={photoRootInput}
+                  onChange={(e) => setPhotoRootInput(e.target.value)}
+                  placeholder="es. /mnt/travelog/photos"
+                />
+                <button type="submit" disabled={savingPhotoRoot}>
+                  {savingPhotoRoot ? "Salvataggio…" : "Salva percorso"}
+                </button>
+              </div>
               <p className="hint">
-                Directory montata dal NAS che contiene tutte le foto. Le cartelle da scansionare
-                vengono indicate relative a questo percorso. Lascia vuoto per rimuoverlo.
+                Directory che contiene tutte le foto. Le cartelle da scansionare
+                vengono indicate relative a questo percorso.
               </p>
             </div>
-            <button type="submit" disabled={savingPhotoRoot}>
-              {savingPhotoRoot ? "Salvataggio…" : "Salva percorso"}
-            </button>
           </form>
         )}
         {photoRoot !== null && (
@@ -191,40 +198,54 @@ export default function SettingsPage() {
       </section>
 
       <section className="panel">
-        <h2>Impostazioni</h2>
+        <h2>Inizio e Fine Viaggio</h2>
         <form onSubmit={handleSave} className="settings-form">
-          <div className="field">
-            <label htmlFor="min-photos">Giorni consecutivi con foto</label>
-            <input
-              id="min-photos"
-              type="number"
-              min={1}
-              value={minimumConsecutiveDaysWithPhotos}
-              onChange={(e) => setMinimumConsecutiveDaysWithPhotos(e.target.value)}
-              required
-            />
-            <p className="hint">
-              Numero minimo di giorni consecutivi con foto fuori dalle zone di esclusione per
-              definire un viaggio (a prescindere dalla località). Un giorno isolato non è un
-              viaggio.
-            </p>
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="min-photos">
+                <strong>Inizio Viaggio</strong>
+                <br />
+                Giorni consecutivi con foto
+              </label>
+              <input
+                id="min-photos"
+                type="number"
+                min={1}
+                value={minimumConsecutiveDaysWithPhotos}
+                onChange={(e) => setMinimumConsecutiveDaysWithPhotos(e.target.value)}
+                required
+              />
+              <p className="hint">
+                Numero minimo di giorni consecutivi con foto fuori dalle zone di esclusione per
+                definire un viaggio (a prescindere dalla località). Un giorno isolato non è un
+                viaggio.
+              </p>
+            </div>
+            <div className="field">
+              <label htmlFor="days-without-photos">
+                <strong>Fine Viaggio</strong>
+                <br />
+                Giorni consecutivi senza foto
+              </label>
+              <input
+                id="days-without-photos"
+                type="number"
+                min={0}
+                value={consecutiveDaysWithoutPhotosBeforeClosing}
+                onChange={(e) => setConsecutiveDaysWithoutPhotosBeforeClosing(e.target.value)}
+                required
+              />
+              <p className="hint">
+                Numero di giorni consecutivi senza foto dopo i quali un viaggio viene considerato
+                concluso. Il viaggio si chiude all'ultimo giorno con foto.
+              </p>
+            </div>
           </div>
-          <div className="field">
-            <label htmlFor="days-without-photos">
-              Giorni consecutivi senza foto prima della chiusura
-            </label>
-            <input
-              id="days-without-photos"
-              type="number"
-              min={0}
-              value={consecutiveDaysWithoutPhotosBeforeClosing}
-              onChange={(e) => setConsecutiveDaysWithoutPhotosBeforeClosing(e.target.value)}
-              required
-            />
+          <div className="form-actions">
+            <button type="submit" disabled={saving}>
+              {saving ? "Salvataggio…" : "Salva impostazioni"}
+            </button>
           </div>
-          <button type="submit" disabled={saving}>
-            {saving ? "Salvataggio…" : "Salva impostazioni"}
-          </button>
         </form>
         {saveMessage && <p className="alert alert-success">{saveMessage}</p>}
         {saveError && <ErrorAlert message={saveError} />}
