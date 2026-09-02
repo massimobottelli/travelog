@@ -167,6 +167,10 @@ Verifiche manuali aggiuntive:
 
 ## 11. Aggiornamento di una installazione esistente
 
+La procedura è automatizzata da `scripts/update-prod.sh`, da eseguire sul
+server (o via `ssh <server> 'bash /opt/travelog/scripts/update-prod.sh'`).
+In alternativa manualmente:
+
 ```bash
 cd /opt/travelog
 git pull                      # o rsync della nuova release
