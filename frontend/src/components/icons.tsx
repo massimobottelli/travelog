@@ -218,3 +218,122 @@ export function TrashIcon({ size }: IconProps) {
     </svg>
   );
 }
+
+/** Compass in a filled circle — brand mark. */
+export function CompassIcon({ size }: IconProps) {
+  return (
+    <svg {...base(size)} viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" fill="currentColor" />
+      <path d="M15.5 8.5 13.4 13.4 8.5 15.5l2.1-4.9 4.9-2.1Z" fill="#0f1b2a" />
+    </svg>
+  );
+}
+
+/** Bell — decorative notification indicator. */
+export function BellIcon({ size }: IconProps) {
+  return (
+    <svg
+      {...base(size)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+    </svg>
+  );
+}
+
+/** User avatar — decorative account indicator. */
+export function UserIcon({ size }: IconProps) {
+  return (
+    <svg
+      {...base(size)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="10" r="3" />
+      <path d="M6.2 19a6.5 6.5 0 0 1 11.6 0" />
+    </svg>
+  );
+}
+
+/** Magnifier — search field. */
+export function SearchIcon({ size }: IconProps) {
+  return (
+    <svg
+      {...base(size)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <line x1="21" y1="21" x2="16.5" y2="16.5" />
+    </svg>
+  );
+}
+
+/** Chevron down — expand a trip row. */
+export function ChevronDownIcon({ size }: IconProps) {
+  return (
+    <svg
+      {...base(size)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+/** Map pin — locality marker in the trip detail chronology. */
+export function PinIcon({ size }: IconProps) {
+  return (
+    <svg
+      {...base(size)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+/** Folded map — trip diary detail header. */
+export function MapIcon({ size }: IconProps) {
+  return (
+    <svg
+      {...base(size)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
+      <line x1="9" y1="4" x2="9" y2="18" />
+      <line x1="15" y1="6" x2="15" y2="20" />
+    </svg>
+  );
+}

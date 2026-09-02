@@ -19,7 +19,7 @@ import Loading from "../components/Loading";
 import ErrorAlert from "../components/ErrorAlert";
 import { errorToMessage } from "../utils/error";
 import { useAutoDismiss } from "../hooks/useAutoDismiss";
-import { RefreshIcon, MergeIcon, DownloadIcon } from "../components/icons";
+import { RefreshIcon, MergeIcon, DownloadIcon, SearchIcon } from "../components/icons";
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[] | null>(null);
@@ -230,41 +230,55 @@ export default function TripsPage() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Viaggi</h1>
-      <section className="panel">
-        <div className="trips-toolbar">
-          <input
-            type="search"
-            placeholder="Cerca per nome o anno…"
-            aria-label="Ricerca rapida viaggi"
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-          />
-          <button type="button" onClick={handleRecalculate} disabled={recalculating}>
-            <RefreshIcon size={18} /> {recalculating ? "Richiesta in corso…" : "Ricalcola"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMergeMode((m) => !m);
-              setSelectedIds([]);
-              setMergeTitle("");
-            }}
-            disabled={trips !== null && trips.length < 2}
-          >
-            <MergeIcon size={18} /> {mergeMode ? "Annulla unione" : "Unisci viaggi"}
-          </button>
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            disabled={exporting || (trips !== null && trips.length === 0)}
-          >
-            <DownloadIcon size={18} /> {exporting ? "Esportazione…" : "Esporta CSV"}
-          </button>
+      <section className="panel page-header-card">
+        <div className="page-header-row">
+          <h1 className="page-title">Viaggi</h1>
+          <div className="trips-toolbar">
+            <div className="search-box">
+              <SearchIcon size={16} />
+              <input
+                type="search"
+                placeholder="Cerca per nome o anno…"
+                aria-label="Ricerca rapida viaggi"
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleRecalculate}
+              disabled={recalculating}
+            >
+              <RefreshIcon size={18} /> {recalculating ? "Richiesta in corso…" : "Ricalcola"}
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                setMergeMode((m) => !m);
+                setSelectedIds([]);
+                setMergeTitle("");
+              }}
+              disabled={trips !== null && trips.length < 2}
+            >
+              <MergeIcon size={18} /> {mergeMode ? "Annulla unione" : "Unisci viaggi"}
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={handleExportCsv}
+              disabled={exporting || (trips !== null && trips.length === 0)}
+            >
+              <DownloadIcon size={18} /> {exporting ? "Esportazione…" : "Esporta CSV"}
+            </button>
+          </div>
         </div>
         {recalcMessage && <p className="alert alert-success">{recalcMessage}</p>}
         {recalcError && <ErrorAlert message={recalcError} />}
+      </section>
 
+      <section className="panel trips-panel">
         {mergeMode && (
           <div className="merge-bar">
             <p className="hint">

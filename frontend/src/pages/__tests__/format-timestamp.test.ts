@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { formatTimestamp } from "../ScansPage";
+import { formatTripPeriod } from "../../utils/format";
 
 describe("formatTimestamp", () => {
   it("renders a UTC instant in the browser local time (offset removed)", () => {
@@ -22,5 +23,19 @@ describe("formatTimestamp", () => {
 
   it("returns the raw value when it cannot be parsed", () => {
     expect(formatTimestamp("not-a-date")).toBe("not-a-date");
+  });
+});
+
+describe("formatTripPeriod", () => {
+  it("shows DD/MM - DD/MM/YYYY for a trip within one year", () => {
+    expect(formatTripPeriod("2026-08-10", "2026-08-24")).toBe("10/08 - 24/08/2026");
+  });
+
+  it("shows both full dates for a trip spanning two years", () => {
+    expect(formatTripPeriod("2025-12-30", "2026-01-02")).toBe("30/12/2025 - 02/01/2026");
+  });
+
+  it("handles single-day trips", () => {
+    expect(formatTripPeriod("2026-06-14", "2026-06-14")).toBe("14/06 - 14/06/2026");
   });
 });

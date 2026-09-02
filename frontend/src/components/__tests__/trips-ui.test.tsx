@@ -121,8 +121,7 @@ describe("TripsPage", () => {
       expect(screen.getByText("Vacanza in Toscana")).not.toBeNull();
     });
     expect(screen.getByText("Weekend a Roma")).not.toBeNull();
-    expect(screen.getByText("10/08/2025")).not.toBeNull();
-    expect(screen.getByText("13/08/2025")).not.toBeNull();
+    expect(screen.getByText("10/08 - 13/08/2025")).not.toBeNull();
     expect(screen.getByText("4 gg")).not.toBeNull();
     expect(screen.getAllByText("agosto").length).toBeGreaterThan(0);
     expect(screen.getAllByText("2025").length).toBeGreaterThan(0);

@@ -5,7 +5,7 @@
  * on every screen size, same style as the previous mobile view).
  */
 
-import { ScanIcon, TripIcon, SettingsIcon } from "./icons";
+import { ScanIcon, TripIcon, SettingsIcon, CompassIcon, BellIcon, UserIcon } from "./icons";
 
 export type Page = "scans" | "photos" | "trips" | "settings";
 
@@ -30,7 +30,9 @@ interface NavbarProps {
 export default function Navbar({ page, onNavigate }: NavbarProps) {
   return (
     <header className="app-header">
-      <span className="brand">Travelog</span>
+      <span className="brand">
+        <CompassIcon size={22} /> Travelog
+      </span>
       <nav className="app-nav" aria-label="Navigazione principale">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -43,12 +45,16 @@ export default function Navbar({ page, onNavigate }: NavbarProps) {
               aria-label={item.label}
               aria-current={page === item.key ? "page" : undefined}
             >
-              <Icon />
+              <Icon size={18} />
               <span className="nav-label">{item.label}</span>
             </button>
           );
         })}
       </nav>
+      <div className="header-actions" aria-hidden="true">
+        <BellIcon size={20} />
+        <UserIcon size={20} />
+      </div>
     </header>
   );
 }

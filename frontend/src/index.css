@@ -10,7 +10,7 @@
     Roboto,
     sans-serif;
   color: #1f2933;
-  background: #f5f7fa;
+  background: rgb(230, 237, 243);
   line-height: 1.5;
 }
 
@@ -35,56 +35,70 @@ body {
 
 .app-header {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   gap: 1.5rem;
-  padding: 0.6rem 1.5rem;
-  background: #14324f;
+  padding: 0 1.5rem;
+  background: #0f1b2a;
   color: #fff;
 }
 
 .brand {
-  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  align-self: center;
+  font-size: 1.25rem;
   font-weight: 700;
   white-space: nowrap;
+  color: #fff;
 }
 
 .app-nav {
-  /* Fill all horizontal space after the brand; buttons split it equally */
+  /* Center the navigation items, mockup style */
   flex: 1;
   display: flex;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: 0.25rem;
 }
 
 .nav-button {
-  flex: 1 1 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
+  gap: 0.55rem;
   border: none;
   background: transparent;
   color: #cfe0f0;
-  padding: 0.35rem 0.9rem;
-  border-radius: 6px;
+  padding: 0.95rem 1.4rem;
+  border-radius: 0;
   cursor: pointer;
-  font-size: 0.78rem;
+  font-size: 0.98rem;
   white-space: nowrap;
 }
 
 .nav-button:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 
 .nav-button.active {
-  background: #2b6cb0;
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
+  box-shadow: inset 0 -3px 0 #fff;
 }
 
 .nav-label {
   white-space: nowrap;
+}
+
+/* Decorative right-side indicators (notifications, account) */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: #cfe0f0;
 }
 
 /* ── Main area ─────────────────────────────────────────── */
@@ -419,25 +433,52 @@ button.secondary:hover:not(:disabled) {
 
 .trips-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 0.9rem;
+  margin-bottom: 0;
 }
 
-.trips-toolbar input[type="search"],
-.trips-toolbar input[type="text"] {
+/* Search field: light gray box with magnifier icon. */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   flex: 1 1 220px;
+  min-width: 0;
+  padding: 0.35rem 0.7rem;
+  background: #f1f3f6;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  color: #64748b;
 }
 
-/* Toolbar action buttons: equal width, icon + label on one line. */
+.search-box:focus-within {
+  border-color: #2b6cb0;
+  color: #2b6cb0;
+}
+
+.search-box input {
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0;
+  font-size: 0.95rem;
+  color: #1f2933;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Toolbar action buttons: compact, icon + label on one line. */
 .trips-toolbar > button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
   white-space: nowrap;
-  flex: 0 0 12rem;
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.9rem;
 }
 
 .trips-toolbar > button svg {
@@ -453,23 +494,223 @@ button.secondary:hover:not(:disabled) {
 .trips-table th,
 .trips-table td {
   text-align: left;
-  padding: 0.45rem 0.6rem;
+  padding: 0.85rem 0.75rem;
   border-bottom: 1px solid #e5e7eb;
   vertical-align: middle;
+}
+
+.trips-table th {
+  font-size: 0.85rem;
 }
 
 .trips-table td {
   white-space: nowrap;
 }
 
-.trips-table td:nth-child(6) {
+.trips-table td:nth-child(5) {
   white-space: normal;
+}
+
+/* Header card with page title + toolbar (trips page mockup) */
+.page-header-card {
+  padding: 1rem 1.5rem;
+}
+
+.page-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: nowrap;
+}
+
+.page-header-row .page-title {
+  margin: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.trips-toolbar > button.secondary {
+  background: #fff;
+  border: 1px solid #cbd5e0;
+  color: #1f2933;
+}
+
+.trips-toolbar > button.primary {
+  background: #2b6cb0;
+  border: 1px solid #2b6cb0;
+  color: #fff;
+}
+
+.trips-toolbar > button.primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+/* Whole trip row is clickable to open the detail box */
+.trips-table tr.clickable {
+  cursor: pointer;
+}
+
+/* Trip name link with expand chevron */
+.trips-table .trip-name-link,
+.trips-table tr.clickable .trip-name-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.trips-table .trip-name-link:hover,
+.trips-table tr.clickable .trip-name-link:hover {
+  font-weight: 700;
+  text-decoration: underline;
+  background: none;
+  border-color: transparent;
+}
+
+.trips-table tr.selected td {
+  background: #eef5ff;
+}
+
+.trips-table tr.selected td:first-child {
+  box-shadow: inset 3px 0 0 #2b6cb0;
+}
+
+/* ── Trip diary detail (Dettaglio Diario, §16) ──────────────── */
+
+.trip-diary-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+}
+
+.trip-diary-title svg {
+  color: #2b6cb0;
+  flex-shrink: 0;
+}
+
+.trip-timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+}
+
+.trip-timeline-day {
+  display: flex;
+  gap: 0.9rem;
+  position: relative;
+  align-items: flex-start;
+}
+
+.trip-day-marker {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  width: 7rem;
+  flex-shrink: 0;
+  /* Align the date/dot row with the first locality card of the day */
+  padding-top: 0.6rem;
+}
+
+.trip-day-marker strong {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.trip-day-dot {
+  width: 14px;
+  height: 14px;
+  border: 3px solid #2b6cb0;
+  border-radius: 50%;
+  background: #fff;
+  flex-shrink: 0;
+  /* Keep the dot in front of the vertical connector line */
+  position: relative;
+  z-index: 1;
+}
+
+/* Vertical connector line below each day marker */
+.trip-day-content {
+  flex: 1;
+  padding-bottom: 1rem;
+}
+
+.trip-timeline-day:not(:last-child) .trip-day-marker::after {
+  content: "";
+  position: absolute;
+  top: 1.6rem;
+  bottom: 0;
+  /* Align with the horizontal center of the day dot (marker width 7rem,
+     dot 14px wide centered at 7rem - 7px; 2px line → 7rem - 8px). */
+  left: calc(7rem - 8px);
+  width: 2px;
+  background: #e2e8f0;
+}
+
+.trip-localities {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.locality-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.locality-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.locality-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.locality-name svg {
+  color: #e53e3e;
+  flex-shrink: 0;
+}
+
+.locality-hierarchy {
+  color: #718096;
+  font-size: 0.85rem;
+}
+
+.photo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #4a5568;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .trip-detail-row > td {
   white-space: normal;
   background: rgba(0, 0, 0, 0.03);
   border-top: 1px dashed #d1d5db;
+  padding: 1.4rem 1.6rem;
 }
 
 /* Accordion panels (scan history, operations history) */

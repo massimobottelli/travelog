@@ -92,3 +92,16 @@ export function formatTripDate(date: string): string {
   const [y, m, d] = date.split("-");
   return `${d}/${m}/${y}`;
 }
+
+/**
+ * Trip period formatted for the trips table, e.g. "10/08 - 24/08/2026".
+ * The start year is shown only when the trip spans two different years.
+ */
+export function formatTripPeriod(startDate: string, endDate: string): string {
+  const start = formatTripDate(startDate).slice(0, 5); // DD/MM
+  const end = formatTripDate(endDate);
+  if (tripYear(startDate) === tripYear(endDate)) {
+    return `${start} - ${end}`;
+  }
+  return `${formatTripDate(startDate)} - ${end}`;
+}

@@ -8,12 +8,18 @@
 
 import { Fragment } from "react";
 import type { Trip, TripDetail } from "../api/client";
-import { formatTripDate, tripDurationDays, tripYear, tripMonth } from "../utils/format";
+import { formatTripPeriod, tripDurationDays, tripYear, tripMonth } from "../utils/format";
 import TripDetailPanel from "./TripDetailPanel";
 import TripDialog, { type TripDialogState } from "./TripDialog";
 import Loading from "./Loading";
 import ErrorAlert from "./ErrorAlert";
-import { PencilIcon, CalendarIcon, ScissorsIcon, TrashIcon } from "./icons";
+import {
+  PencilIcon,
+  CalendarIcon,
+  ScissorsIcon,
+  TrashIcon,
+  ChevronDownIcon,
+} from "./icons";
 
 interface TripsTableProps {
   trips: Trip[];
@@ -62,7 +68,7 @@ export default function TripsTable({
   onDialogCancel,
   deleting,
 }: TripsTableProps) {
-  const colSpan = 7 + (mergeMode ? 1 : 0);
+  const colSpan = 6 + (mergeMode ? 1 : 0);
   return (
     <table className="trips-table">
       <thead>
@@ -70,8 +76,7 @@ export default function TripsTable({
           {mergeMode && <th aria-label="Selezione unione" />}
           <th>Anno</th>
           <th>Mese</th>
-          <th>Data inizio</th>
-          <th>Data fine</th>
+          <th>Periodo</th>
           <th>Nome viaggio</th>
           <th>Durata</th>
           <th>Modifica</th>
@@ -80,9 +85,12 @@ export default function TripsTable({
       <tbody>
         {trips.map((trip) => (
           <Fragment key={trip.id}>
-            <tr className={selectedTripId === trip.id ? "selected" : undefined}>
+            <tr
+              className={selectedTripId === trip.id ? "selected clickable" : "clickable"}
+              onClick={() => onSelectTrip(trip.id)}
+            >
               {mergeMode && (
-                <td>
+                <td onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     aria-label={`Seleziona ${trip.name}`}
@@ -93,23 +101,30 @@ export default function TripsTable({
               )}
               <td>{tripYear(trip.startDate)}</td>
               <td>{tripMonth(trip.startDate)}</td>
-              <td>{formatTripDate(trip.startDate)}</td>
-              <td>{formatTripDate(trip.endDate)}</td>
+              <td>{formatTripPeriod(trip.startDate, trip.endDate)}</td>
               <td>
                 <button
                   type="button"
-                  className="link"
+                  className="link trip-name-link"
                   aria-expanded={selectedTripId === trip.id}
-                  onClick={() => onSelectTrip(trip.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectTrip(trip.id);
+                  }}
                 >
+                  {selectedTripId === trip.id && (
+                    <ChevronDownIcon size={14} />
+                  )}
                   {trip.name || "(senza nome)"}
                 </button>
                 {trip.status === "archived" && (
                   <span className="badge badge-archived">Archiviato</span>
                 )}
               </td>
-              <td>{tripDurationDays(trip.startDate, trip.endDate)} gg</td>
               <td>
+                <strong>{tripDurationDays(trip.startDate, trip.endDate)} gg</strong>
+              </td>
+              <td onClick={(e) => e.stopPropagation()}>
                 {!mergeMode && (
                   <span className="row-actions">
                     {trip.status === "active" && (
