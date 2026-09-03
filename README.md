@@ -62,7 +62,7 @@ Travelog is composed of separate frontend and backend applications.
         ▼                        ▼
 ┌───────────────┐       ┌──────────────────┐
 │ PostgreSQL    │       │ Photo archive    │
-│ (+ ExifTool,  │       │      / filesys.  │
+│ (+ ExifTool,  │       │  / filesystem    │
 │ Geoapify API) │       │                  │
 └───────────────┘       └──────────────────┘
 ```
