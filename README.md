@@ -2,13 +2,11 @@
 
 Travelog is a self-hosted application for organizing a personal photo collection into trips.
 
-It scans a photo archive stored on a NAS, extracts metadata from photos, associates photos with geographic locations, and automatically identifies trips.
+It scans a photo archive stored on the filesystem, extracts metadata from photos, associates photos with geographic locations, and automatically identifies trips.
 
-The application is designed for personal use and for an MVP1 implementation focused on simplicity and reliability.
+The application is designed for personal use.
 
-## MVP1
-
-MVP1 provides:
+## Features
 
 * scanning a photo directory;
 * extracting photo metadata from JPEG and HEIC/HEIF files;
@@ -25,13 +23,13 @@ MVP1 provides:
 * configuring trip-detection thresholds;
 * explicitly recalculating data after configuration changes.
 
-Photos themselves are not served or displayed by the application in MVP1.
+Photos themselves are not served or displayed by the application .
 
 ## Project documentation
 
 The documentation is divided into four complementary documents:
 
-* [`doc/functional-requirements-mvp1.md`](doc/functional-requirements-mvp1.md) — functional requirements and MVP1 behavior.
+* [`doc/functional-requirements-mvp1.md`](doc/functional-requirements-mvp1.md) — functional requirements and behavior.
 * [`doc/technical-design-mvp1.md`](doc/technical-design-mvp1.md) — technical architecture and implementation decisions.
 * [`doc/implementation-plan-mvp1.md`](doc/implementation-plan-mvp1.md) — implementation phases and tasks.
 * [`.clinerules`](.clinerules) — rules and working conventions for AI-assisted development with Cline.
@@ -64,7 +62,7 @@ Travelog is composed of separate frontend and backend applications.
         ▼                        ▼
 ┌───────────────┐       ┌──────────────────┐
 │ PostgreSQL    │       │ Photo archive    │
-│ (+ ExifTool,  │       │      / NAS       │
+│ (+ ExifTool,  │       │      / filesys.  │
 │ Geoapify API) │       │                  │
 └───────────────┘       └──────────────────┘
 ```
@@ -96,11 +94,9 @@ Scanning is asynchronous and can be monitored through the REST API using polling
 * browser `fetch`
 * generated TypeScript types from OpenAPI
 
-No additional client-side data-fetching/state-management framework is required for MVP1.
+No additional client-side data-fetching/state-management framework is required .
 
 ### Testing
-
-MVP1 uses:
 
 * unit tests for domain and application logic;
 * integration tests for database and API behavior.
@@ -109,11 +105,9 @@ End-to-end browser testing is not required initially.
 
 ### Infrastructure
 
-MVP1 deliberately does not use Docker.
-
 PostgreSQL/PostGIS runs directly on the development server.
 
-The photo archive is provided through a filesystem path mounted from the NAS.
+The photo archive is provided through a filesystem path.
 
 ## Configuration
 
@@ -155,7 +149,7 @@ The scanner is designed to be:
 
 The scanner invokes `exiftool` as an external process to extract metadata.
 
-MVP1 supports:
+Support:
 
 * JPEG;
 * HEIC/HEIF.
@@ -186,7 +180,7 @@ API errors use a uniform structure defined by OpenAPI.
 
 ## Authentication
 
-MVP1 has no authentication or authorization.
+No authentication or authorization.
 
 The application is intended to run in a trusted environment.
 
@@ -201,7 +195,7 @@ The implementation should prioritize:
 5. restartability of background processing;
 6. minimal dependencies.
 
-Avoid introducing frameworks or infrastructure that are not required by MVP1.
+Avoid introducing frameworks or infrastructure that are not required .
 
 Do not change functional behavior defined in the functional requirements document without explicitly updating the requirements first.
 
