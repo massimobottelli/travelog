@@ -1403,6 +1403,40 @@ usa lo stato `failed` con messaggio diagnostico invece di introdurne uno nuovo
 > `backend/vitest.config.ts` per non dipendere dal `.env` dell'operatore.
 > 153 test backend + 61 frontend passano.
 
+> **Aggiornamento (richiesta utente): ricerca località di esclusione globale via Geoapify Autocomplete — Completato**
+>
+> La ricerca località nella pagina Impostazioni (zone di esclusione) non
+> cerca più solo tra le località già visitate ma è **globale**, tramite la
+> **Geoapify Address Autocomplete API** (Opzione A: proxy backend, chiave
+> API nascosta al client, nessuna nuova dipendenza frontend).
+>
+> * Contratto OpenAPI: `GET /localities/autocomplete` (`autocompleteLocalities`,
+>   200/400/**503 `GEOAPIFY_NOT_CONFIGURED`**) e `POST /localities/resolve`
+>   (`resolveLocality`, 200/400/**404 `PLACE_NOT_FOUND`**/503); nuovi schemi
+>   `LocalitySuggestion`, `AutocompleteLocalityList`, `ResolveLocalityRequest`;
+>   tipi rigenerati per backend e frontend.
+> * Backend: `GeoapifyAutocomplete` (`backend/src/infrastructure/geocoder/geoapify-autocomplete.ts`,
+>   stesso pattern del reverse geocoder: URLSearchParams, timeout 5s, no shell);
+>   `geocoding.service.autocompleteLocalities()` e `resolveLocality()` con
+>   upsert idempotente in `localities` (hash dalle coordinate normalizzate a
+>   2 decimali, `source='geoapify-autocomplete'`) per ottenere il
+>   `localityId` richiesto da `POST /exclusion-zones`.
+> * Frontend: `autocompleteLocalities()`/`resolveLocality()` in
+>   `api/exclusion-zones.ts` (nessun fetch nei componenti);
+>   `ExclusionZonesPanel` ricerca con **debounce 300 ms** mentre si digita
+>   (oltre a Enter/bottone "Cerca"), suggerimenti raggruppati per
+>   Comune/Provincia/Regione, al click su "Escludi" risolve il place e crea
+>   la zona con lo scope scelto (validazione scope invariata).
+> * Test: 6 unit (mapping risposta Geoapify + client) e 7 integration
+>   (endpoint API con fetch stub, upsert idempotente su `travelog_test`,
+>   503 senza chiave, 404 place sconosciuto) + test UI aggiornati.
+>   Totale: **165 test backend, 62 test frontend**.
+> * Nessuna migration (nessun cambio schema) e nessuna nuova variabile env
+>   (si riusa `GEOCOAPIFY_API_KEY`). `doc/technical-design-mvp1.md` §49.1
+>   aggiornato con la decisione architetturale.
+
+---
+
 > **Aggiornamento (richiesta utente): photo root spostato nel database — Completato**
 >
 > * Migration 0012: `settings.photo_root text NOT NULL DEFAULT ''`.

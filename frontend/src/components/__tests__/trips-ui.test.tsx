@@ -306,20 +306,30 @@ describe("ExclusionZonesPanel", () => {
     ],
   };
 
-  const SEARCH_RESULTS = {
+  const SUGGESTIONS = {
     items: [
       {
-        id: 9,
-        localityHash: "45.07:7.68",
-        source: "geoapify",
-        countryCode: "IT",
+        placeId: "51c0d3f6e5b0c8f9Verona",
         name: "Verona",
-        adminLevel: 8,
+        countryCode: "IT",
         county: "Verona",
         region: "Veneto",
         country: "Italy",
+        resultType: "city",
       },
     ],
+  };
+
+  const RESOLVED_VERONA = {
+    id: 9,
+    localityHash: "45.43:10.99",
+    source: "geoapify-autocomplete",
+    countryCode: "IT",
+    name: "Verona",
+    adminLevel: 8,
+    county: "Verona",
+    region: "Veneto",
+    country: "Italy",
   };
 
   it("lists the configured exclusion zones (§9)", async () => {
@@ -336,7 +346,7 @@ describe("ExclusionZonesPanel", () => {
     expect(screen.getByText(/Lombardia/)).not.toBeNull();
   });
 
-  it("searches a locality and adds it as exclusion zone", async () => {
+  it("searches a locality globally and adds it as exclusion zone", async () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (
@@ -345,10 +355,13 @@ describe("ExclusionZonesPanel", () => {
       ) {
         return jsonResponse(ZONES);
       }
-      if (url.startsWith("/api/exclusion-zones") && init?.method === "POST") {
-        return jsonResponse({ id: 6, locality: SEARCH_RESULTS.items[0] });
+      if (url === "/api/localities/resolve" && init?.method === "POST") {
+        return jsonResponse(RESOLVED_VERONA);
       }
-      if (url.startsWith("/api/localities/search")) return jsonResponse(SEARCH_RESULTS);
+      if (url.startsWith("/api/exclusion-zones") && init?.method === "POST") {
+        return jsonResponse({ id: 6, locality: RESOLVED_VERONA });
+      }
+      if (url.startsWith("/api/localities/autocomplete")) return jsonResponse(SUGGESTIONS);
       throw new Error(`Unhandled fetch: ${url}`);
     });
 
@@ -375,6 +388,13 @@ describe("ExclusionZonesPanel", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Escludi" })[0]);
 
     await waitFor(() => {
+      // The place is resolved into the localities table first, then the
+      // exclusion zone is created referencing the resolved locality id.
+      const resolve = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url) === "/api/localities/resolve" && (init as RequestInit)?.method === "POST",
+      );
+      expect(resolve).toBeDefined();
       const post = fetchMock.mock.calls.find(
         ([url, init]) =>
           String(url) === "/api/exclusion-zones" &&

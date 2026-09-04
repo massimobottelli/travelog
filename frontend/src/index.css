@@ -238,6 +238,26 @@ input[type="date"]:focus {
   gap: 2rem;
 }
 
+/* Input of an inline input+button row (e.g. exclusion zone search)
+   fills the remaining width, matching the photo root field. */
+.trips-toolbar > input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The exclusion search matches the width of the settings forms
+   (photo root / thresholds), which are capped at 480px. */
+.exclusion-search {
+  max-width: 480px;
+}
+
+/* Same button width in the label-above input rows (photo root,
+   exclusion search) so the two inputs end up equally wide. */
+.field .inline-input-row > button,
+.field .trips-toolbar > button {
+  min-width: 9.5rem;
+}
+
 .field-row .field {
   flex: 1;
 }

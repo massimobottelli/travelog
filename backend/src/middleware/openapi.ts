@@ -32,6 +32,8 @@ const ROUTE_OPS: Record<string, Record<string, string>> = {
     delete: "deleteExclusionZone",
   },
   "/localities/search": { get: "searchLocalities" },
+  "/localities/autocomplete": { get: "autocompleteLocalities" },
+  "/localities/resolve": { post: "resolveLocality" },
 };
 
 function resolveOperationId(path: string, method: string): string | null {
@@ -60,6 +62,7 @@ const REQUIRED_BODY_FIELDS: Record<string, string[]> = {
   updateSettings: [],
   recalculate: [],
   createExclusionZone: ["localityId"],
+  resolveLocality: ["placeId"],
 };
 
 export function openApiValidator(_req: Request, _res: Response, next: NextFunction): void {

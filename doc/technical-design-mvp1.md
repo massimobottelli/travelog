@@ -1611,6 +1611,28 @@ L'utente non deve gestire manualmente le relazioni gerarchiche.
 
 La logica di appartenenza deve essere determinata dal modello amministrativo.
 
+### 49.1 Ricerca globale delle località di esclusione (Aggiornato)
+
+La ricerca delle località da escludere non è più limitata alle località già
+visitate (`localities` importate dal geocoding delle foto). È disponibile una
+ricerca **globale** basata sulla **Geoapify Address Autocomplete API**:
+
+* `GET /api/localities/autocomplete?q=&limit=` — proxy backend verso
+  `https://api.geoapify.com/v1/geocode/autocomplete`. La chiave
+  `GEOCOAPIFY_API_KEY` resta sul server (nessuna chiamata diretta del
+  browser a Geoapify, nessuna libreria frontend aggiuntiva). Se la chiave
+  non è configurata l'API risponde `503 GEOAPIFY_NOT_CONFIGURED`.
+* `POST /api/localities/resolve` (body `{ placeId }`) — scarica i dettagli
+  del place scelto, esegue l'upsert nella tabella `localities` (hash dalle
+  coordinate normalizzate a 2 decimali, stesso key space del reverse
+  geocoding; `source='geoapify-autocomplete'`) e restituisce la `Locality`
+  con l'id, usabile per `POST /exclusion-zones`.
+
+Il flusso UI è: ricerca (debounce 300 ms) → suggerimenti raggruppati per
+Comune/Provincia/Regione → "Escludi" risolve il place e crea la zona con lo
+scope scelto. Le regole di validazione scope (county/regione presenti sulla
+località di ancoraggio) restano in `exclusion-zones.service`.
+
 ---
 
 # 50. Effetto delle zone di esclusione

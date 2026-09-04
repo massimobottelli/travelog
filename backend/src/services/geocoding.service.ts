@@ -8,6 +8,11 @@
 import geocodingRepository from "../repositories/geocoding.repository.js";
 import { normalizeCoordinates, makeLocalityHash } from "../utils/geocoding.js";
 import type { Locality, ReverseGeocoder } from "../domain/reverse-geocoder.js";
+import {
+  GeoapifyAutocomplete,
+  type LocalitySuggestion,
+} from "../infrastructure/geocoder/geoapify-autocomplete.js";
+import { AppError } from "../models/errors.js";
 
 export interface ReverseGeocodeResult {
   localityId: number | null;
@@ -116,6 +121,85 @@ class GeocodingService {
    */
   async searchLocalities(q: string, limit: number) {
     return geocodingRepository.searchLocalities(q, limit);
+  }
+
+  /** Autocomplete client (key read at call time so tests can configure it). */
+  private getAutocomplete(): GeoapifyAutocomplete {
+    const apiKey = process.env.GEOCOAPIFY_API_KEY ?? null;
+    if (!apiKey) {
+      throw new AppError(
+        "GEOAPIFY_NOT_CONFIGURED",
+        "Ricerca global non disponibile: chiave API Geoapify non configurata (GEOCOAPIFY_API_KEY)",
+        503,
+      );
+    }
+    return new GeoapifyAutocomplete(apiKey);
+  }
+
+  /**
+   * Global place search via the Geoapify Address Autocomplete API.
+   * Returns suggestions for any place worldwide, not only localities
+   * already imported from photo geocoding.
+   */
+  async autocompleteLocalities(q: string, limit: number): Promise<LocalitySuggestion[]> {
+    return this.getAutocomplete().autocomplete(q, limit);
+  }
+
+  /**
+   * Resolve a Geoapify place id into a persisted Locality (upsert into
+   * the localities table) so it can be referenced by exclusion zones.
+   * Returns the contract Locality shape (api/types.ts).
+   */
+  async resolveLocality(placeId: string): Promise<{
+    id: number;
+    localityHash: string;
+    source: string;
+    countryCode: string;
+    name: string;
+    adminLevel: number;
+    region: string | null;
+    county: string | null;
+    country: string | null;
+  }> {
+    const suggestion = await this.getAutocomplete().resolvePlace(placeId);
+    if (!suggestion) {
+      throw new AppError("PLACE_NOT_FOUND", "Place not found on Geoapify", 404);
+    }
+
+    let hash: string;
+    if (typeof suggestion.lat === "number" && typeof suggestion.lon === "number") {
+      // Use the normalized-coordinate hash so autocomplete-resolved
+      // localities share the same key space as the ones created by the
+      // photo geocoding pipeline.
+      const { normalizedLatitude, normalizedLongitude } = normalizeCoordinates(
+        suggestion.lat,
+        suggestion.lon,
+      );
+      hash = makeLocalityHash(normalizedLatitude, normalizedLongitude);
+    } else {
+      hash = `geoapify:${placeId}`;
+    }
+
+    const row = await geocodingRepository.upsertLocality({
+      localityHash: hash,
+      countryCode: suggestion.countryCode,
+      name: suggestion.name,
+      adminLevel: 0,
+      county: suggestion.county,
+      region: suggestion.region,
+      country: suggestion.country,
+    });
+    return {
+      id: row.id,
+      localityHash: row.localityHash,
+      source: "geoapify-autocomplete",
+      countryCode: row.countryCode,
+      name: row.name,
+      adminLevel: row.adminLevel,
+      region: row.region,
+      county: row.county,
+      country: row.country,
+    };
   }
 }
 

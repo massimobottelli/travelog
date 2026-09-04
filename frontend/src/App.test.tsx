@@ -45,7 +45,7 @@ function mockAllEndpoints(): void {
     if (url.includes("/api/operations")) {
       return Promise.resolve(jsonResponse({ items: [], page: 1, pageSize: 20, total: 0 }));
     }
-    if (url.includes("/api/localities/search")) {
+    if (url.includes("/api/localities/autocomplete")) {
       return Promise.resolve(jsonResponse({ items: [] }));
     }
     return Promise.resolve(jsonResponse({}, 200));

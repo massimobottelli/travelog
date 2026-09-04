@@ -752,6 +752,96 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /localities/autocomplete:
+    get:
+      tags: [Localities]
+      operationId: autocompleteLocalities
+      summary: Global locality search via Geoapify Address Autocomplete
+      description: |
+        Proxies the Geoapify Geocoding Autocomplete API to search any place
+        worldwide, not only localities already imported from photo geocoding.
+        Requires the GEOCOAPIFY_API_KEY environment variable to be configured.
+        The results are suggestions: use POST /localities/resolve to persist
+        the chosen place and obtain a Locality with an id usable for
+        exclusion zones.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Search text (place name or partial address)
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+          description: Maximum suggestions to return
+      responses:
+        "200":
+          description: Autocomplete suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutocompleteLocalityList"
+        "400":
+          description: Invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Geoapify API key not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /localities/resolve:
+    post:
+      tags: [Localities]
+      operationId: resolveLocality
+      summary: Resolve a Geoapify place into a persisted Locality
+      description: |
+        Fetches the place details from Geoapify by place id, upserts it into
+        the localities table (creating it if it has never been geocoded
+        before) and returns the contract Locality with its database id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveLocalityRequest"
+      responses:
+        "200":
+          description: Resolved locality (persisted)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Locality"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Place not found on Geoapify
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Geoapify API key not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
 
 components:
   parameters:
@@ -1354,6 +1444,56 @@ components:
             itself, its county (provincia) or its region. The anchor
             locality must have the corresponding level.
           minimum: 1
+
+    AutocompleteLocalityList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocalitySuggestion"
+
+    LocalitySuggestion:
+      type: object
+      additionalProperties: false
+      required: [placeId, name, countryCode]
+      properties:
+        placeId:
+          type: string
+          description: Geoapify place id (use with POST /localities/resolve)
+        name:
+          type: string
+          description: Locality name (city/town/village or most specific name)
+        countryCode:
+          type: string
+        county:
+          type: string
+          nullable: true
+          description: County/province, e.g. "Trapani"
+        region:
+          type: string
+          nullable: true
+          description: Region/state, e.g. "Sicily"
+        country:
+          type: string
+          nullable: true
+          description: Country name, e.g. "Italy"
+        resultType:
+          type: string
+          nullable: true
+          description: Geoapify result type (city, county, state, ...)
+
+    ResolveLocalityRequest:
+      type: object
+      additionalProperties: false
+      required: [placeId]
+      properties:
+        placeId:
+          type: string
+          minLength: 1
+          description: Geoapify place id returned by the autocomplete endpoint
 
     Locality:
       type: object

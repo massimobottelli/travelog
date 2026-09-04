@@ -158,44 +158,44 @@ function ScanHistoryTable({ history, selectedScanId, onSelect }: ScanHistoryTabl
         <p>Nessuna scansione registrata.</p>
       ) : (
         <div className="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Stato</th>
-              <th>Cartella</th>
-              <th>Inizio</th>
-              <th>Fine</th>
-              <th>Analizzati</th>
-              <th>Nuove</th>
-              <th>Già presenti</th>
-              <th>Escluse</th>
-              <th>Errori</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((scan) => (
-              <tr
-                key={scan.id}
-                className={scan.id === selectedScanId ? "selected" : undefined}
-                onClick={() => onSelect(scan.id)}
-              >
-                <td>{scan.id}</td>
-                <td>
-                  <StatusBadge status={scan.status as ScanStatus} />
-                </td>
-                <td className="mono">{scan.folder}</td>
-                <td>{formatTimestamp(scan.startedAt)}</td>
-                <td>{scan.endedAt ? formatTimestamp(scan.endedAt) : "—"}</td>
-                <td>{scan.filesAnalyzed ?? 0}</td>
-                <td>{scan.newPhotos ?? 0}</td>
-                <td>{scan.existingPhotos ?? 0}</td>
-                <td>{scan.excludedPhotos ?? 0}</td>
-                <td>{scan.errors ?? 0}</td>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Stato</th>
+                <th>Cartella</th>
+                <th>Inizio</th>
+                <th>Fine</th>
+                <th>Analizzati</th>
+                <th>Nuove</th>
+                <th>Già presenti</th>
+                <th>Escluse</th>
+                <th>Errori</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((scan) => (
+                <tr
+                  key={scan.id}
+                  className={scan.id === selectedScanId ? "selected" : undefined}
+                  onClick={() => onSelect(scan.id)}
+                >
+                  <td>{scan.id}</td>
+                  <td>
+                    <StatusBadge status={scan.status as ScanStatus} />
+                  </td>
+                  <td className="mono">{scan.folder}</td>
+                  <td>{formatTimestamp(scan.startedAt)}</td>
+                  <td>{scan.endedAt ? formatTimestamp(scan.endedAt) : "—"}</td>
+                  <td>{scan.filesAnalyzed ?? 0}</td>
+                  <td>{scan.newPhotos ?? 0}</td>
+                  <td>{scan.existingPhotos ?? 0}</td>
+                  <td>{scan.excludedPhotos ?? 0}</td>
+                  <td>{scan.errors ?? 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </Accordion>

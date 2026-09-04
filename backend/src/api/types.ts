@@ -409,6 +409,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/localities/autocomplete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Global locality search via Geoapify Address Autocomplete
+         * @description Proxies the Geoapify Geocoding Autocomplete API to search any place
+         *     worldwide, not only localities already imported from photo geocoding.
+         *     Requires the GEOCOAPIFY_API_KEY environment variable to be configured.
+         *     The results are suggestions: use POST /localities/resolve to persist
+         *     the chosen place and obtain a Locality with an id usable for
+         *     exclusion zones.
+         */
+        get: operations["autocompleteLocalities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/localities/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve a Geoapify place into a persisted Locality
+         * @description Fetches the place details from Geoapify by place id, upserts it into
+         *     the localities table (creating it if it has never been geocoded
+         *     before) and returns the contract Locality with its database id.
+         */
+        post: operations["resolveLocality"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -670,6 +717,28 @@ export interface components {
              * @enum {string}
              */
             scope: "locality" | "county" | "region";
+        };
+        AutocompleteLocalityList: {
+            items: components["schemas"]["LocalitySuggestion"][];
+        };
+        LocalitySuggestion: {
+            /** @description Geoapify place id (use with POST /localities/resolve) */
+            placeId: string;
+            /** @description Locality name (city/town/village or most specific name) */
+            name: string;
+            countryCode: string;
+            /** @description County/province, e.g. "Trapani" */
+            county?: string | null;
+            /** @description Region/state, e.g. "Sicily" */
+            region?: string | null;
+            /** @description Country name, e.g. "Italy" */
+            country?: string | null;
+            /** @description Geoapify result type (city, county, state, ...) */
+            resultType?: string | null;
+        };
+        ResolveLocalityRequest: {
+            /** @description Geoapify place id returned by the autocomplete endpoint */
+            placeId: string;
         };
         Locality: {
             /** Format: int64 */
@@ -1560,6 +1629,100 @@ export interface operations {
             };
             /** @description Invalid query parameter */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    autocompleteLocalities: {
+        parameters: {
+            query: {
+                /** @description Search text (place name or partial address) */
+                q: string;
+                /** @description Maximum suggestions to return */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Autocomplete suggestions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutocompleteLocalityList"];
+                };
+            };
+            /** @description Invalid query parameter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Geoapify API key not configured */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    resolveLocality: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveLocalityRequest"];
+            };
+        };
+        responses: {
+            /** @description Resolved locality (persisted) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Locality"];
+                };
+            };
+            /** @description Invalid request body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Place not found on Geoapify */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Geoapify API key not configured */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
