@@ -1542,6 +1542,34 @@ usa lo stato `failed` con messaggio diagnostico invece di introdurne uno nuovo
 
 ---
 
+> **Aggiornamento (richiesta utente): modifica dei giorni manuali inline nel dettaglio viaggio — Completato**
+>
+> Il modal "Modifica giorni" è stato eliminato: la modifica dei giorni di un
+> viaggio creato manualmente avviene **inline dentro l'accordion "Dettagli
+> Viaggio"** (`TripDetailPanel`), visibile solo quando `createdManually === true`.
+>
+> * Sotto alla data di ogni giorno: icona **cestino** per cancellare l'intero
+>   giorno (disabilitata quando resta un solo giorno: il contratto richiede
+>   almeno un giorno, `ReplaceTripDaysRequest.days.minItems: 1`).
+> * Per ogni riga località: icona **cestino** a destra per cancellare la
+>   singola località (i giorni vuoti restano senza `localityIds`).
+> * Alla fine della lista località di ogni giorno: bottone **"Aggiungi
+>   località"** che apre la ricerca Geoapify dentro il giorno (autocomplete
+>   con debounce 300 ms, resolve → upsert, duplicati deduplicati come in
+>   creazione).
+> * Ogni operazione persiste l'intera lista giorni via `PUT /trips/{tripId}/days`
+>   (`replaceTripDays`) e ricarica il dettaglio; gli errori restano nel pannello.
+> * `TripDaysModal` è ora dedicato alla sola **creazione** (rimossi `mode`,
+>   `tripName`, `initialName`, `initialDays`); `TripsPage` espone
+>   `handleReplaceDays` e `TripsTable` passa il callback al pannello solo per
+>   i viaggi manuali attivi.
+> * **Test**: nuovo `trip-detail-edit.test.tsx` (6 test: cancella località,
+>   cancella giorno, cestino disabilitato sull'ultimo giorno, aggiunta
+>   località con ricerca, errore in-panel, modalità read-only) e test UI
+>   aggiornato. Totale: **182 backend, 73 frontend**.
+
+---
+
 # Phase 9 — Integration and hardening
 
 ## Goal

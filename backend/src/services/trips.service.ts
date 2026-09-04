@@ -250,8 +250,8 @@ class TripsService {
 
   /**
    * Replace the manual days of an active trip (add/remove days after
-   * creation). Atomic: date extension + day replacement (§64). When a
-   * day falls outside the trip interval the dates are extended, subject
+   * creation). Atomic: date update + day replacement (§64). The trip
+   * interval is set exactly to the first/last remaining day, subject
    * to the overlap validation (§13.2/§21.17).
    */
   async replaceTripDays(tripId: number, days: ManualDayInput[]): Promise<TripDetailDto> {
@@ -269,8 +269,11 @@ class TripsService {
       [...new Set(rows.flatMap((d) => d.localityIds))].filter((id) => id > 0),
     );
 
-    const startDate = [trip.startDate, rows[0].dayDate].sort()[0];
-    const endDate = [trip.endDate, rows[rows.length - 1].dayDate].sort().slice(-1)[0];
+    // The interval follows the manual days exactly (min/max of the
+    // remaining days), so removing the last day shortens the trip and
+    // the deleted day does not reappear as a "Nessuna foto" gap.
+    const startDate = rows[0].dayDate;
+    const endDate = rows[rows.length - 1].dayDate;
     if (startDate !== trip.startDate || endDate !== trip.endDate) {
       const overlaps = await tripsRepository.findOverlappingTrips(startDate, endDate, tripId);
       if (overlaps.length > 0) {

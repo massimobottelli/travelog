@@ -13,7 +13,10 @@
  *  7. more localities can be added to the same day;
  *  8. another day can be added;
  *  9. the cycle repeats;
- * 10. "Concludi viaggio" creates the trip (one request).
+ * 10. "Salva" creates the trip (one request).
+ *
+ * Editing the days of an existing manual trip is NOT done here anymore:
+ * it happens inline in the trip detail (TripDetailPanel).
  *
  * All validation rules (temporal overlap, existing localities, at least
  * one day) are enforced by the backend.
@@ -21,6 +24,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { addDaysIso, formatTripDate } from "../utils/format";
+import { TrashIcon } from "./icons";
 import {
   autocompleteLocalities,
   resolveLocality,
@@ -46,11 +50,6 @@ export interface TripDaysPayload {
 }
 
 interface TripDaysModalProps {
-  /** "create" shows the trip name field; "editDays" only manages days. */
-  mode: "create" | "editDays";
-  tripName?: string;
-  initialName?: string;
-  initialDays?: ModalDay[];
   submitting: boolean;
   error: string | null;
   onSubmit: (payload: TripDaysPayload) => void;
@@ -63,17 +62,13 @@ export function localityLabel(loc: ModalDayLocality): string {
 }
 
 export default function TripDaysModal({
-  mode,
-  tripName,
-  initialName,
-  initialDays,
   submitting,
   error,
   onSubmit,
   onCancel,
 }: TripDaysModalProps) {
-  const [name, setName] = useState(initialName ?? "");
-  const [days, setDays] = useState<ModalDay[]>(initialDays ?? []);
+  const [name, setName] = useState("");
+  const [days, setDays] = useState<ModalDay[]>([]);
   const [dayDate, setDayDate] = useState("");
 
   // Locality search for the selected day (debounced, Geoapify).
@@ -185,7 +180,7 @@ export default function TripDaysModal({
   }
 
   /**
-   * "Giorno successivo": adds the day after the day in edit (or after
+   * "Aggiungi giorno": adds the day after the day in edit (or after
    * the last added day) and makes it the selected one, so the locality
    * search continues on it.
    */
@@ -205,7 +200,7 @@ export default function TripDaysModal({
     event.preventDefault();
     if (days.length === 0) return;
     onSubmit({
-      name: mode === "create" ? name.trim() : undefined,
+      name: name.trim(),
       days: days.map((d) => ({
         date: d.date,
         localityIds: d.localities.map((l) => l.id),
@@ -215,34 +210,26 @@ export default function TripDaysModal({
 
   return (
     <form className="panel dialog" onSubmit={handleSubmit} data-testid="trip-days-modal">
-      <h2>{mode === "create" ? "Crea viaggio" : "Modifica giorni"}</h2>
+      <h2>Crea viaggio</h2>
 
       {/* ── Step 2: trip name ────────────────────────────────────── */}
-      {mode === "create" && (
-        <div className="field">
-          <label htmlFor="trip-days-name">Nome viaggio</label>
-          <input
-            id="trip-days-name"
-            name="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={200}
-            placeholder="Es. Vacanza estiva"
-          />
-        </div>
-      )}
-      {mode === "editDays" && (
-        <p className="hint">
-          Giorni del viaggio «{tripName || "(senza nome)"}». L'operazione sostituisce tutti i giorni
-          manuali in modo atomico.
-        </p>
-      )}
+      <div className="field">
+        <label htmlFor="trip-days-name">Nome viaggio</label>
+        <input
+          id="trip-days-name"
+          name="name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={200}
+          placeholder="Es. Vacanza estiva"
+        />
+      </div>
 
       {/* ── Step 3: new day + "Aggiungi giorno" ──────────────────── */}
       <div className="field-row">
         <div className="field">
-          <label htmlFor="trip-day-date">Nuovo giorno</label>
+          <label htmlFor="trip-day-date">Primo giorno</label>
           <input
             id="trip-day-date"
             name="dayDate"
@@ -278,35 +265,20 @@ export default function TripDaysModal({
                 >
                   <strong>{formatTripDate(day.date)}</strong>
                 </button>
-                {selectedDate === day.date && <span className="badge">In inserimento</span>}
                 <span className="day-row-actions">
                   <button
                     type="button"
-                    className="secondary"
-                    aria-label={`Aggiungi nuova località al giorno ${formatTripDate(day.date)}`}
-                    title="Aggiungi una località a questo giorno"
-                    onClick={() => selectDay(day.date)}
-                    disabled={submitting}
-                  >
-                    Nuova località
-                  </button>
-                  <button
-                    type="button"
-                    className="danger"
+                    className="icon-button"
                     aria-label={`Rimuovi il giorno ${formatTripDate(day.date)}`}
+                    title="Rimuovi il giorno"
                     onClick={() => removeDay(day.date)}
                     disabled={submitting}
                   >
-                    Rimuovi giorno
+                    <TrashIcon size={14} />
                   </button>
                 </span>
               </div>
-              {day.localities.length === 0 ? (
-                <p className="hint">
-                  Nessuna località: cerca una località qui
-                  {selectedDate === day.date ? " sotto" : " (seleziona prima il giorno)"}.
-                </p>
-              ) : (
+              {day.localities.length > 0 && (
                 <ul className="exclusion-list">
                   {day.localities.map((loc) => (
                     <li key={loc.id}>
@@ -314,12 +286,13 @@ export default function TripDaysModal({
                       <strong>{localityLabel(loc)}</strong>
                       <button
                         type="button"
-                        className="danger"
+                        className="icon-button"
                         aria-label={`Rimuovi ${loc.name} dal giorno ${formatTripDate(day.date)}`}
+                        title="Rimuovi la località"
                         onClick={() => removeLocality(day.date, loc.id)}
                         disabled={submitting}
                       >
-                        Rimuovi
+                        <TrashIcon size={14} />
                       </button>
                     </li>
                   ))}
@@ -331,15 +304,13 @@ export default function TripDaysModal({
               {selectedDate === day.date && (
                 <div className="day-locality-search">
                   <div className="field">
-                    <label htmlFor="trip-day-locality">
-                      Località visitate il {formatTripDate(day.date)}
-                    </label>
                     <input
                       id="trip-day-locality"
                       name="localitySearch"
                       type="text"
                       ref={searchInputRef}
                       value={query}
+                      aria-label={`Località visitate il ${formatTripDate(day.date)}`}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder="Cerca una località…"
                       autoComplete="off"
@@ -368,10 +339,6 @@ export default function TripDaysModal({
                     </ul>
                   )}
                   {addError && <p className="alert alert-error">{addError}</p>}
-                  <p className="hint">
-                    La località viene aggiunta alla lista del giorno {formatTripDate(day.date)}.
-                    Puoi aggiungerne altre, passare al giorno successivo o concludere il viaggio.
-                  </p>
                 </div>
               )}
             </li>
@@ -379,7 +346,7 @@ export default function TripDaysModal({
         </ul>
       ) : (
         <p className="hint">
-          Nessun giorno ancora. Scegli la data e premi «Aggiungi giorno» per iniziare.
+          &nbsp;
         </p>
       )}
 
@@ -390,13 +357,13 @@ export default function TripDaysModal({
             type="button"
             onClick={addNextDay}
             disabled={submitting}
-            aria-label="Aggiungi il giorno successivo a quello in edit"
+            aria-label="Aggiungi giorno dopo quello selezionato"
           >
-            Giorno successivo
+            Aggiungi giorno
           </button>
         )}
         <button type="submit" disabled={submitting || days.length === 0}>
-          {submitting ? "Salvataggio…" : mode === "create" ? "Concludi viaggio" : "Salva giorni"}
+          {submitting ? "Salvataggio…" : "Salva"}
         </button>
         <button type="button" className="secondary" onClick={onCancel} disabled={submitting}>
           Annulla

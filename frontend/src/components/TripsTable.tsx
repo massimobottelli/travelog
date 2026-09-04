@@ -7,7 +7,7 @@
  */
 
 import { Fragment } from "react";
-import type { Trip, TripDetail } from "../api/client";
+import type { Trip, TripDetail, TripDayInput } from "../api/client";
 import { formatTripPeriod, tripDurationDays, tripYear, tripMonth } from "../utils/format";
 import TripDetailPanel from "./TripDetailPanel";
 import TripDialog, { type TripDialogState } from "./TripDialog";
@@ -39,7 +39,8 @@ interface TripsTableProps {
   onRename: (trip: Trip) => void;
   onDates: (trip: Trip) => void;
   onSplit: (trip: Trip) => void;
-  onEditDays: (trip: Trip) => void;
+  /** Inline day editing in the detail panel (manual trips only). */
+  onReplaceDays?: (tripId: number, days: TripDayInput[]) => Promise<void>;
   onDelete: (trip: Trip) => void;
   onDeleteConfirm: (id: number) => void;
   onDeleteCancel: () => void;
@@ -65,7 +66,7 @@ export default function TripsTable({
   onRename,
   onDates,
   onSplit,
-  onEditDays,
+  onReplaceDays,
   onDelete,
   onDeleteConfirm,
   onDeleteCancel,
@@ -238,9 +239,9 @@ export default function TripsTable({
                       <>
                         <TripDetailPanel
                           detail={detail}
-                          onEditDays={
-                            trip.status === "active" && trip.createdManually
-                              ? () => onEditDays(trip)
+                          onReplaceDays={
+                            trip.status === "active" && trip.createdManually && onReplaceDays
+                              ? (days) => onReplaceDays(trip.id, days)
                               : undefined
                           }
                         />

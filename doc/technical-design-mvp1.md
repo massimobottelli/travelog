@@ -1641,7 +1641,7 @@ il modal si apre **subito sotto il titolo, prima della lista viaggi**:
 3. cerca una località (Geoapify Autocomplete, debounce 300 ms) e preme
    **"Aggiungi"** → la località compare nella lista del giorno;
 4. può aggiungere altre località allo stesso giorno o un nuovo giorno;
-5. **"Concludi viaggio"** crea il viaggio con una sola richiesta.
+5. **"Salva"** crea il viaggio con una sola richiesta.
 
 ---
 

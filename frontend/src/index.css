@@ -667,6 +667,41 @@ button.secondary:hover:not(:disabled) {
   flex-shrink: 0;
 }
 
+/* "Modifica" toggle in the accordion header (top-right). */
+.trip-diary-edit {
+  flex-shrink: 0;
+}
+/* Round "+" button that opens the locality search inside a day. */
+.add-locality-fab {
+  margin-top: 0.6rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
+  color: #2b6cb0;
+  justify-content: center;
+}
+
+/* Bottom edit bar: light "Aggiungi giorno" + blue "Fine". */
+.trip-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.trip-finish {
+  background: #2b6cb0;
+  color: #fff;
+  border: 1px solid #2b6cb0;
+}
+
+button.trip-finish:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
 .trip-timeline {
   list-style: none;
   padding: 0;
@@ -685,15 +720,31 @@ button.secondary:hover:not(:disabled) {
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
-  width: 7rem;
+  width: 9rem;
   flex-shrink: 0;
   /* Align the date/dot row with the first locality card of the day */
   padding-top: 0.6rem;
 }
 
 .trip-day-marker strong {
-  flex: 1;
   white-space: nowrap;
+}
+
+/* The date hugs the day dot (also without the edit-mode trash icon). */
+.trip-day-marker-main {
+  justify-content: flex-end;
+}
+
+/* Editable days: the delete-day trash icon sits to the left of the date.
+   The marker is wide enough (9rem) to hold trash + date without
+   overlapping the day dot. */
+.trip-day-marker-main {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .trip-day-dot {
@@ -719,9 +770,9 @@ button.secondary:hover:not(:disabled) {
   position: absolute;
   top: 1.6rem;
   bottom: 0;
-  /* Align with the horizontal center of the day dot (marker width 7rem,
-     dot 14px wide centered at 7rem - 7px; 2px line → 7rem - 8px). */
-  left: calc(7rem - 8px);
+  /* Align with the horizontal center of the day dot (marker width 9rem,
+     dot 14px wide centered at 9rem - 7px; 2px line → 9rem - 8px). */
+  left: calc(9rem - 8px);
   width: 2px;
   background: #e2e8f0;
 }
@@ -752,6 +803,14 @@ button.secondary:hover:not(:disabled) {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
+}
+
+/* Badge + delete-locality trash icon, kept together on the right. */
+.locality-side {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 .locality-name {
@@ -1265,7 +1324,5 @@ button.icon-button:hover {
 }
 
 .day-locality-search {
-  border-top: 1px dashed var(--border, #ddd);
   margin-top: 0.6rem;
-  padding-top: 0.6rem;
 }

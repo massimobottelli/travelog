@@ -102,7 +102,6 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     const handleSubmit = vi.fn();
     render(
       <TripDaysModal
-        mode="create"
         submitting={false}
         error={null}
         onSubmit={handleSubmit}
@@ -123,7 +122,6 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     await waitFor(() => {
       expect(screen.getByTestId("trip-modal-days").textContent).toContain("10/08/2025");
     });
-    expect(screen.getByText(/Nessuna località: cerca una località/)).not.toBeNull();
 
     // Step 8: another day is added (the cycle repeats).
     fireEvent.change(screen.getByLabelText("Nuovo giorno"), {
@@ -154,7 +152,7 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     });
 
     // Step 10: conclude the trip → one payload with all the days.
-    fireEvent.click(screen.getByRole("button", { name: "Concludi viaggio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salva" }));
 
     await waitFor(() => {
       expect(handleSubmit).toHaveBeenCalledWith({
@@ -167,10 +165,9 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     });
   });
 
-  it('"Giorno successivo" adds the day after the one in edit', async () => {
+  it('"Aggiungi giorno" adds the day after the one in edit', async () => {
     render(
       <TripDaysModal
-        mode="create"
         submitting={false}
         error={null}
         onSubmit={vi.fn()}
@@ -180,7 +177,7 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
 
     // The button appears only when a day is selected.
     expect(
-      screen.queryByRole("button", { name: "Aggiungi il giorno successivo a quello in edit" }),
+      screen.queryByRole("button", { name: "Aggiungi giorno dopo quello selezionato" }),
     ).toBeNull();
 
     // Add a day: it becomes the day in edit.
@@ -191,7 +188,7 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
 
     // "Giorno successivo" adds 2025-08-11 and selects it.
     fireEvent.click(
-      screen.getByRole("button", { name: "Aggiungi il giorno successivo a quello in edit" }),
+      screen.getByRole("button", { name: "Aggiungi giorno dopo quello selezionato" }),
     );
     await waitFor(() => {
       expect(screen.getByLabelText("Località visitate il 11/08/2025")).not.toBeNull();
@@ -201,26 +198,25 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     // Pressing it again keeps adding the day after the one in edit:
     // after two more clicks the days are 08-12 and 08-13 (selected).
     fireEvent.click(
-      screen.getByRole("button", { name: "Aggiungi il giorno successivo a quello in edit" }),
+      screen.getByRole("button", { name: "Aggiungi giorno dopo quello selezionato" }),
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "Aggiungi il giorno successivo a quello in edit" }),
+      screen.getByRole("button", { name: "Aggiungi giorno dopo quello selezionato" }),
     );
     expect(screen.getByTestId("trip-modal-days").textContent).toContain("12/08/2025");
     expect(screen.getByTestId("trip-modal-days").textContent).toContain("13/08/2025");
     expect(screen.getByLabelText("Località visitate il 13/08/2025")).not.toBeNull();
 
     // Concluding submits the three days.
-    fireEvent.click(screen.getByRole("button", { name: "Concludi viaggio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salva" }));
     expect(
-      (screen.getByRole("button", { name: "Concludi viaggio" }) as HTMLButtonElement).disabled,
+      (screen.getByRole("button", { name: "Salva" }) as HTMLButtonElement).disabled,
     ).toBe(false);
   });
 
-  it('"Nuova località" selects the day and opens its locality search', async () => {
+  it('selecting a day (clicking its date) opens its locality search', async () => {
     render(
       <TripDaysModal
-        mode="create"
         submitting={false}
         error={null}
         onSubmit={vi.fn()}
@@ -234,14 +230,12 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Aggiungi giorno al viaggio" }));
     fireEvent.click(
-      screen.getByRole("button", { name: "Aggiungi il giorno successivo a quello in edit" }),
+      screen.getByRole("button", { name: "Aggiungi giorno dopo quello selezionato" }),
     );
     expect(screen.getByLabelText("Località visitate il 11/08/2025")).not.toBeNull();
 
-    // "Nuova località" on the FIRST day switches the search to it.
-    fireEvent.click(
-      screen.getByRole("button", { name: "Aggiungi nuova località al giorno 10/08/2025" }),
-    );
+    // Clicking the date of the FIRST day switches the search to it.
+    fireEvent.click(screen.getByRole("button", { name: "Seleziona il giorno 10/08/2025" }));
     await waitFor(() => {
       expect(screen.getByLabelText("Località visitate il 10/08/2025")).not.toBeNull();
     });

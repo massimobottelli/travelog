@@ -200,6 +200,32 @@ describe("manual day replacement (PUT /trips/:id/days)", () => {
     ]);
   });
 
+  it("deleting the last day shrinks the trip interval", async () => {
+    const erice = await insertLocality("Erice");
+    const milano = await insertLocality("Milano");
+    const created = await request(server)
+      .post("/api/trips")
+      .send({
+        name: "T",
+        days: [
+          { date: "2025-08-10", localityIds: [erice] },
+          { date: "2025-08-12", localityIds: [milano] },
+        ],
+      });
+    const tripId = created.body.id as number;
+
+    const res = await request(server)
+      .put(`/api/trips/${tripId}/days`)
+      .send({ days: [{ date: "2025-08-10", localityIds: [erice] }] });
+    expect(res.status).toBe(200);
+    // The interval follows the remaining days exactly: the deleted day
+    // does not reappear as a "Nessuna foto" gap in the detail.
+    expect(res.body.startDate).toBe("2025-08-10");
+    expect(res.body.endDate).toBe("2025-08-10");
+    expect(res.body.days.map((d: { date: string }) => d.date)).toEqual(["2025-08-10"]);
+    expect(await manualDayCount(tripId)).toBe(1);
+  });
+
   it("refuses to empty the day list and blocks archived trips", async () => {
     const erice = await insertLocality("Erice");
     const created = await request(server)
