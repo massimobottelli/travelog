@@ -124,6 +124,123 @@ Settings page.
 See [`doc/deployment-mvp1.md`](doc/deployment-mvp1.md) for the full Debian
 deployment procedure.
 
+## Build and deployment
+
+### Prerequisites
+
+* Node.js 22 LTS (the workspaces declare `node >= 18` as minimum engine)
+* PostgreSQL with the PostGIS extension
+* `exiftool` (Debian/Ubuntu package: `libimage-exiftool-perl`)
+
+On Debian/Ubuntu the provisioning script automates the system setup:
+
+```bash
+scripts/setup-linux.sh
+```
+
+### Installing dependencies
+
+The repository is an npm workspace containing `backend` and `frontend`:
+
+```bash
+npm ci
+```
+
+### Building
+
+A single command builds both applications — the backend with `tsc` and the
+frontend with `tsc -b && vite build`:
+
+```bash
+npm run build
+```
+
+Output:
+
+* backend → `backend/dist/`
+* frontend → `frontend/dist/` (static files, served by Nginx in production)
+
+### Database migrations
+
+The database schema is managed through versioned Drizzle migrations stored in
+the repository. Apply them before starting the application:
+
+```bash
+npm run db:migrate --workspace=@travelog/backend
+# equivalent to: cd backend && npm run db:migrate
+```
+
+To create a new migration after changing the Drizzle schema:
+
+```bash
+npm run db:generate --workspace=@travelog/backend
+```
+
+### Running in development
+
+```bash
+cp .env.example .env   # fill in DATABASE_URL and the other values
+npm run dev            # backend (tsx watch) + frontend (Vite dev server)
+```
+
+The API is served under `/api`; the Vite dev server proxies REST calls to the
+backend during development.
+
+### Running in production (Debian)
+
+The target deployment is a Debian server with PostgreSQL/PostGIS, Nginx and
+systemd. The full step-by-step procedure — system prerequisites, PostgreSQL
+setup, NAS mount, `.env` configuration, migrations, systemd unit and Nginx
+reverse proxy — is documented in
+[`doc/deployment-mvp1.md`](doc/deployment-mvp1.md). Summary:
+
+```bash
+cd /opt/travelog
+npm ci
+npm run build
+npm run db:migrate --workspace=@travelog/backend
+
+# systemd service (backend on localhost:3000)
+sudo cp deploy/travelog.service /etc/systemd/system/travelog.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now travelog
+
+# Nginx: serves frontend/dist/ on / and reverse-proxies /api/
+sudo cp deploy/nginx-travelog.conf /etc/nginx/sites-available/travelog
+sudo ln -sf /etc/nginx/sites-available/travelog /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Nginx serves a single origin: the static React build on `/` and the REST API
+in reverse proxy under `/api/`, so no CORS configuration is needed.
+
+Logs are written to stdout/stderr and forwarded by systemd to journald:
+
+```bash
+journalctl -u travelog -f
+```
+
+After the first start, configure the photo archive root and the trip-detection
+thresholds from the app Settings page (these are functional settings stored in
+the database, not environment variables).
+
+A post-deployment smoke test is available:
+
+```bash
+scripts/smoke-test.sh http://localhost/api
+```
+
+### Updating an existing installation
+
+```bash
+cd /opt/travelog
+scripts/update-prod.sh   # git pull, npm ci, build, migrations, service restart
+```
+
+Or manually: `git pull`, `npm ci`, `npm run build`,
+`npm run db:migrate --workspace=@travelog/backend`,
+`sudo systemctl restart travelog`.
+
 ## Database
 
 Travelog uses PostgreSQL.
