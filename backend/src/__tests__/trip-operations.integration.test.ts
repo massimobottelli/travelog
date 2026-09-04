@@ -319,9 +319,12 @@ describe("trip detail (§16)", () => {
       {
         date: "2025-08-13",
         noPhotos: false,
+        // Same-day localities are ordered by earliest photo time (§7.2):
+        // these fixture presences have no photos, so the stable fallback
+        // (alphabetical) applies: Erice before Milano.
         localities: [
-          expect.objectContaining({ name: "Milano", photoCount: 2 }),
           expect.objectContaining({ name: "Erice", photoCount: 1 }),
+          expect.objectContaining({ name: "Milano", photoCount: 2 }),
         ],
       },
     ]);

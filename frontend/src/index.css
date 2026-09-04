@@ -762,6 +762,32 @@ button.secondary:hover:not(:disabled) {
   padding: 1.4rem 1.6rem;
 }
 
+/* Close action at the bottom-right of the expanded trip detail (§16) */
+.trip-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.9rem;
+}
+
+.trip-detail-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: none;
+  color: #818692;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+}
+
+button.trip-detail-close:hover:not(:disabled) {
+  color: #465b8c;
+  background: none;
+}
+
 /* Accordion panels (scan history, operations history) */
 .accordion-header .accordion-toggle {
   padding: 0.25rem 0.7rem;
@@ -779,6 +805,12 @@ button.secondary:hover:not(:disabled) {
 
 .trips-table tr.selected td {
   background: #eef5ff;
+}
+
+/* After closing the trip detail the scroll anchors on the previous trip
+   row (block: "start"): keep a small gap from the viewport top. */
+.trips-table tr[id^="trip-row-"] {
+  scroll-margin-top: 10px;
 }
 
 .trips-table .link {
@@ -1144,4 +1176,3 @@ button.icon-button:hover {
     width: 100%;
   }
 }
-

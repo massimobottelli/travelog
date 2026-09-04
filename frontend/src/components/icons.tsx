@@ -264,6 +264,23 @@ export function ChevronDownIcon({ size }: IconProps) {
   );
 }
 
+/** Chevron up — collapse/close the trip detail accordion. */
+export function ChevronUpIcon({ size }: IconProps) {
+  return (
+    <svg
+      {...base(size)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="6 15 12 9 18 15" />
+    </svg>
+  );
+}
+
 /** Map pin — locality marker in the trip detail chronology. */
 export function PinIcon({ size }: IconProps) {
   return (

@@ -1388,6 +1388,21 @@ usa lo stato `failed` con messaggio diagnostico invece di introdurne uno nuovo
 
 ---
 
+> **Aggiornamento (richiesta utente): ordine località nel giorno allineato agli orari delle foto — Completato**
+>
+> Nel dettaglio viaggio (§16) le località di una giornata erano ordinate per
+> numero di foto (`photo_count DESC`) con fallback alfabetico. Ora sono
+> ordinate per **data/ora della prima foto scattata in quella località nel
+> giorno** (`getTripDays`: subquery `MIN(date_time_original)` via
+> `geocoding_cache`, `ORDER BY p.photo_date, first_photo_at NULLS LAST, l.name` —
+> il nome resta solo tie-break/fallback per presenze senza foto). Esempio:
+> Bergamo 06:00 prima di Alessandria 08:00. Nessun cambio di contratto
+> (l'ordine non fa parte dello schema) né di schema DB. Nuovo integration
+> test di ordinamento (Alessandria/Bergamo) e aggiornata l'aspettativa del
+> test §16; i default funzionali dei test sono ora fissati in
+> `backend/vitest.config.ts` per non dipendere dal `.env` dell'operatore.
+> 153 test backend + 61 frontend passano.
+
 > **Aggiornamento (richiesta utente): photo root spostato nel database — Completato**
 >
 > * Migration 0012: `settings.photo_root text NOT NULL DEFAULT ''`.

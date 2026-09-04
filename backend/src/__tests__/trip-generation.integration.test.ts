@@ -388,6 +388,20 @@ describe("contiguity and exclusion rules", () => {
     expect(days[1].localities[0].photoCount).toBe(10);
   });
 
+  it("orders localities within a day by earliest photo time", async () => {
+    // Alessandria 08:00 vs Bergamo 06:00: Bergamo (earlier shoot time)
+    // must be listed first even though it follows alphabetically.
+    const alessandria = await insertLocality("trip-test-ord-a", "Alessandria");
+    const bergamo = await insertLocality("trip-test-ord-b", "Bergamo");
+    await insertCache(44.91, 8.61, "trip-test-ord-a", alessandria);
+    await insertCache(45.69, 9.67, "trip-test-ord-b", bergamo);
+    await insertPhotos("trip-test/ord-a", 1, "2025-08-10 08:00:00", 44.91, 8.61);
+    await insertPhotos("trip-test/ord-b", 1, "2025-08-10 06:00:00", 45.69, 9.67);
+    await presencesRepository.rebuildFromPhotos();
+    const days = await tripsRepository.getTripDays("2025-08-10", "2025-08-10");
+    expect(days[0].localities.map((l) => l.name)).toEqual(["Bergamo", "Alessandria"]);
+  });
+
   it("generates no trips without photos", async () => {
     const result = await tripCalculationService.generateTrips();
     expect(result.tripsCreated).toBe(0);

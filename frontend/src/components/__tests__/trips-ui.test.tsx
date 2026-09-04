@@ -172,6 +172,33 @@ describe("TripsPage", () => {
     expect(screen.getByText("11/08/2025")).not.toBeNull();
   });
 
+  it("closes the trip detail accordion with the bottom-right chevron command", async () => {
+    mockApi();
+
+    render(<TripsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Vacanza in Toscana")).not.toBeNull();
+    });
+    fireEvent.click(screen.getByText("Vacanza in Toscana"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Nessuna foto")).not.toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Chiudi dettaglio di Vacanza in Toscana" }));
+
+    // The detail row is removed and the trip list is visible again
+    await waitFor(() => {
+      expect(screen.queryByText("Nessuna foto")).toBeNull();
+    });
+    expect(screen.getByText("Vacanza in Toscana")).not.toBeNull();
+    // aria-expanded on the trip row toggles back to false
+    expect(
+      screen.getByRole("button", { name: "Vacanza in Toscana" }).getAttribute("aria-expanded"),
+    ).toBe("false");
+  });
+
   it("merge mode: selecting two trips posts the merge request", async () => {
     mockApi();
 

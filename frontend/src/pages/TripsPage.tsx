@@ -321,6 +321,29 @@ export default function TripsPage() {
             detailError={detailError}
             onToggleSelected={toggleSelected}
             onSelectTrip={(id) => setSelectedTripId((current) => (current === id ? null : id))}
+            onCloseDetail={(tripId) => {
+              setSelectedTripId(null);
+              setDetail(null);
+              // After the accordion collapses the trip row can end up above
+              // the viewport: bring it back into view (minimal scroll).
+              requestAnimationFrame(() => {
+                // Bring the closed trip back into view showing at least the
+                // previous trip row above it: anchor the scroll on the
+                // previous row instead of the closed one.
+                const row = document.getElementById(`trip-row-${tripId}`);
+                if (!row || typeof row.scrollIntoView !== "function") return;
+                let anchor: HTMLElement = row;
+                let sibling = row.previousElementSibling;
+                while (sibling) {
+                  if (sibling.id.startsWith("trip-row-")) {
+                    anchor = sibling as HTMLElement;
+                    break;
+                  }
+                  sibling = sibling.previousElementSibling;
+                }
+                anchor.scrollIntoView({ behavior: "smooth", block: "start" });
+              });
+            }}
             onRename={(trip) =>
               setDialog({ type: "rename", tripId: trip.id, currentName: trip.name })
             }

@@ -156,11 +156,19 @@ class TripsRepository {
     const result = await dbPool.query(
       `SELECT to_char(p.photo_date, 'YYYY-MM-DD') AS day,
               l.id AS locality_id, l.name, l.county, l.region, l.country,
-              p.photo_count
+              p.photo_count,
+              (SELECT MIN(ph.date_time_original)
+                 FROM photos ph
+                 JOIN geocoding_cache gc
+                   ON gc.original_latitude = ph.original_latitude
+                  AND gc.original_longitude = ph.original_longitude
+                  AND gc.locality_id = p.locality_id
+                WHERE ph.date_time_original IS NOT NULL
+                  AND ph.date_time_original::date = p.photo_date) AS first_photo_at
        FROM presences p
        JOIN localities l ON l.id = p.locality_id
        WHERE p.photo_date >= $1::date AND p.photo_date <= $2::date
-       ORDER BY p.photo_date, p.photo_count DESC, l.name`,
+       ORDER BY p.photo_date, first_photo_at NULLS LAST, l.name`,
       [startDate, endDate],
     );
     const days: TripDayDto[] = [];
