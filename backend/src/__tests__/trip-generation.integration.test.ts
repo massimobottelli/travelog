@@ -96,7 +96,9 @@ async function cleanup() {
   await pool.query("DELETE FROM photos WHERE file_path LIKE 'trip-test/%'");
   await pool.query("DELETE FROM exclusion_zones");
   await pool.query("TRUNCATE presences RESTART IDENTITY");
-  await pool.query("TRUNCATE trips, trip_history RESTART IDENTITY");
+  await pool.query(
+    "TRUNCATE trips, trip_history, manual_trip_days, manual_trip_day_localities RESTART IDENTITY",
+  );
   await pool.query("DELETE FROM geocoding_cache WHERE locality_hash LIKE 'trip-test-%'");
   await pool.query("DELETE FROM localities WHERE locality_hash LIKE 'trip-test-%'");
   await pool.query("DELETE FROM settings");

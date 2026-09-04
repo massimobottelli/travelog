@@ -65,7 +65,7 @@ export function mapGeoapifyPlace(props: GeoapifyPlaceProperties): LocalitySugges
 }
 
 const AUTOCOMPLETE_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
-const DETAILS_URL = "https://api.geoapify.com/v1/geocode/details";
+const DETAILS_URL = "https://api.geoapify.com/v2/place-details";
 
 export class GeoapifyAutocomplete {
   private readonly apiKey: string;

@@ -57,7 +57,9 @@ async function cleanup() {
   await pool.query("DELETE FROM photos WHERE file_path LIKE 'ops-test/%'");
   await pool.query("DELETE FROM exclusion_zones");
   await pool.query("TRUNCATE presences RESTART IDENTITY");
-  await pool.query("TRUNCATE trips, trip_history RESTART IDENTITY");
+  await pool.query(
+    "TRUNCATE trips, trip_history, manual_trip_days, manual_trip_day_localities RESTART IDENTITY",
+  );
   await pool.query("DELETE FROM geocoding_cache WHERE locality_hash LIKE 'ops-test-%'");
   await pool.query("DELETE FROM localities WHERE locality_hash LIKE 'ops-test-%'");
 }
@@ -302,6 +304,7 @@ describe("trip detail (§16)", () => {
       {
         date: "2025-08-10",
         noPhotos: false,
+        manual: false,
         localities: [
           {
             localityId: expect.any(Number),
@@ -310,15 +313,17 @@ describe("trip detail (§16)", () => {
             region: "Sicily",
             country: "Italy",
             photoCount: 3,
+            manual: false,
           },
         ],
       },
       // §16: days without photos are listed with the "Nessuna foto" marker
-      { date: "2025-08-11", noPhotos: true, localities: [] },
-      { date: "2025-08-12", noPhotos: true, localities: [] },
+      { date: "2025-08-11", noPhotos: true, localities: [], manual: false },
+      { date: "2025-08-12", noPhotos: true, localities: [], manual: false },
       {
         date: "2025-08-13",
         noPhotos: false,
+        manual: false,
         // Same-day localities are ordered by earliest photo time (§7.2):
         // these fixture presences have no photos, so the stable fallback
         // (alphabetical) applies: Erice before Milano.

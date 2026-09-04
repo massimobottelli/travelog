@@ -1453,6 +1453,123 @@ usa lo stato `failed` con messaggio diagnostico invece di introdurne uno nuovo
 
 ---
 
+> **Aggiornamento (richiesta utente): workflow del modal "Crea viaggio" riprogettato — Completato**
+>
+> Il modal si apre **subito sotto il titolo, prima della lista viaggi**, e segue
+> il workflow richiesto: il giorno viene aggiunto **prima** delle sue località
+> ("Aggiungi giorno" → riga del giorno senza località), la località cercata con
+> l'autocomplete viene aggiunta con "Aggiungi" e **appare subito nella lista del
+> giorno** (era il bug segnalato), si possono aggiungere più località allo
+> stesso giorno o nuovi giorni, e il bottone **"Concludi viaggio"** crea il
+> viaggio con una sola richiesta.
+>
+> * **Migration 0014**: `manual_trip_days` diventa la tabella dei giorni
+>   (UNIQUE(trip_id, day_date)) e le località si spostano in
+>   `manual_trip_day_localities` (PK day_id+locality_id) — un giorno può
+>   esistere senza località. Applicata a dev e test.
+> * **Contratto**: `TripDayInput.localityIds` ora opzionale; `TripDay.manual`
+>   (flag a livello giorno). Tipi rigenerati.
+> * **Backend**: `normalizeManualDays` accetta giorni senza località e
+>   deduplica (date/località); repository riscritto sul nuovo schema
+>   (`getManualDays`, `listManualDayRows`, `insertManualDays` con upsert
+>   idempotente dei giorni e dei link); split/merge copiano giorni anche
+>   senza località; export CSV con nota "Giorno senza località".
+> * **Frontend**: `TripDaysModal` riscritto (righe giorno con località in
+>   chips, ricerca per il giorno selezionato, "Concludi viaggio");
+>   dettaglio viaggio con "Giorno senza località".
+> * **Test**: 6 unit + 10 integration (nuovo test workflow giorno-prima) +
+>   2 UI (posizione del modal e flusso completo). Totale: **181 backend,
+>   64 frontend**. Smoke E2E reale: creazione con giorni vuoti → assegnazione
+>   località via PUT → dettaglio corretto.
+
+---
+
+> **Aggiornamento (richiesta utente): provenienza esplicita dei viaggi manuali — Completato**
+>
+> `auto_generated = false` copriva anche i risultati di split/merge (es. il
+> viaggio "Lozon", risultato di una merge): la UI non poteva distinguere i
+> viaggi digitati dall'utente. Nuova colonna `trips.created_manually`
+> (migration 0015, backfill dall'audit trail: un viaggio `auto_generated=false`
+> è manuale se non compare come risultato di split/merge in `trip_history`).
+>
+> * `createdManually` nel contratto (`Trip`/`TripDetail`, tipi rigenerati).
+> * `POST /trips` → `true`; split → i risultati ereditano la provenienza
+>   dell'originale; merge → il risultato è manuale se almeno un viaggio unito
+>   è manuale (i giorni manuali vengono copiati nel risultato).
+> * UI: bottone ingranaggio "Modifica giorni" (già per ultimo in colonna) e
+>   badge **MANUALE** accanto al nome solo quando `createdManually === true`.
+>   Nel DB di sviluppo: "Prova" → MANUALE, "Lozon" → nessun badge.
+> * Test: assertion su `createdManually` (creazione, merge manuale+manuale,
+>   merge solo auto) + test UI badge. Totale: **182 backend, 66 frontend**.
+
+---
+
+> **Aggiornamento (richiesta utente): creazione manuale di viaggi quando le foto non hanno GPS — Completato**
+>
+> L'utente può creare un viaggio manualmente (utile quando le foto esistono ma
+> **non hanno GPS EXIF**) aggiungendo **giorni uno alla volta** e assegnando a
+> ogni giorno le **località visitate**, cercate con la **Geoapify Address
+> Autocomplete API** (stesso flusso delle zone di esclusione: proxy backend,
+> resolve → upsert in `localities`).
+>
+> * **Migration 0013**: tabella `manual_trip_days` (trip_id FK cascade,
+>   day_date, locality_id FK, UNIQUE(trip_id, day_date, locality_id)) — tabella
+>   dedicata, perché `presences` è dati derivati ricostruiti dal ricalcolo.
+>   Applicata a `travelog_dev` e `travelog_test`.
+> * **Contratto OpenAPI**: `CreateTripRequest.days` (l'intervallo del viaggio è
+>   derivato dai giorni), nuovo `PUT /trips/{tripId}/days`
+>   (`replaceTripDays`, sostituzione atomica dei giorni, estensione date con
+>   validazione sovrapposizioni), `TripDayLocality.manual`. Tipi rigenerati.
+> * **Backend**: `createTrip` con giorni (transazione atomica, validazione
+>   località esistenti, 409 `TRIP_OVERLAP`); `replaceTripDays` (invariante:
+>   i giorni manuali vivono dentro l'intervallo del viaggio; la modifica date
+>   §13.2 rimuove i giorni usciti dall'intervallo); dettaglio §16 con merge
+>   giorni manuali (`manual: true`, `photoCount: 0`); **split/merge copiano i
+>   giorni manuali** per data nei viaggi risultanti (gli originali archiviati
+>   conservano le proprie righe).
+> * **Frontend**: bottone **"Crea viaggio"** nella toolbar della pagina Viaggi
+>   (dopo "Ricalcola") → modal dedicato `TripDaysModal` (giorni uno alla volta,
+>   ricerca località con debounce 300 ms, giorni rimovibili); lo stesso modal
+>   gestisce **"Modifica giorni"** su un viaggio esistente; nel dettaglio
+>   viaggio le località manuali mostrano "Inserita manualmente" al posto del
+>   conteggio foto.
+> * **Test**: 4 unit (normalizzazione giorni) + 9 integration (creazione con
+>   giorni, duplicati/località inesistenti 400, overlap 409, sostituzione
+>   giorni con estensione date, blocco archiviati, pruning su modifica date,
+>   split/merge con copia giorni) + 2 test UI. Totale: **178 backend,
+>   64 frontend**.
+> * `doc/technical-design-mvp1.md` §47bis aggiornato con la decisione.
+
+---
+
+> **Aggiornamento (richiesta utente): modifica dei giorni manuali inline nel dettaglio viaggio — Completato**
+>
+> Il modal "Modifica giorni" è stato eliminato: la modifica dei giorni di un
+> viaggio creato manualmente avviene **inline dentro l'accordion "Dettagli
+> Viaggio"** (`TripDetailPanel`), visibile solo quando `createdManually === true`.
+>
+> * Sotto alla data di ogni giorno: icona **cestino** per cancellare l'intero
+>   giorno (disabilitata quando resta un solo giorno: il contratto richiede
+>   almeno un giorno, `ReplaceTripDaysRequest.days.minItems: 1`).
+> * Per ogni riga località: icona **cestino** a destra per cancellare la
+>   singola località (i giorni vuoti restano senza `localityIds`).
+> * Alla fine della lista località di ogni giorno: bottone **"Aggiungi
+>   località"** che apre la ricerca Geoapify dentro il giorno (autocomplete
+>   con debounce 300 ms, resolve → upsert, duplicati deduplicati come in
+>   creazione).
+> * Ogni operazione persiste l'intera lista giorni via `PUT /trips/{tripId}/days`
+>   (`replaceTripDays`) e ricarica il dettaglio; gli errori restano nel pannello.
+> * `TripDaysModal` è ora dedicato alla sola **creazione** (rimossi `mode`,
+>   `tripName`, `initialName`, `initialDays`); `TripsPage` espone
+>   `handleReplaceDays` e `TripsTable` passa il callback al pannello solo per
+>   i viaggi manuali attivi.
+> * **Test**: nuovo `trip-detail-edit.test.tsx` (6 test: cancella località,
+>   cancella giorno, cestino disabilitato sull'ultimo giorno, aggiunta
+>   località con ricerca, errore in-panel, modalità read-only) e test UI
+>   aggiornato. Totale: **182 backend, 73 frontend**.
+
+---
+
 # Phase 9 — Integration and hardening
 
 ## Goal

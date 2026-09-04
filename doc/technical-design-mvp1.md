@@ -1575,6 +1575,76 @@ In particolare:
 
 ---
 
+# 47bis. Creazione manuale di viaggi senza GPS (aggiunta successiva)
+
+Estensione richiesta dall'utente (post-MVP1 scope): quando le foto esistono
+ma **non hanno GPS EXIF**, l'utente crea manualmente un viaggio aggiungendo
+**giorni uno alla volta**, assegnando a ogni giorno le **località visitate**
+cercate con la **Geoapify Address Autocomplete API** (stesso flusso già usato
+per le zone di esclusione, §49.1).
+
+## Modello dati
+
+Due tabelle dedicate (migrations 0013 + 0014) — **non** `presences`, che è dati
+derivati ricostruiti dal ricalcolo. Il giorno è una riga autonoma: il workflow
+consente di aggiungere un giorno **prima** di assegnarne le località.
+
+```sql
+manual_trip_days (
+    id         serial PRIMARY KEY,
+    trip_id    integer NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+    day_date   date NOT NULL,
+    created_at timestamp NOT NULL DEFAULT now(),
+    UNIQUE (trip_id, day_date)
+);
+
+manual_trip_day_localities (
+    day_id      integer NOT NULL REFERENCES manual_trip_days(id) ON DELETE CASCADE,
+    locality_id integer NOT NULL REFERENCES localities(id),
+    PRIMARY KEY (day_id, locality_id)
+);
+```
+
+Invariante: i giorni manuali vivono sempre dentro l'intervallo del viaggio
+(`start_date <= day_date <= end_date`).
+
+## Regole di dominio
+
+* **Creazione**: `POST /trips` accetta `days: [{ date, localityIds? }]`; l'intervallo
+  del viaggio è derivato da min/max dei giorni; transazione atomica trip + giorni;
+  sovrapposizioni temporali bloccate (409 `TRIP_OVERLAP`, §21.17).
+* **Giorno senza località**: `localityIds` è opzionale — un giorno può esistere
+  prima di avere località (workflow: giorno aggiunto, poi località cercate).
+* **Modifica giorni**: `PUT /trips/{tripId}/days` sostituisce atomicamente l'elenco
+  giorni (aggiunta/rimozione di giorni e assegnazione località). Se un giorno
+  eccede l'intervallo, le date del viaggio sono estese (con validazione
+  sovrapposizioni). Almeno 1 giorno obbligatorio.
+* **Modifica date (§13.2)**: i giorni manuali fuori dal nuovo intervallo sono rimossi
+  dalla stessa operazione esplicita.
+* **Split/merge**: i giorni manuali sono **copiati** nei viaggi risultanti per data
+  (data split → secondo viaggio); gli originali archiviati conservano le proprie
+  righe per lo storico (§13.3, §13.4).
+* **Zone di esclusione**: i giorni manuali le ignorano — sono intenzione esplicita
+  dell'utente, non evidenza fotografica.
+* **Dettaglio (§16)**: i giorni manuali sono uniti ai giorni derivati da `presences`
+  (flag `manual` sul giorno e sulla località); le località manuali espongono
+  `photoCount: 0`.
+
+## UI (workflow nel modal)
+
+Bottone **"Crea viaggio"** nella toolbar della pagina Viaggi (dopo "Ricalcola") →
+il modal si apre **subito sotto il titolo, prima della lista viaggi**:
+
+1. l'utente inserisce il nome;
+2. sceglie la data e preme **"Aggiungi giorno"** → compare la riga del giorno
+   (senza località);
+3. cerca una località (Geoapify Autocomplete, debounce 300 ms) e preme
+   **"Aggiungi"** → la località compare nella lista del giorno;
+4. può aggiungere altre località allo stesso giorno o un nuovo giorno;
+5. **"Salva"** crea il viaggio con una sola richiesta.
+
+---
+
 # 48. Audit trail dei viaggi
 
 Le operazioni distruttive dal punto di vista logico non devono eliminare lo storico.

@@ -7,7 +7,7 @@
  */
 
 import { Fragment } from "react";
-import type { Trip, TripDetail } from "../api/client";
+import type { Trip, TripDetail, TripDayInput } from "../api/client";
 import { formatTripPeriod, tripDurationDays, tripYear, tripMonth } from "../utils/format";
 import TripDetailPanel from "./TripDetailPanel";
 import TripDialog, { type TripDialogState } from "./TripDialog";
@@ -39,6 +39,8 @@ interface TripsTableProps {
   onRename: (trip: Trip) => void;
   onDates: (trip: Trip) => void;
   onSplit: (trip: Trip) => void;
+  /** Inline day editing in the detail panel (manual trips only). */
+  onReplaceDays?: (tripId: number, days: TripDayInput[]) => Promise<void>;
   onDelete: (trip: Trip) => void;
   onDeleteConfirm: (id: number) => void;
   onDeleteCancel: () => void;
@@ -64,6 +66,7 @@ export default function TripsTable({
   onRename,
   onDates,
   onSplit,
+  onReplaceDays,
   onDelete,
   onDeleteConfirm,
   onDeleteCancel,
@@ -120,6 +123,9 @@ export default function TripsTable({
                     {selectedTripId === trip.id && <ChevronDownIcon size={14} />}
                     {trip.name || "(senza nome)"}
                   </button>
+                  {/* Manual-creation provenance (created_manually): the
+                      trip was typed in by the user via manual creation. */}
+                  {trip.createdManually && <span className="badge badge-manual">MANUALE</span>}
                   {trip.status === "archived" && (
                     <span className="badge badge-archived">Archiviato</span>
                   )}
@@ -231,7 +237,14 @@ export default function TripsTable({
                     )}
                     {detail && (
                       <>
-                        <TripDetailPanel detail={detail} />
+                        <TripDetailPanel
+                          detail={detail}
+                          onReplaceDays={
+                            trip.status === "active" && trip.createdManually && onReplaceDays
+                              ? (days) => onReplaceDays(trip.id, days)
+                              : undefined
+                          }
+                        />
                         <div className="trip-detail-actions">
                           <button
                             type="button"

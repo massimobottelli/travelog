@@ -8,11 +8,20 @@
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { listTrips, getTrip, updateTrip, deleteTrip, exportTripsCsv } from "../api/trips";
+import {
+  listTrips,
+  getTrip,
+  updateTrip,
+  deleteTrip,
+  exportTripsCsv,
+  createTrip,
+  replaceTripDays,
+} from "../api/trips";
 import { splitTrip, mergeTrips, listTripOperations } from "../api/operations";
 import { recalculate } from "../api/settings";
-import type { Trip, TripDetail, TripOperation } from "../api/client";
+import type { Trip, TripDetail, TripDayInput, TripOperation } from "../api/client";
 import type { TripDialogState } from "../components/TripDialog";
+import TripDaysModal, { type TripDaysPayload } from "../components/TripDaysModal";
 import TripsTable from "../components/TripsTable";
 import Accordion from "../components/Accordion";
 import Loading from "../components/Loading";
@@ -228,6 +237,40 @@ export default function TripsPage() {
     }
   };
 
+  // ── Manual trip creation (modal) and inline day editing ─────────
+  const [daysModalOpen, setDaysModalOpen] = useState(false);
+  const [daysSubmitting, setDaysSubmitting] = useState(false);
+  const [daysModalError, setDaysModalError] = useState<string | null>(null);
+
+  const handleDaysSubmit = async (payload: TripDaysPayload): Promise<void> => {
+    setDaysSubmitting(true);
+    setDaysModalError(null);
+    try {
+      await createTrip({ name: payload.name || undefined, days: payload.days });
+      setDaysModalOpen(false);
+      setActionMessage("Viaggio creato.");
+      await reload(search, page);
+    } catch (err: unknown) {
+      setDaysModalError(errorToMessage(err));
+    } finally {
+      setDaysSubmitting(false);
+    }
+  };
+
+  /**
+   * Inline day editing from the trip detail (manual trips): replaces
+   * the full manual day list, refreshes the detail and the list. Errors
+   * propagate to the detail panel, which shows them in place.
+   */
+  const handleReplaceDays = async (tripId: number, days: TripDayInput[]): Promise<void> => {
+    await replaceTripDays(tripId, { days });
+    if (selectedTripId === tripId) {
+      setDetail(await getTrip(tripId));
+    }
+    setActionMessage("Giorni del viaggio aggiornati.");
+    await reload(search, page).catch(() => undefined);
+  };
+
   return (
     <div className="page">
       <section className="panel page-header-card">
@@ -256,6 +299,16 @@ export default function TripsPage() {
               type="button"
               className="primary"
               onClick={() => {
+                setDaysModalError(null);
+                setDaysModalOpen(true);
+              }}
+            >
+              + Crea viaggio
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
                 setMergeMode((m) => !m);
                 setSelectedIds([]);
                 setMergeTitle("");
@@ -277,6 +330,18 @@ export default function TripsPage() {
         {recalcMessage && <p className="alert alert-success">{recalcMessage}</p>}
         {recalcError && <ErrorAlert message={recalcError} />}
       </section>
+
+      {/* Manual trip creation: the modal opens right under the page
+          title, before the trip list. Day editing happens inline in the
+          trip detail (TripDetailPanel). */}
+      {daysModalOpen && (
+        <TripDaysModal
+          submitting={daysSubmitting}
+          error={daysModalError}
+          onSubmit={handleDaysSubmit}
+          onCancel={() => setDaysModalOpen(false)}
+        />
+      )}
 
       <section className="panel trips-panel">
         {mergeMode && (
@@ -364,6 +429,7 @@ export default function TripsPage() {
                 proposedName: `${trip.name} (2)`,
               })
             }
+            onReplaceDays={handleReplaceDays}
             onDelete={(trip) => setConfirmDeleteId(trip.id)}
             onDeleteConfirm={handleDelete}
             onDeleteCancel={() => setConfirmDeleteId(null)}

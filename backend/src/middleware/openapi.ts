@@ -22,6 +22,7 @@ const ROUTE_OPS: Record<string, Record<string, string>> = {
   "/trips": { get: "listTrips", post: "createTrip" },
   "/trips/export": { get: "exportTrips" },
   "/trips/:tripId": { get: "getTrip", patch: "updateTrip", delete: "deleteTrip" },
+  "/trips/:tripId/days": { put: "replaceTripDays" },
   "/trips/:tripId/split": { post: "splitTrip" },
   "/trips/merge": { post: "mergeTrips" },
   "/operations": { get: "listTripOperations" },
@@ -55,7 +56,8 @@ function resolveOperationId(path: string, method: string): string | null {
 // Minimal required field check based on OpenAPI spec
 const REQUIRED_BODY_FIELDS: Record<string, string[]> = {
   startScan: ["folder"],
-  createTrip: ["startDate", "endDate"],
+  createTrip: [],
+  replaceTripDays: ["days"],
   updateTrip: [],
   splitTrip: ["splitDate"],
   mergeTrips: ["tripIds"],
