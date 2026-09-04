@@ -60,6 +60,8 @@ export interface CsvTripDay {
   date: string;
   noPhotos: boolean;
   localities: CsvTripLocality[];
+  /** True when the day was created manually by the user. */
+  manual?: boolean;
 }
 
 export interface CsvTrip {
@@ -115,7 +117,12 @@ export function buildTripsCsv(trips: CsvTrip[]): string {
 
     for (const day of trip.days) {
       if (day.noPhotos || day.localities.length === 0) {
-        rows.push([...tripColumns, day.date, "", "0", "Nessuna foto"]);
+        const note = day.noPhotos
+          ? "Nessuna foto"
+          : day.manual
+            ? "Giorno senza località"
+            : "Nessuna foto";
+        rows.push([...tripColumns, day.date, "", "0", note]);
         continue;
       }
       for (const loc of day.localities) {

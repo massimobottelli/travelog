@@ -13,15 +13,32 @@ import { MapIcon, PinIcon, PhotoIcon } from "./icons";
 
 interface TripDetailPanelProps {
   detail: TripDetail;
+  /**
+   * When provided, a light "Modifica" button is shown at the top-right
+   * of the panel (manual trips only: opens the edit-days modal).
+   */
+  onEditDays?: () => void;
 }
 
-export default function TripDetailPanel({ detail }: TripDetailPanelProps) {
+export default function TripDetailPanel({ detail, onEditDays }: TripDetailPanelProps) {
   return (
     <div className="trip-diary">
-      <h2 className="trip-diary-title">
-        <MapIcon size={20} /> Dettagli Viaggio: {detail.name || "(senza nome)"} (
-        {tripDurationDays(detail.startDate, detail.endDate)} gg)
-      </h2>
+      <div className="trip-diary-header">
+        <h2 className="trip-diary-title">
+          <MapIcon size={20} /> Dettagli Viaggio: {detail.name || "(senza nome)"} (
+          {tripDurationDays(detail.startDate, detail.endDate)} gg)
+        </h2>
+        {onEditDays && (
+          <button
+            type="button"
+            className="secondary"
+            aria-label={`Modifica i giorni del viaggio ${detail.name || "(senza nome)"}`}
+            onClick={onEditDays}
+          >
+            Modifica
+          </button>
+        )}
+      </div>
       <ul className="trip-timeline">
         {detail.days.map((day) => (
           <li key={day.date} className="trip-timeline-day">
@@ -32,6 +49,8 @@ export default function TripDetailPanel({ detail }: TripDetailPanelProps) {
             <div className="trip-day-content">
               {day.noPhotos ? (
                 <span className="hint">Nessuna foto</span>
+              ) : day.localities.length === 0 ? (
+                <span className="hint">Giorno senza località</span>
               ) : (
                 <ul className="trip-localities">
                   {day.localities.map((loc) => (
@@ -47,7 +66,8 @@ export default function TripDetailPanel({ detail }: TripDetailPanelProps) {
                         )}
                       </div>
                       <span className="photo-badge">
-                        <PhotoIcon size={13} /> {loc.photoCount} foto
+                        <PhotoIcon size={13} />{" "}
+                        {loc.manual ? "Inserita manualmente" : `${loc.photoCount} foto`}
                       </span>
                     </li>
                   ))}

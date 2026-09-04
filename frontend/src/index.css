@@ -647,6 +647,14 @@ button.secondary:hover:not(:disabled) {
 
 /* ── Trip diary detail (Dettaglio Diario, §16) ──────────────── */
 
+/* Header row: title on the left, "Modifica" button top-right. */
+.trip-diary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .trip-diary-title {
   display: flex;
   align-items: center;
@@ -1195,4 +1203,69 @@ button.icon-button:hover {
     margin-left: 0;
     width: 100%;
   }
+}
+
+/* ── Trip days modal (manual trip creation) ─────────────────────────── */
+
+.trip-modal-days {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.trip-modal-days .day-row {
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
+
+.trip-modal-days .day-row.active {
+  border-color: var(--accent, #2c7be5);
+  box-shadow: 0 0 0 1px var(--accent, #2c7be5);
+}
+
+.trip-modal-days .day-row-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* "Nuova località" + "Rimuovi giorno" on the right of the day head. */
+.trip-modal-days .day-row-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.trip-modal-days .exclusion-list {
+  margin: 0.4rem 0 0;
+}
+
+.trip-modal-days .exclusion-list li {
+  margin-bottom: 0.3rem;
+}
+
+/* Badge marking trips created manually by the user (created_manually):
+   small, quiet — lighter and less saturated text, no border. */
+.badge-manual {
+  background-color: var(--accent-soft, #e8f1fd);
+  color: #7d9bc1;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: -0.05em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.day-locality-search {
+  border-top: 1px dashed var(--border, #ddd);
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
 }

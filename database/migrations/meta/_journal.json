@@ -85,6 +85,27 @@
       "when": 1789087576436,
       "tag": "0012_photo_root_in_db",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789173976436,
+      "tag": "0013_manual_trip_days",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789260376436,
+      "tag": "0014_manual_trip_days_restructure",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789346776436,
+      "tag": "0015_trip_created_manually",
+      "breakpoints": true
     }
   ]
 }

@@ -39,6 +39,7 @@ interface TripsTableProps {
   onRename: (trip: Trip) => void;
   onDates: (trip: Trip) => void;
   onSplit: (trip: Trip) => void;
+  onEditDays: (trip: Trip) => void;
   onDelete: (trip: Trip) => void;
   onDeleteConfirm: (id: number) => void;
   onDeleteCancel: () => void;
@@ -64,6 +65,7 @@ export default function TripsTable({
   onRename,
   onDates,
   onSplit,
+  onEditDays,
   onDelete,
   onDeleteConfirm,
   onDeleteCancel,
@@ -120,6 +122,9 @@ export default function TripsTable({
                     {selectedTripId === trip.id && <ChevronDownIcon size={14} />}
                     {trip.name || "(senza nome)"}
                   </button>
+                  {/* Manual-creation provenance (created_manually): the
+                      trip was typed in by the user via manual creation. */}
+                  {trip.createdManually && <span className="badge badge-manual">MANUALE</span>}
                   {trip.status === "archived" && (
                     <span className="badge badge-archived">Archiviato</span>
                   )}
@@ -231,7 +236,14 @@ export default function TripsTable({
                     )}
                     {detail && (
                       <>
-                        <TripDetailPanel detail={detail} />
+                        <TripDetailPanel
+                          detail={detail}
+                          onEditDays={
+                            trip.status === "active" && trip.createdManually
+                              ? () => onEditDays(trip)
+                              : undefined
+                          }
+                        />
                         <div className="trip-detail-actions">
                           <button
                             type="button"

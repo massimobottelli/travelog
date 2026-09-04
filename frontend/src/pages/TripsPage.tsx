@@ -8,11 +8,20 @@
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { listTrips, getTrip, updateTrip, deleteTrip, exportTripsCsv } from "../api/trips";
+import {
+  listTrips,
+  getTrip,
+  updateTrip,
+  deleteTrip,
+  exportTripsCsv,
+  createTrip,
+  replaceTripDays,
+} from "../api/trips";
 import { splitTrip, mergeTrips, listTripOperations } from "../api/operations";
 import { recalculate } from "../api/settings";
 import type { Trip, TripDetail, TripOperation } from "../api/client";
 import type { TripDialogState } from "../components/TripDialog";
+import TripDaysModal, { type ModalDay, type TripDaysPayload } from "../components/TripDaysModal";
 import TripsTable from "../components/TripsTable";
 import Accordion from "../components/Accordion";
 import Loading from "../components/Loading";
@@ -228,6 +237,72 @@ export default function TripsPage() {
     }
   };
 
+  // ── Manual trip creation / day editing (modal) ─────────────────
+  type DaysModalState =
+    { mode: "create" } | { mode: "editDays"; trip: Trip; initialDays: ModalDay[] };
+  const [daysModal, setDaysModal] = useState<DaysModalState | null>(null);
+  const [daysSubmitting, setDaysSubmitting] = useState(false);
+  const [daysModalError, setDaysModalError] = useState<string | null>(null);
+
+  const handleEditDays = async (trip: Trip): Promise<void> => {
+    // Load the detail to prefill the modal with the manual days.
+    setDaysSubmitting(true);
+    setDaysModalError(null);
+    try {
+      const detail = await getTrip(trip.id);
+      const initialDays: ModalDay[] = detail.days.flatMap((day) =>
+        day.noPhotos
+          ? []
+          : day.localities.some((l) => l.manual)
+            ? [
+                {
+                  date: day.date,
+                  localities: day.localities
+                    .filter((l) => l.manual)
+                    .map((l) => ({
+                      id: l.localityId,
+                      name: l.name,
+                      county: l.county ?? null,
+                      region: l.region ?? null,
+                      country: l.country ?? null,
+                    })),
+                },
+              ]
+            : [],
+      );
+      setDaysModal({ mode: "editDays", trip, initialDays });
+    } catch (err: unknown) {
+      setActionError(errorToMessage(err));
+    } finally {
+      setDaysSubmitting(false);
+    }
+  };
+
+  const handleDaysSubmit = async (payload: TripDaysPayload): Promise<void> => {
+    if (!daysModal) return;
+    setDaysSubmitting(true);
+    setDaysModalError(null);
+    try {
+      if (daysModal.mode === "create") {
+        await createTrip({ name: payload.name || undefined, days: payload.days });
+        setActionMessage("Viaggio creato.");
+      } else {
+        await replaceTripDays(daysModal.trip.id, { days: payload.days });
+        setActionMessage("Giorni del viaggio aggiornati.");
+        if (selectedTripId === daysModal.trip.id) {
+          const detail = await getTrip(daysModal.trip.id);
+          setDetail(detail);
+        }
+      }
+      setDaysModal(null);
+      await reload(search, page);
+    } catch (err: unknown) {
+      setDaysModalError(errorToMessage(err));
+    } finally {
+      setDaysSubmitting(false);
+    }
+  };
+
   return (
     <div className="page">
       <section className="panel page-header-card">
@@ -256,6 +331,16 @@ export default function TripsPage() {
               type="button"
               className="primary"
               onClick={() => {
+                setDaysModalError(null);
+                setDaysModal({ mode: "create" });
+              }}
+            >
+              + Crea viaggio
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
                 setMergeMode((m) => !m);
                 setSelectedIds([]);
                 setMergeTitle("");
@@ -277,6 +362,21 @@ export default function TripsPage() {
         {recalcMessage && <p className="alert alert-success">{recalcMessage}</p>}
         {recalcError && <ErrorAlert message={recalcError} />}
       </section>
+
+      {/* Manual trip creation / day editing: the modal opens right under
+          the page title, before the trip list. */}
+      {daysModal && (
+        <TripDaysModal
+          mode={daysModal.mode}
+          tripName={daysModal.mode === "editDays" ? daysModal.trip.name : undefined}
+          initialName={daysModal.mode === "create" ? "" : undefined}
+          initialDays={daysModal.mode === "editDays" ? daysModal.initialDays : undefined}
+          submitting={daysSubmitting}
+          error={daysModalError}
+          onSubmit={handleDaysSubmit}
+          onCancel={() => setDaysModal(null)}
+        />
+      )}
 
       <section className="panel trips-panel">
         {mergeMode && (
@@ -364,6 +464,7 @@ export default function TripsPage() {
                 proposedName: `${trip.name} (2)`,
               })
             }
+            onEditDays={handleEditDays}
             onDelete={(trip) => setConfirmDeleteId(trip.id)}
             onDeleteConfirm={handleDelete}
             onDeleteCancel={() => setConfirmDeleteId(null)}

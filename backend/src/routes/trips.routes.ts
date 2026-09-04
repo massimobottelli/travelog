@@ -23,6 +23,9 @@ router.get("/:tripId", tripsController.getTrip);
 // PATCH /trips/:tripId — update a trip
 router.patch("/:tripId", tripsController.updateTrip);
 
+// PUT /trips/:tripId/days — replace the manual days of a trip
+router.put("/:tripId/days", tripsController.replaceTripDays);
+
 // DELETE /trips/:tripId — explicitly delete a trip
 router.delete("/:tripId", tripsController.deleteTrip);
 

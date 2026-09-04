@@ -26,13 +26,25 @@ class TripsController {
   }
 
   async createTrip(req: Request, res: Response): Promise<void> {
-    const { name, startDate, endDate } = req.body as {
+    const { name, startDate, endDate, days } = req.body as {
       name?: string;
-      startDate: string;
-      endDate: string;
+      startDate?: string;
+      endDate?: string;
+      days?: Array<{ date: string; localityIds: number[] }>;
     };
-    const trip = await tripsService.createTrip({ name, startDate, endDate });
+    const trip = await tripsService.createTrip({ name, startDate, endDate, days });
     res.status(201).json(trip);
+  }
+
+  /**
+   * Full replacement of the manual days of a trip (manual trip creation
+   * feature: add/remove days after creation).
+   */
+  async replaceTripDays(req: Request, res: Response): Promise<void> {
+    const tripId = Number(req.params.tripId);
+    const { days } = req.body as { days: Array<{ date: string; localityIds: number[] }> };
+    const detail = await tripsService.replaceTripDays(tripId, days);
+    res.status(200).json(detail);
   }
 
   async updateTrip(req: Request, res: Response): Promise<void> {

@@ -8,9 +8,12 @@
 import {
   apiRequest,
   apiDownload,
+  type Trip,
   type TripList,
   type TripDetail,
   type UpdateTripRequest,
+  type CreateTripRequest,
+  type ReplaceTripDaysRequest,
 } from "./client";
 import type { components } from "./types";
 
@@ -48,6 +51,27 @@ export function updateTrip(tripId: number, updates: UpdateTripRequest): Promise<
 /** Explicitly delete a trip whose period is not a trip. */
 export function deleteTrip(tripId: number): Promise<void> {
   return apiRequest<void>(`/trips/${tripId}`, { method: "DELETE" });
+}
+
+/**
+ * Create a trip manually: either with explicit start/end dates, or with
+ * a list of manual days (each with the visited localities, resolved
+ * beforehand via resolveLocality). With days, the interval is derived
+ * server-side from the days.
+ */
+export function createTrip(request: CreateTripRequest): Promise<Trip> {
+  return apiRequest<Trip>("/trips", { method: "POST", body: request });
+}
+
+/**
+ * Full replacement of the manual days of a trip (add/remove days after
+ * creation). Returns the updated trip detail.
+ */
+export function replaceTripDays(
+  tripId: number,
+  request: ReplaceTripDaysRequest,
+): Promise<TripDetail> {
+  return apiRequest<TripDetail>(`/trips/${tripId}/days`, { method: "PUT", body: request });
 }
 
 /**

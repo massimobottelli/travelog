@@ -282,6 +282,7 @@ export function ChevronUpIcon({ size }: IconProps) {
 }
 
 /** Map pin — locality marker in the trip detail chronology. */
+/** Pin — a locality inside a day. */
 export function PinIcon({ size }: IconProps) {
   return (
     <svg

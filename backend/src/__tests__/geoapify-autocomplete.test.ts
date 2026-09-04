@@ -82,8 +82,11 @@ describe("GeoapifyAutocomplete", () => {
     expect(items[0]).toMatchObject({ placeId: "p1", name: "Verona", countryCode: "IT" });
   });
 
-  it("resolves a place by id", async () => {
+  it("resolves a place by id against the place-details endpoint", async () => {
     const fetchMock = vi.fn(async (url: string | URL) => {
+      // Regression: the details endpoint must be /v2/place-details
+      // (/v1/geocode/details does not exist and returns 404).
+      expect(String(url)).toContain("api.geoapify.com/v2/place-details");
       expect(String(url)).toContain("id=p2");
       return new Response(
         JSON.stringify({
