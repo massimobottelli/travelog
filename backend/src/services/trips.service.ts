@@ -54,10 +54,24 @@ function assertValidDateRange(startDate: string, endDate: string): void {
 }
 
 /**
+ * Detail grouping key of a locality card (§6.3/§7.2) — same format as
+ * `getTripDays` in the repository and `getLocalityKeys` in the DB:
+ * lower(name)|county|region. Used by the day-exclusion feature.
+ */
+function localityGroupKey(name: string, county: string | null, region: string | null): string {
+  return `${name.toLowerCase()}|${county ?? ""}|${region ?? ""}`;
+}
+
+/**
  * Fill gaps of 1–2 consecutive days without photos with "Nessuna foto"
  * entries (requirements §16). Larger gaps are not listed.
  */
-function withNoPhotoDays(days: TripDayDto[], tripStart: string, tripEnd: string): TripDayDto[] {
+function withNoPhotoDays(
+  days: TripDayDto[],
+  tripStart: string,
+  tripEnd: string,
+  excludedDays: Set<string> = new Set(),
+): TripDayDto[] {
   const result: TripDayDto[] = [];
   const fillGap = (fromExclusive: string, toInclusive: string) => {
     if (toInclusive > tripEnd) toInclusive = tripEnd;
@@ -67,10 +81,13 @@ function withNoPhotoDays(days: TripDayDto[], tripStart: string, tripEnd: string)
       missing.push(cursor);
       cursor = addDays(cursor, 1);
     }
-    // §16: only gaps of 1 or 2 days are listed
+    // §16: only gaps of 1 or 2 days are listed. Days explicitly excluded
+    // by the user ("cancella giorno") are not re-proposed as gaps.
     if (missing.length > 0 && missing.length <= 2) {
       for (const date of missing) {
-        result.push({ date, noPhotos: true, localities: [], manual: false });
+        if (!excludedDays.has(date)) {
+          result.push({ date, noPhotos: true, localities: [], manual: false });
+        }
       }
     }
   };
@@ -148,15 +165,37 @@ class TripsService {
   /**
    * Merges the days derived from photo presences with the manual days
    * of the trip (ordered by date; manual localities carry
-   * photoCount 0 and manual: true).
+   * photoCount 0 and manual: true). Persisted day exclusions ("delete
+   * day / delete locality" on auto-generated trips) hide the excluded
+   * presence days and locality cards.
    */
   private async buildDetail(trip: TripDto): Promise<TripDetailDto> {
-    const [presenceDays, manualDays] = await Promise.all([
+    const [presenceDays, manualDays, exclusions] = await Promise.all([
       tripsRepository.getTripDays(trip.startDate, trip.endDate),
       tripsRepository.getManualDays(trip.id),
+      tripsRepository.getDayExclusions(trip.id),
     ]);
+    const dayExcluded = new Set(
+      exclusions.filter((e) => e.localityKey === null).map((e) => e.dayDate),
+    );
+    const localityExcluded = new Set(
+      exclusions
+        .filter((e) => e.localityKey !== null)
+        .map((e) => `${e.dayDate}|${e.localityKey}`),
+    );
+    // Excluded days disappear entirely; days whose locality cards are all
+    // individually excluded disappear too (equivalent to a day deletion).
+    const visiblePresenceDays = presenceDays
+      .filter((d) => !dayExcluded.has(d.date))
+      .map((d) => ({
+        ...d,
+        localities: d.localities.filter(
+          (l) => !localityExcluded.has(`${d.date}|${localityGroupKey(l.name, l.county, l.region)}`),
+        ),
+      }))
+      .filter((d) => d.localities.length > 0);
     const merged = new Map<string, TripDayDto>();
-    for (const day of presenceDays) merged.set(day.date, day);
+    for (const day of visiblePresenceDays) merged.set(day.date, day);
     for (const day of manualDays) {
       const existing = merged.get(day.date);
       if (existing) {
@@ -166,7 +205,10 @@ class TripsService {
       }
     }
     const days = [...merged.values()].sort((a, b) => a.date.localeCompare(b.date));
-    return { ...trip, days: withNoPhotoDays(days, trip.startDate, trip.endDate) };
+    return {
+      ...trip,
+      days: withNoPhotoDays(days, trip.startDate, trip.endDate, dayExcluded),
+    };
   }
 
   /**
@@ -249,10 +291,103 @@ class TripsService {
   }
 
   /**
-   * Replace the manual days of an active trip (add/remove days after
-   * creation). Atomic: date update + day replacement (§64). The trip
-   * interval is set exactly to the first/last remaining day, subject
-   * to the overlap validation (§13.2/§21.17).
+   * Day replacement for an AUTO-generated trip: the request is the
+   * authoritative desired state of the visible days.
+   *
+   * - Every photo-derived (day, locality) missing from the request is
+   *   persisted as an exclusion (whole day → localityKey null);
+   *   re-adding a previously excluded locality on that date removes the
+   *   exclusion (explicit, reversible user operation).
+   * - Requested localities that are NOT photo-derived on that date are
+   *   stored as manual day rows (the "Aggiungi località" flow).
+   */
+  private async replaceAutoTripDays(
+    trip: TripDto,
+    rows: Array<{ dayDate: string; localityIds: number[] }>,
+  ): Promise<TripDetailDto> {
+    for (const r of rows) {
+      if (r.dayDate < trip.startDate || r.dayDate > trip.endDate) {
+        throw new ValidationError(
+          "I giorni devono essere compresi nell'intervallo del viaggio (modificabile dalle impostazioni del viaggio)",
+          { fields: ["days"] },
+        );
+      }
+    }
+    const allIds = [...new Set(rows.flatMap((d) => d.localityIds))].filter((id) => id > 0);
+    await this.assertLocalitiesExist(allIds);
+    const keys = await tripsRepository.getLocalityKeys(allIds);
+    const presenceDays = await tripsRepository.getTripDays(trip.startDate, trip.endDate);
+
+    // Desired exclusions: photo-derived (day, key) pairs missing from the
+    // request; a requested day that disappears entirely is excluded as a
+    // whole day (localityKey null).
+    const exclusions: Array<{ dayDate: string; localityKey: string | null }> = [];
+    const requestedDates = new Set(rows.map((r) => r.dayDate));
+    for (const day of presenceDays) {
+      if (!requestedDates.has(day.date)) {
+        exclusions.push({ dayDate: day.date, localityKey: null });
+        continue;
+      }
+      const requestedKeys = new Set(
+        (rows.find((r) => r.dayDate === day.date)?.localityIds ?? [])
+          .map((id) => keys.get(id))
+          .filter((k): k is string => k !== undefined),
+      );
+      for (const loc of day.localities) {
+        const key = localityGroupKey(loc.name, loc.county, loc.region);
+        if (!requestedKeys.has(key)) {
+          exclusions.push({ dayDate: day.date, localityKey: key });
+        }
+      }
+    }
+
+    // Manual rows: requested localities that are NOT photo-derived on
+    // that date (previously added manual localities that the user kept
+    // are re-inserted here — the manual table is fully replaced).
+    const presenceKeysByDate = new Map(
+      presenceDays.map((d) => [
+        d.date,
+        new Set(d.localities.map((l) => localityGroupKey(l.name, l.county, l.region))),
+      ]),
+    );
+    const manualRows = rows.map((r) => ({
+      dayDate: r.dayDate,
+      localityIds: r.localityIds.filter((id) => {
+        const key = keys.get(id);
+        return key === undefined || !presenceKeysByDate.get(r.dayDate)?.has(key);
+      }),
+    }));
+
+    const client = await dbPool.connect();
+    try {
+      await client.query("BEGIN");
+      await tripsRepository.replaceDayExclusions(trip.id, exclusions, client);
+      await tripsRepository.deleteManualDays(trip.id, client);
+      await tripsRepository.insertManualDays(trip.id, manualRows, client);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw err;
+    } finally {
+      client.release();
+    }
+    console.log(
+      `[trip] trip.days.adjusted id=${trip.id} exclusions=${exclusions.length} manualDays=${manualRows.length}`,
+    );
+    return this.getTrip(trip.id);
+  }
+
+  /**
+   * Replace the days of an active trip (add/remove days after creation).
+   * Atomic (§64).
+   *
+   * - Manual trips (createdManually): full replacement of the manual day
+   *   rows; the trip interval follows the remaining days, subject to the
+   *   overlap validation (§13.2/§21.17).
+   * - Auto-generated trips: photo-derived days live in presences, so
+   *   deletions are persisted as explicit, reversible day exclusions
+   *   (surviving re-scans and recalculation, §11) and additions as
+   *   manual day rows; the interval does not change (§13.2).
    */
   async replaceTripDays(tripId: number, days: ManualDayInput[]): Promise<TripDetailDto> {
     const trip = await tripsRepository.getTrip(tripId);
@@ -265,6 +400,11 @@ class TripsService {
     }
 
     const rows = normalizeManualDays(days);
+
+    if (!trip.createdManually) {
+      return this.replaceAutoTripDays(trip, rows);
+    }
+
     await this.assertLocalitiesExist(
       [...new Set(rows.flatMap((d) => d.localityIds))].filter((id) => id > 0),
     );

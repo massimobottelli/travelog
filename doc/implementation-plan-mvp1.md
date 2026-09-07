@@ -1999,6 +1999,57 @@ MVP1 è completato quando:
 * systemd gestisce il backend;
 * logging è disponibile tramite journald.
 
+> **Aggiornamento (richiesta utente): estensione di "cancella giorno"/"cancella località" a tutti i viaggi — Completato**
+>
+> L'editing inline dei giorni nel dettaglio viaggio, prima limitato ai viaggi
+> creati manualmente (`createdManually`), è ora disponibile su **tutti i viaggi
+> attivi**. Sui viaggi auto-generati i giorni derivano dalle presenze fotografiche
+> (dati derivati): le cancellazioni sono persistite come **esclusioni esplicite e
+> reversibili** nella nuova tabella `trip_day_exclusions` (migration 0016,
+> `locality_key` NULL = intero giorno) — sopravvivono a re-scan e ricalcolo
+> (§11 immutabilità automatica) e il ri-aggiungimento della località sulla data
+> rimuove l'esclusione. Il dettaglio (§16), la mappa e l'export CSV nascondono
+> il contenuto escluso. L'intervallo del viaggio non cambia; i giorni richiesti
+> devono cadervi dentro (400). Le aggiunte restano giorni manuali.
+>
+> * **Contratto OpenAPI**: descrizione di `PUT /trips/{tripId}/days` aggiornata
+>   (nessun cambio di shape); tipi rigenerati.
+> * **Backend**: migration `0016_trip_day_exclusions.sql`; repository
+>   (`getDayExclusions`, `replaceDayExclusions`, `getLocalityKeys`); service
+>   (`buildDetail` filtra le esclusioni, `replaceAutoTripDays`, gap
+>   "Nessuna foto" non riproposti sulle date escluse); la query mappa
+>   (`getTripMapData`) esclude giorni/località esclusi.
+> * **Frontend**: gate di editing in `TripsTable` esteso a tutti i viaggi attivi.
+> * **Test**: nuovo `trip-day-exclusions.integration.test.ts` (4 test: esclusione
+>   località reversibile con verifica mappa, esclusione giorno intero persistita,
+>   rifiuto date fuori intervallo, aggiunta località manuale su viaggio auto);
+>   cleanup dei test di integrazione esteso a `trip_day_exclusions`; test UI
+>   aggiornato. Totale: **190 backend, 73 frontend**.
+
+---
+
+> **Aggiornamento (richiesta utente): scheda dettaglio viaggio come pagina condivisibile — Completato**
+>
+> * **Bottone link esterno** in ogni riga della tabella viaggi (a destra dei
+>   bottoni di modifica, `ExternalLinkIcon`, presente anche sui viaggi
+>   archiviati): apre la scheda dettaglio (`GET /trips/:id` + mappa) in una
+>   **nuova scheda del browser** all'URL `/trips/:id`, condivisibile.
+> * **Routing URL minimale senza libreria** (`frontend/src/hooks/useRoute.ts`):
+>   parser del pathname + `pushState`/`popstate`; le tab vivono sui rispettivi
+>   path (`/trips`, `/scans`, `/settings`, tecnica `/photos`) e `/trips/:id`
+>   renderizza la nuova `TripDetailPage` (Navbar evidenzia "Viaggi", bottone
+>   "Torna all'elenco viaggi"). Deep-link funzionanti in dev (fallback SPA
+>   Vite) e in produzione (Nginx `try_files` già presente).
+> * La pagina riusa `TripDetailPanel` (incluso editing giorni inline via
+>   `replaceTripDays` sui viaggi attivi, reload dettaglio+mappa). Nessuna
+>   modifica a contratto OpenAPI, backend, schema DB o dipendenze.
+> * Test: +4 `trip-detail-page.test.tsx` (caricamento, ritorno elenco, errore
+>   404, editing attivi/archiviati read-only) e +3 `trip-external-link.test.tsx`
+>   (bottone, `window.open("/trips/:id")`, disponibilità su archiviati).
+>   Smoke E2E reale: deep-link `/trips/19` (viaggio "Sicilia" su
+>   `travelog_dev`) risponde con l'SPA e l'API restituisce il dettaglio.
+>   Totale: **81 test frontend** (tutti verdi), typecheck e build OK.
+
 ---
 
 # 13. Stato del piano

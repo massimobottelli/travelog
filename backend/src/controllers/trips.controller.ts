@@ -5,6 +5,9 @@
 import type { Request, Response } from "express";
 import tripsService from "../services/trips.service.js";
 import tripOperationsService from "../services/trip-operations.service.js";
+import tripsRepository from "../repositories/trips.repository.js";
+import tripMapService from "../services/trip-map.service.js";
+import { NotFoundError } from "../models/errors.js";
 
 class TripsController {
   async listTrips(req: Request, res: Response): Promise<void> {
@@ -72,6 +75,31 @@ class TripsController {
       .set("Content-Type", "text/csv; charset=utf-8")
       .set("Content-Disposition", `attachment; filename="travelog-viaggi-${today}.csv"`)
       .send(csv);
+  }
+
+  /** Map visualization data for a trip (§16 / TripMap feature). */
+  async getTripMap(req: Request, res: Response): Promise<void> {
+    const tripId = Number(req.params.tripId);
+    const trip = await tripsRepository.getTrip(tripId);
+    if (!trip) throw new NotFoundError("Trip", tripId);
+
+    const { markers, bounds } = await tripsRepository.getTripMapData(
+      trip.id,
+      trip.startDate,
+      trip.endDate,
+    );
+
+    const { markersWithColor, regionColors } = tripMapService.assignRegionColors(markers);
+
+    res.status(200).json({
+      id: trip.id,
+      name: trip.name,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      bounds,
+      markers: markersWithColor,
+      regionColors,
+    });
   }
 }
 

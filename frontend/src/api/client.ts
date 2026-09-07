@@ -37,6 +37,9 @@ export type ReplaceTripDaysRequest = components["schemas"]["ReplaceTripDaysReque
 export type SplitTripRequest = components["schemas"]["SplitTripRequest"];
 export type MergeTripsRequest = components["schemas"]["MergeTripsRequest"];
 export type TripOperationResult = components["schemas"]["TripOperationResult"];
+export type BoundingBox = components["schemas"]["BoundingBox"];
+export type MapMarker = components["schemas"]["MapMarker"];
+export type TripMapData = components["schemas"]["TripMapData"];
 export type ExclusionZone = components["schemas"]["ExclusionZone"];
 export type Locality = components["schemas"]["Locality"];
 

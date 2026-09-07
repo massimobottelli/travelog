@@ -6,20 +6,24 @@
  * cards (pin icon, administrative hierarchy, photo count badge) and
  * shows the "Nessuna foto" marker for empty days (1–2 day gaps).
  *
- * For manually created trips (createdManually) the days are edited
- * INLINE in this panel (user request): a "Modifica" button in the
+ * For every active trip (user request) the days are edited
+ * INLINE in this panel: a "Modifica" button in the
  * header (top-right) toggles the edit mode; only while editing does
  * the panel show the day trash icon (left of the date), the locality
  * trash icon, the round "+" button that opens the locality search
  * inside the day (Geoapify autocomplete, debounced) and the light
  * "Aggiungi giorno" command at the bottom. Every change persists the
- * full manual day list via PUT /trips/{tripId}/days through the
- * onReplaceDays callback (the backend replaces the days atomically).
+ * full day list via PUT /trips/{tripId}/days through the
+ * onReplaceDays callback (the backend replaces the days atomically: on
+ * manual trips the manual day rows, on auto-generated trips the
+ * photo-derived deletions become reversible day exclusions).
  */
 
 import { useEffect, useRef, useState } from "react";
 import type { TripDetail, TripDayInput } from "../api/client";
-import { formatTripDate, tripDurationDays } from "../utils/format";
+import type { TripMapData } from "../api/trips";
+import TripMap from "./TripMap";
+import { formatTripDate, formatTripPeriod, tripDurationDays } from "../utils/format";
 import { errorToMessage } from "../utils/error";
 import {
   autocompleteLocalities,
@@ -30,15 +34,17 @@ import { MapIcon, PlusIcon, PinIcon, PhotoIcon, TrashIcon } from "./icons";
 
 interface TripDetailPanelProps {
   detail: TripDetail;
+  /** Map data (locality markers with coordinates) for the Leaflet map. */
+  mapData?: TripMapData | null;
   /**
-   * When provided (manual, active trips only), the days become editable
+   * When provided (active trips only), the days become editable
    * inline: the callback persists the full day list and reloads the
    * detail. It rejects with a user-readable message on failure.
    */
   onReplaceDays?: (days: TripDayInput[]) => Promise<void>;
 }
 
-export default function TripDetailPanel({ detail, onReplaceDays }: TripDetailPanelProps) {
+export default function TripDetailPanel({ detail, mapData, onReplaceDays }: TripDetailPanelProps) {
   const editable = onReplaceDays !== undefined;
 
   // Edit commands (day/locality trash, add locality, add day) are shown
@@ -189,10 +195,17 @@ export default function TripDetailPanel({ detail, onReplaceDays }: TripDetailPan
   return (
     <div className="trip-diary">
       <div className="trip-diary-header">
-        <h2 className="trip-diary-title">
-          <MapIcon size={20} /> Dettagli Viaggio: {detail.name || "(senza nome)"} (
-          {tripDurationDays(detail.startDate, detail.endDate)} gg)
-        </h2>
+        <div className="trip-diary-heading">
+          <h2 className="trip-diary-title">
+            <MapIcon size={20} /> {detail.name || "(senza nome)"}
+          </h2>
+          {/* Subtitle: period in the same format as the trips table,
+              followed by the duration in days. */}
+          <p className="trip-diary-subtitle">
+            {formatTripPeriod(detail.startDate, detail.endDate)} (
+            {tripDurationDays(detail.startDate, detail.endDate)} gg)
+          </p>
+        </div>
         {editable && !editing && (
           <button
             type="button"
@@ -204,6 +217,7 @@ export default function TripDetailPanel({ detail, onReplaceDays }: TripDetailPan
         )}
       </div>
       {saveError && <p className="alert alert-error">{saveError}</p>}
+      {mapData && <TripMap data={mapData} />}
       <ul className="trip-timeline">
         {detail.days.map((day) => (
           <li key={day.date} className="trip-timeline-day">
@@ -231,7 +245,7 @@ export default function TripDetailPanel({ detail, onReplaceDays }: TripDetailPan
               {showCommands ? (
                 <>
                   {day.localities.length === 0 ? (
-                    <span className="hint">Giorno senza località</span>
+                    <span className="hint"></span>
                   ) : (
                     <ul className="trip-localities">
                       {day.localities.map((loc) => (
@@ -319,7 +333,7 @@ export default function TripDetailPanel({ detail, onReplaceDays }: TripDetailPan
               ) : day.noPhotos ? (
                 <span className="hint">Nessuna foto</span>
               ) : day.localities.length === 0 ? (
-                <span className="hint">Giorno senza località</span>
+                <span className="hint"></span>
               ) : (
                 <ul className="trip-localities">
                   {day.localities.map((loc) => (

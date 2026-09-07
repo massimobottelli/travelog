@@ -106,6 +106,13 @@
       "when": 1789346776436,
       "tag": "0015_trip_created_manually",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1789433176436,
+      "tag": "0016_trip_day_exclusions",
+      "breakpoints": true
     }
   ]
 }

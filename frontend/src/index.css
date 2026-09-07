@@ -662,6 +662,19 @@ button.secondary:hover:not(:disabled) {
   font-size: 1.05rem;
 }
 
+/* Heading block: title + period subtitle. */
+.trip-diary-heading {
+  min-width: 0;
+}
+
+/* Period + duration subtitle under the trip name. */
+.trip-diary-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.95rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
 .trip-diary-title svg {
   color: #2b6cb0;
   flex-shrink: 0;
@@ -969,6 +982,33 @@ button.icon-button:hover {
 .trip-days > li {
   padding: 0.5rem 0;
   border-bottom: 1px solid #f3f4f6;
+}
+
+/* ── Trip map (Leaflet, detail panel) ────────────────────────── */
+
+.trip-map-container {
+  height: 320px;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  margin: 0.75rem 0 1rem;
+  z-index: 0;
+}
+
+.trip-map-container .map-legend {
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.trip-map-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
 }
 
 /* ── Trips pagination ───────────────────────────────────────── */
@@ -1325,4 +1365,17 @@ button.icon-button:hover {
 
 .day-locality-search {
   margin-top: 0.6rem;
+}
+
+/* Trip detail shareable page (/trips/:id): back-link toolbar above the
+   detail panel. */
+.trip-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.trip-detail-page-toolbar {
+  display: flex;
+  justify-content: flex-start;
 }

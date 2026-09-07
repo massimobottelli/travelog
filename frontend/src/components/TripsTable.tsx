@@ -8,6 +8,7 @@
 
 import { Fragment } from "react";
 import type { Trip, TripDetail, TripDayInput } from "../api/client";
+import type { TripMapData } from "../api/trips";
 import { formatTripPeriod, tripDurationDays, tripYear, tripMonth } from "../utils/format";
 import TripDetailPanel from "./TripDetailPanel";
 import TripDialog, { type TripDialogState } from "./TripDialog";
@@ -20,6 +21,7 @@ import {
   TrashIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ExternalLinkIcon,
 } from "./icons";
 
 interface TripsTableProps {
@@ -31,6 +33,8 @@ interface TripsTableProps {
   detail: TripDetail | null;
   detailLoading: boolean;
   detailError: string | null;
+  /** Map data for the detail panel (Leaflet map of visited localities). */
+  mapData?: TripMapData | null;
   dialog: TripDialogState | null;
   operating: boolean;
   onSelectTrip: (id: number) => void;
@@ -58,6 +62,7 @@ export default function TripsTable({
   detail,
   detailLoading,
   detailError,
+  mapData,
   dialog,
   operating,
   onSelectTrip,
@@ -176,6 +181,19 @@ export default function TripsTable({
                       >
                         <TrashIcon size={14} />
                       </button>
+                      {/* Open the trip detail card as a standalone, shareable
+                          page (/trips/:id) in a new browser tab. */}
+                      <button
+                        type="button"
+                        className="icon-button"
+                        aria-label={`Apri la scheda dettaglio di ${
+                          trip.name || "(senza nome)"
+                        } in una nuova pagina`}
+                        title="Apri scheda dettaglio (link condivisibile)"
+                        onClick={() => window.open(`/trips/${trip.id}`, "_blank")}
+                      >
+                        <ExternalLinkIcon size={14} />
+                      </button>
                     </span>
                   )}
                 </td>
@@ -239,8 +257,13 @@ export default function TripsTable({
                       <>
                         <TripDetailPanel
                           detail={detail}
+                          mapData={mapData}
                           onReplaceDays={
-                            trip.status === "active" && trip.createdManually && onReplaceDays
+                            // Day/locality editing is available on every
+                            // active trip (user request): on auto-generated
+                            // trips the backend persists deletions as
+                            // reversible day exclusions.
+                            trip.status === "active" && onReplaceDays
                               ? (days) => onReplaceDays(trip.id, days)
                               : undefined
                           }

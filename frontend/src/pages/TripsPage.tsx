@@ -16,10 +16,11 @@ import {
   exportTripsCsv,
   createTrip,
   replaceTripDays,
+  getTripMap,
 } from "../api/trips";
 import { splitTrip, mergeTrips, listTripOperations } from "../api/operations";
 import { recalculate } from "../api/settings";
-import type { Trip, TripDetail, TripDayInput, TripOperation } from "../api/client";
+import type { Trip, TripDetail, TripDayInput, TripOperation, TripMapData } from "../api/client";
 import type { TripDialogState } from "../components/TripDialog";
 import TripDaysModal, { type TripDaysPayload } from "../components/TripDaysModal";
 import TripsTable from "../components/TripsTable";
@@ -40,6 +41,7 @@ export default function TripsPage() {
   const [detail, setDetail] = useState<TripDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [mapData, setMapData] = useState<TripMapData | null>(null);
 
   const [dialog, setDialog] = useState<TripDialogState | null>(null);
   const [operating, setOperating] = useState(false);
@@ -103,7 +105,11 @@ export default function TripsPage() {
     setDetailLoading(true);
     setDetailError(null);
     try {
-      setDetail(await getTrip(tripId));
+      const detailData = await getTrip(tripId);
+      setDetail(detailData);
+      // The map is secondary: a failure loading it must not prevent the
+      // trip detail from being shown.
+      setMapData(await getTripMap(tripId).catch(() => null));
     } catch (err: unknown) {
       setDetailError(errorToMessage(err));
       setDetail(null);
@@ -131,6 +137,7 @@ export default function TripsPage() {
       setDialog(null);
       setSelectedTripId(null);
       setDetail(null);
+      setMapData(null);
       await reload(search, page);
       reloadHistory();
     },
@@ -200,6 +207,7 @@ export default function TripsPage() {
       if (selectedTripId === tripId) {
         setSelectedTripId(null);
         setDetail(null);
+        setMapData(null);
       }
       await refreshAfterOperation("Viaggio eliminato: l'operazione è registrata nello storico.");
     } catch (err: unknown) {
@@ -265,7 +273,11 @@ export default function TripsPage() {
   const handleReplaceDays = async (tripId: number, days: TripDayInput[]): Promise<void> => {
     await replaceTripDays(tripId, { days });
     if (selectedTripId === tripId) {
-      setDetail(await getTrip(tripId));
+      // Day replacement can change which localities are visited: refresh
+      // the detail and the map data together.
+      const [detailData, mapData] = await Promise.all([getTrip(tripId), getTripMap(tripId)]);
+      setDetail(detailData);
+      setMapData(mapData);
     }
     setActionMessage("Giorni del viaggio aggiornati.");
     await reload(search, page).catch(() => undefined);
@@ -384,11 +396,13 @@ export default function TripsPage() {
             detail={detail}
             detailLoading={detailLoading}
             detailError={detailError}
+            mapData={mapData}
             onToggleSelected={toggleSelected}
             onSelectTrip={(id) => setSelectedTripId((current) => (current === id ? null : id))}
             onCloseDetail={(tripId) => {
               setSelectedTripId(null);
               setDetail(null);
+              setMapData(null);
               // After the accordion collapses the trip row can end up above
               // the viewport: bring it back into view (minimal scroll).
               requestAnimationFrame(() => {

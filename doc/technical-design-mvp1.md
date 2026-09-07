@@ -1608,6 +1608,29 @@ manual_trip_day_localities (
 Invariante: i giorni manuali vivono sempre dentro l'intervallo del viaggio
 (`start_date <= day_date <= end_date`).
 
+### Esclusioni di giorno/località sui viaggi auto-generati (0016)
+
+"Cancella giorno"/"cancella località" è disponibile su **tutti** i viaggi attivi.
+Sui viaggi auto-generati i giorni derivano dalle presenze (dati derivati,
+ricostruiti dal ricalcolo): la cancellazione è quindi persistita come
+**esclusione esplicita e reversibile** nella tabella `trip_day_exclusions`
+(migration 0016), così sopravvive a re-scan e ricalcolo senza violare l'immutabilità
+automatica (§11). `locality_key` è la chiave di raggruppamento del dettaglio
+(`lower(name)|county|region`); `NULL` = intero giorno escluso. Il dettaglio (§16),
+la mappa e l'export CSV nascondono il contenuto escluso; il ri-aggiungimento
+della località sulla data rimuove l'esclusione (operazione esplicita).
+
+```sql
+trip_day_exclusions (
+    id           serial PRIMARY KEY,
+    trip_id      integer NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+    day_date     date NOT NULL,
+    locality_key text,  -- NULL = intero giorno escluso
+    created_at   timestamp NOT NULL DEFAULT now(),
+    UNIQUE (trip_id, day_date, COALESCE(locality_key, ''))
+);
+```
+
 ## Regole di dominio
 
 * **Creazione**: `POST /trips` accetta `days: [{ date, localityIds? }]`; l'intervallo
