@@ -245,7 +245,11 @@ export default function TripsTable({
                           detail={detail}
                           mapData={mapData}
                           onReplaceDays={
-                            trip.status === "active" && trip.createdManually && onReplaceDays
+                            // Day/locality editing is available on every
+                            // active trip (user request): on auto-generated
+                            // trips the backend persists deletions as
+                            // reversible day exclusions.
+                            trip.status === "active" && onReplaceDays
                               ? (days) => onReplaceDays(trip.id, days)
                               : undefined
                           }

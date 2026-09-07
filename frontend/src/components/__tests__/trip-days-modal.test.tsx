@@ -115,7 +115,7 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     });
 
     // Steps 3–4: add the day; the row appears without localities.
-    fireEvent.change(screen.getByLabelText("Nuovo giorno"), {
+    fireEvent.change(screen.getByLabelText("Primo giorno"), {
       target: { value: "2025-08-10" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Aggiungi giorno al viaggio" }));
@@ -123,8 +123,9 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
       expect(screen.getByTestId("trip-modal-days").textContent).toContain("10/08/2025");
     });
 
-    // Step 8: another day is added (the cycle repeats).
-    fireEvent.change(screen.getByLabelText("Nuovo giorno"), {
+    // Step 8: another day is added (the cycle repeats): the date input
+    // now proposes the next day.
+    fireEvent.change(screen.getByLabelText("Primo giorno"), {
       target: { value: "2025-08-11" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Aggiungi giorno al viaggio" }));
@@ -181,7 +182,7 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     ).toBeNull();
 
     // Add a day: it becomes the day in edit.
-    fireEvent.change(screen.getByLabelText("Nuovo giorno"), {
+    fireEvent.change(screen.getByLabelText("Primo giorno"), {
       target: { value: "2025-08-10" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Aggiungi giorno al viaggio" }));
@@ -225,7 +226,7 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     );
 
     // Two days: the second one is selected after "Giorno successivo".
-    fireEvent.change(screen.getByLabelText("Nuovo giorno"), {
+    fireEvent.change(screen.getByLabelText("Primo giorno"), {
       target: { value: "2025-08-10" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Aggiungi giorno al viaggio" }));

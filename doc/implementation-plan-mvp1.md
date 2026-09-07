@@ -1999,6 +1999,33 @@ MVP1 è completato quando:
 * systemd gestisce il backend;
 * logging è disponibile tramite journald.
 
+> **Aggiornamento (richiesta utente): estensione di "cancella giorno"/"cancella località" a tutti i viaggi — Completato**
+>
+> L'editing inline dei giorni nel dettaglio viaggio, prima limitato ai viaggi
+> creati manualmente (`createdManually`), è ora disponibile su **tutti i viaggi
+> attivi**. Sui viaggi auto-generati i giorni derivano dalle presenze fotografiche
+> (dati derivati): le cancellazioni sono persistite come **esclusioni esplicite e
+> reversibili** nella nuova tabella `trip_day_exclusions` (migration 0016,
+> `locality_key` NULL = intero giorno) — sopravvivono a re-scan e ricalcolo
+> (§11 immutabilità automatica) e il ri-aggiungimento della località sulla data
+> rimuove l'esclusione. Il dettaglio (§16), la mappa e l'export CSV nascondono
+> il contenuto escluso. L'intervallo del viaggio non cambia; i giorni richiesti
+> devono cadervi dentro (400). Le aggiunte restano giorni manuali.
+>
+> * **Contratto OpenAPI**: descrizione di `PUT /trips/{tripId}/days` aggiornata
+>   (nessun cambio di shape); tipi rigenerati.
+> * **Backend**: migration `0016_trip_day_exclusions.sql`; repository
+>   (`getDayExclusions`, `replaceDayExclusions`, `getLocalityKeys`); service
+>   (`buildDetail` filtra le esclusioni, `replaceAutoTripDays`, gap
+>   "Nessuna foto" non riproposti sulle date escluse); la query mappa
+>   (`getTripMapData`) esclude giorni/località esclusi.
+> * **Frontend**: gate di editing in `TripsTable` esteso a tutti i viaggi attivi.
+> * **Test**: nuovo `trip-day-exclusions.integration.test.ts` (4 test: esclusione
+>   località reversibile con verifica mappa, esclusione giorno intero persistita,
+>   rifiuto date fuori intervallo, aggiunta località manuale su viaggio auto);
+>   cleanup dei test di integrazione esteso a `trip_day_exclusions`; test UI
+>   aggiornato. Totale: **190 backend, 73 frontend**.
+
 ---
 
 # 13. Stato del piano

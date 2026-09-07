@@ -11,7 +11,7 @@ interface RawMapMarker {
   latitude: number;
   longitude: number;
   photoCount: number;
-  firstPhotoAt: string;
+  firstPhotoAt: string | null;
   county: string | null;
   region: string | null;
   country: string | null;

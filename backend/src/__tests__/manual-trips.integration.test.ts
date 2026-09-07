@@ -60,7 +60,7 @@ async function manualDayCount(tripId: number): Promise<number> {
 
 async function cleanup() {
   await pool.query(
-    "TRUNCATE trips, trip_history, manual_trip_days, manual_trip_day_localities RESTART IDENTITY",
+    "TRUNCATE trips, trip_history, manual_trip_days, manual_trip_day_localities, trip_day_exclusions RESTART IDENTITY",
   );
   await pool.query("TRUNCATE presences RESTART IDENTITY");
   await pool.query("DELETE FROM localities WHERE locality_hash LIKE 'manual-test-%'");

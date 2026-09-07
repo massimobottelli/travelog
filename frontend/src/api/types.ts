@@ -291,14 +291,23 @@ export interface paths {
         };
         get?: never;
         /**
-         * Replace the manual days of a trip
-         * @description Explicit user operation: full replacement of the manual days
+         * Replace the days of a trip
+         * @description Explicit user operation: full replacement of the visible days
          *     (date + visited localities) of an active trip, in one atomic
          *     operation. Used both to add and to remove days after creation.
          *
-         *     If a day falls outside the current trip interval the trip
-         *     start/end dates are extended accordingly, subject to the
-         *     temporal overlap validation against other active trips (409).
+         *     On manually created trips the manual day rows are replaced and
+         *     the trip interval follows the remaining days (extending the
+         *     start/end dates is subject to the temporal overlap validation
+         *     against other active trips, 409).
+         *
+         *     On auto-generated trips the photo-derived days come from the
+         *     photo presences: days/localities missing from the request are
+         *     persisted as explicit, reversible day exclusions (they survive
+         *     re-scans and recalculation) while additional localities are
+         *     stored as manual day rows. The trip interval does not change;
+         *     requested days must fall inside it (400 otherwise).
+         *
          *     The trip must keep at least one day. Archived trips cannot be
          *     modified.
          */
@@ -319,12 +328,17 @@ export interface paths {
         };
         /**
          * Get trip map visualization data
-         * @description Returns marker data for rendering a trip map: unique localities
-         *     with coordinates (extracted from the geocoding cache), ordered
-         *     chronologically by first photo timestamp. Region-based colors
-         *     are assigned deterministically.
+         * @description Returns marker data for rendering a trip map: one marker per
+         *     locality listed in the trip detail (§16) — presence localities
+         *     within the trip interval plus the localities of the trip's manual
+         *     days — aggregated by administrative name (name + county + region)
+         *     so repeated coordinate hashes of the same locality produce a
+         *     single waymark. Ordered chronologically by first photo timestamp
+         *     (or first manual day when no photos exist). Coordinates are
+         *     extracted from the geocoding cache locality hashes; region-based
+         *     colors are assigned deterministically.
          *
-         *     Returns an empty markers array for manual trips without photos.
+         *     `firstPhotoAt` is null for manual localities without photos.
          */
         get: operations["getTripMapData"];
         put?: never;
@@ -742,8 +756,11 @@ export interface components {
             /** Format: double */
             longitude: number;
             photoCount: number;
-            /** Format: date-time */
-            firstPhotoAt: string;
+            /**
+             * Format: date-time
+             * @description First photo timestamp within the trip; null for manual localities without photos
+             */
+            firstPhotoAt: string | null;
             county: string | null;
             region: string | null;
             country: string | null;

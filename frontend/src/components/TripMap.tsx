@@ -66,9 +66,7 @@ export default function TripMap({ data }: TripMapProps) {
           <span style="color: #666;">
             ${[marker.county, marker.region, marker.country].filter(Boolean).join(", ")}
           </span><br/>
-          <em>${marker.photoCount} foto</em> · dal ${new Date(
-            marker.firstPhotoAt,
-          ).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}
+          <em>${marker.photoCount} foto</em>
         </div>
       `;
 

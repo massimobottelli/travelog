@@ -17,8 +17,10 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const metadataStatusEnum = pgEnum("metadata_status", ["valid", "excluded"]);
 
@@ -300,6 +302,41 @@ export const manualTripDayLocalities = pgTable(
   },
   (t) => ({
     pkManualDayLocality: primaryKey({ columns: [t.dayId, t.localityId] }),
+  }),
+);
+
+// ── 7b. Trip Day Exclusions ────────────────────────────────────────
+// Persisted "delete day / delete locality" on AUTO-generated trips
+// (user request): the photo-derived days come from presences (derived,
+// rebuilt by recalculation), so a deletion is stored as an explicit,
+// reversible exclusion instead of a row deletion. localityKey is the
+// detail grouping key (lower(name)|county|region); NULL = whole day
+// excluded. Rewritten atomically by PUT /trips/{tripId}/days.
+
+export const tripDayExclusions = pgTable(
+  "trip_day_exclusions",
+  {
+    id: serial("id").primaryKey(),
+    tripId: integer("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    dayDate: date("day_date", { mode: "string" }).notNull(),
+    /** Detail grouping key of the excluded locality card; NULL = whole day. */
+    localityKey: text("locality_key"),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: false,
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    idxTripDayExclusionsTripId: index("idx_trip_day_exclusions_trip_id").on(t.tripId),
+    uniqueTripDayExclusion: uniqueIndex("unique_trip_day_exclusion").on(
+      t.tripId,
+      t.dayDate,
+      sql`coalesce(${t.localityKey}, '')`,
+    ),
   }),
 );
 

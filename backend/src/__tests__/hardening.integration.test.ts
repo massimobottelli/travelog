@@ -17,8 +17,23 @@ import { SCAN_LOCK_ID } from "../config/locks.js";
 
 const server = createApp();
 
-// Source fixture: a real JPEG with full EXIF
-const SOURCE_JPEG = path.resolve("../test/08/IMG_9279.JPEG");
+/**
+ * Minimal VALID JPEG (1x1 baseline, embedded as base64). The historical
+ * source fixture (a private photo under test/) is no longer in the
+ * repository: the required source photo is generated at test time with
+ * ExifTool (DateTimeOriginal written; GPS intentionally left out of the
+ * derived no-gps.jpg). Keeps the test self-contained without shipping
+ * personal photos.
+ */
+const MINIMAL_JPEG_BASE64 =
+  "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRof" +
+  "Hh0aHBwcJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwh" +
+  "MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAAR" +
+  "CAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAA" +
+  "AgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkK" +
+  "FhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWG" +
+  "h4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl" +
+  "5ufo6erx8vP09fb3+Pn6/9oACAEBAAA/APn+v//Z";
 
 const TERMINAL = new Set(["completed", "completed_with_errors", "failed", "stopped"]);
 
@@ -44,20 +59,39 @@ async function configurePhotoRoot(root: string): Promise<void> {
   );
 }
 
+/** Directory (outside the scanned photo root) holding the generated source JPEG. */
+let sourceDir = "";
+
+function buildSourceJpeg(): string {
+  sourceDir = mkdtempSync(path.join(tmpdir(), "travelog-hardening-src-"));
+  const sourceJpeg = path.join(sourceDir, "source.jpg");
+  writeFileSync(sourceJpeg, Buffer.from(MINIMAL_JPEG_BASE64, "base64"));
+  execFileSync("exiftool", [
+    "-overwrite_original",
+    "-DateTimeOriginal=2025:08:10 10:30:00",
+    sourceJpeg,
+  ]);
+  return sourceJpeg;
+}
+
 function buildPhotoRoot(): string {
   const root = mkdtempSync(path.join(tmpdir(), "travelog-hardening-"));
+  // Source photo: minimal valid JPEG with EXIF (DateTimeOriginal),
+  // generated with ExifTool OUTSIDE the photo root (it must not be
+  // scanned; nothing personal is committed).
+  const sourceJpeg = buildSourceJpeg();
   // Valid JPEG whose GPS metadata is stripped -> EXIF incomplete
   // ("GPS assente", requirements 5.5). exiftool -o writes a NEW file;
   // the source photo is not modified (NAS read-only principle).
   const noGps = path.join(root, "no-gps.jpg");
-  execFileSync("exiftool", ["-gps:all=", "-o", noGps, SOURCE_JPEG]);
+  execFileSync("exiftool", ["-gps:all=", "-o", noGps, sourceJpeg]);
   // Corrupt JPEG -> ExifTool read error, isolated per file (req. 38)
   const corrupt = path.join(root, "corrupt.jpg");
   writeFileSync(corrupt, "this is not a jpeg".repeat(10));
   chmodSync(corrupt, 0o000); // unreadable -> ExifTool process failure (exit 1)
   // Unsupported files must be ignored by the scanner (req. 18)
   writeFileSync(path.join(root, "notes.txt"), "ignore me");
-  copyFileSync(SOURCE_JPEG, path.join(root, "movie.mov"));
+  copyFileSync(sourceJpeg, path.join(root, "movie.mov"));
   return root;
 }
 
@@ -138,6 +172,7 @@ describe("Phase 9 hardening - real scan: exclusion, errors, idempotence", () => 
   });
   afterAll(() => {
     if (photoRoot) rmSync(photoRoot, { recursive: true, force: true });
+    if (sourceDir) rmSync(sourceDir, { recursive: true, force: true });
   });
 });
 

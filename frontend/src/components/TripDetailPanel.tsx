@@ -6,15 +6,17 @@
  * cards (pin icon, administrative hierarchy, photo count badge) and
  * shows the "Nessuna foto" marker for empty days (1–2 day gaps).
  *
- * For manually created trips (createdManually) the days are edited
- * INLINE in this panel (user request): a "Modifica" button in the
+ * For every active trip (user request) the days are edited
+ * INLINE in this panel: a "Modifica" button in the
  * header (top-right) toggles the edit mode; only while editing does
  * the panel show the day trash icon (left of the date), the locality
  * trash icon, the round "+" button that opens the locality search
  * inside the day (Geoapify autocomplete, debounced) and the light
  * "Aggiungi giorno" command at the bottom. Every change persists the
- * full manual day list via PUT /trips/{tripId}/days through the
- * onReplaceDays callback (the backend replaces the days atomically).
+ * full day list via PUT /trips/{tripId}/days through the
+ * onReplaceDays callback (the backend replaces the days atomically: on
+ * manual trips the manual day rows, on auto-generated trips the
+ * photo-derived deletions become reversible day exclusions).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -35,7 +37,7 @@ interface TripDetailPanelProps {
   /** Map data (locality markers with coordinates) for the Leaflet map. */
   mapData?: TripMapData | null;
   /**
-   * When provided (manual, active trips only), the days become editable
+   * When provided (active trips only), the days become editable
    * inline: the callback persists the full day list and reloads the
    * detail. It rejects with a user-readable message on failure.
    */
