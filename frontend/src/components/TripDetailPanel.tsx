@@ -19,6 +19,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { TripDetail, TripDayInput } from "../api/client";
+import type { TripMapData } from "../api/trips";
+import TripMap from "./TripMap";
 import { formatTripDate, tripDurationDays } from "../utils/format";
 import { errorToMessage } from "../utils/error";
 import {
@@ -30,6 +32,8 @@ import { MapIcon, PlusIcon, PinIcon, PhotoIcon, TrashIcon } from "./icons";
 
 interface TripDetailPanelProps {
   detail: TripDetail;
+  /** Map data (locality markers with coordinates) for the Leaflet map. */
+  mapData?: TripMapData | null;
   /**
    * When provided (manual, active trips only), the days become editable
    * inline: the callback persists the full day list and reloads the
@@ -38,7 +42,7 @@ interface TripDetailPanelProps {
   onReplaceDays?: (days: TripDayInput[]) => Promise<void>;
 }
 
-export default function TripDetailPanel({ detail, onReplaceDays }: TripDetailPanelProps) {
+export default function TripDetailPanel({ detail, mapData, onReplaceDays }: TripDetailPanelProps) {
   const editable = onReplaceDays !== undefined;
 
   // Edit commands (day/locality trash, add locality, add day) are shown
@@ -204,6 +208,7 @@ export default function TripDetailPanel({ detail, onReplaceDays }: TripDetailPan
         )}
       </div>
       {saveError && <p className="alert alert-error">{saveError}</p>}
+      {mapData && <TripMap data={mapData} />}
       <ul className="trip-timeline">
         {detail.days.map((day) => (
           <li key={day.date} className="trip-timeline-day">

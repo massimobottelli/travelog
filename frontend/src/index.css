@@ -971,6 +971,33 @@ button.icon-button:hover {
   border-bottom: 1px solid #f3f4f6;
 }
 
+/* ── Trip map (Leaflet, detail panel) ────────────────────────── */
+
+.trip-map-container {
+  height: 320px;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  margin: 0.75rem 0 1rem;
+  z-index: 0;
+}
+
+.trip-map-container .map-legend {
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.trip-map-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+
 /* ── Trips pagination ───────────────────────────────────────── */
 
 .pagination {

@@ -310,6 +310,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trips/{tripId}/map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get trip map visualization data
+         * @description Returns marker data for rendering a trip map: unique localities
+         *     with coordinates (extracted from the geocoding cache), ordered
+         *     chronologically by first photo timestamp. Region-based colors
+         *     are assigned deterministically.
+         *
+         *     Returns an empty markers array for manual trips without photos.
+         */
+        get: operations["getTripMapData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/trips/{tripId}/split": {
         parameters: {
             query?: never;
@@ -697,6 +722,48 @@ export interface components {
         MergeTripsRequest: {
             tripIds: number[];
             title?: string | null;
+        };
+        BoundingBox: {
+            /** Format: double */
+            minLat: number;
+            /** Format: double */
+            minLon: number;
+            /** Format: double */
+            maxLat: number;
+            /** Format: double */
+            maxLon: number;
+        };
+        MapMarker: {
+            /** Format: int64 */
+            localityId: number;
+            name: string;
+            /** Format: double */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
+            photoCount: number;
+            /** Format: date-time */
+            firstPhotoAt: string;
+            county: string | null;
+            region: string | null;
+            country: string | null;
+            /** @description Hex color code assigned to this locality's region */
+            regionColor: string;
+        };
+        TripMapData: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate: string;
+            bounds: components["schemas"]["BoundingBox"];
+            markers: components["schemas"]["MapMarker"][];
+            /** @description Map region name → hex_color for legend display */
+            regionColors: {
+                [key: string]: string;
+            };
         };
         /** @enum {string} */
         TripOperationType: "SPLIT" | "MERGE" | "DELETE";
@@ -1435,6 +1502,37 @@ export interface operations {
             };
             /** @description Date extension would overlap another active trip, or trip is archived */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getTripMapData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tripId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trip map data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripMapData"];
+                };
+            };
+            /** @description Trip not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

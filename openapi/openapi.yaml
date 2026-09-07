@@ -22,6 +22,7 @@ tags:
   - name: Scans
   - name: Photos
   - name: Trips
+  - name: Trip Map
   - name: Trip Operations
   - name: Localities
   - name: Exclusion Zones
@@ -518,6 +519,39 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Date extension would overlap another active trip, or trip is archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /trips/{tripId}/map:
+    get:
+      tags: [Trip Map]
+      operationId: getTripMapData
+      summary: Get trip map visualization data
+      description: |
+        Returns marker data for rendering a trip map: unique localities
+        with coordinates (extracted from the geocoding cache), ordered
+        chronologically by first photo timestamp. Region-based colors
+        are assigned deterministically.
+
+        Returns an empty markers array for manual trips without photos.
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Trip map data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripMapData"
+        "404":
+          description: Trip not found
           content:
             application/json:
               schema:
@@ -1350,6 +1384,83 @@ components:
         title:
           type: [string, null]
           minLength: 1
+
+    BoundingBox:
+      type: object
+      additionalProperties: false
+      required: [minLat, minLon, maxLat, maxLon]
+      properties:
+        minLat:
+          type: number
+          format: double
+        minLon:
+          type: number
+          format: double
+        maxLat:
+          type: number
+          format: double
+        maxLon:
+          type: number
+          format: double
+
+    MapMarker:
+      type: object
+      additionalProperties: false
+      required: [localityId, name, latitude, longitude, photoCount, firstPhotoAt, county, region, country, regionColor]
+      properties:
+        localityId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        photoCount:
+          type: integer
+        firstPhotoAt:
+          type: string
+          format: date-time
+        county:
+          type: [string, null]
+        region:
+          type: [string, null]
+        country:
+          type: [string, null]
+        regionColor:
+          type: string
+          description: Hex color code assigned to this locality's region
+
+    TripMapData:
+      type: object
+      additionalProperties: false
+      required: [id, name, startDate, endDate, bounds, markers, regionColors]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        bounds:
+          $ref: "#/components/schemas/BoundingBox"
+        markers:
+          type: array
+          items:
+            $ref: "#/components/schemas/MapMarker"
+        regionColors:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map region name → hex_color for legend display
 
     TripOperationType:
       type: string

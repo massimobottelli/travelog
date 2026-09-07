@@ -29,4 +29,9 @@ router.put("/:tripId/days", tripsController.replaceTripDays);
 // DELETE /trips/:tripId — explicitly delete a trip
 router.delete("/:tripId", tripsController.deleteTrip);
 
+// Map visualization data — MUST be before the catch-all params routes above
+// However since :tripId is at the end of the path and map is after it, this
+// order works correctly (longer paths match first).
+router.get("/:tripId/map", tripsController.getTripMap);
+
 export default router;

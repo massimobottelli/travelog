@@ -14,10 +14,11 @@ import {
   type UpdateTripRequest,
   type CreateTripRequest,
   type ReplaceTripDaysRequest,
+  type TripMapData,
 } from "./client";
 import type { components } from "./types";
 
-export type { TripList, TripDetail, UpdateTripRequest };
+export type { TripList, TripDetail, UpdateTripRequest, TripMapData };
 export type TripListStatus = components["schemas"]["TripListStatus"];
 
 export interface TripsQuery {
@@ -80,4 +81,9 @@ export function replaceTripDays(
  */
 export function exportTripsCsv(): Promise<void> {
   return apiDownload("/trips/export", "travelog-viaggi.csv");
+}
+
+/** Get trip map visualization data — one marker per unique locality, colored by region. */
+export function getTripMap(tripId: number): Promise<TripMapData> {
+  return apiRequest<TripMapData>(`/trips/${tripId}/map`);
 }

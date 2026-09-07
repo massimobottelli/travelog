@@ -47,6 +47,27 @@ export interface TripDayDto {
   manual: boolean;
 }
 
+/** Marker data for trip map visualization — one entry per unique locality,
+    chronologically ordered by first photo timestamp within the trip interval. */
+export interface MapMarkerDto {
+  localityId: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  photoCount: number;
+  firstPhotoAt: string;
+  county: string | null;
+  region: string | null;
+  country: string | null;
+}
+
+export interface BoundingBoxDto {
+  minLat: number;
+  minLon: number;
+  maxLat: number;
+  maxLon: number;
+}
+
 const tripSelection = {
   id: trips.id,
   name: trips.name,
@@ -513,6 +534,83 @@ class TripsRepository {
     }
     flushDay();
     return days;
+  }
+
+  /**
+   * Retrieve marker data for trip map visualization (requirements §16 /
+   * TripMap feature). Coordinates are extracted from the `locality_hash`
+   * column in geocoding_cache — no extra columns or migrations needed.
+   *
+   * One marker per unique locality visited during the trip interval,
+   * chronologically ordered by first photo timestamp within the trip.
+   */
+  async getTripMapData(
+    tripId: number,
+    startDate: string,
+    endDate: string,
+  ): Promise<{ markers: MapMarkerDto[]; bounds: BoundingBoxDto }> {
+    const result = await dbPool.query(
+      `WITH trip_markers AS (
+         SELECT DISTINCT ON (gc.locality_id)
+           gc.locality_id,
+           split_part(gc.locality_hash, ':', 1)::double precision AS latitude,
+           split_part(gc.locality_hash, ':', 2)::double precision AS longitude,
+           p.date_time_original::text AS first_photo_at,
+           COUNT(*) OVER (PARTITION BY gc.locality_id) AS photo_count
+         FROM photos p
+         JOIN geocoding_cache gc
+           ON gc.original_latitude  = p.original_latitude
+          AND gc.original_longitude = p.original_longitude
+         WHERE p.metadata_status = 'valid'
+           AND p.date_time_original IS NOT NULL
+           AND p.date_time_original::date >= $1::date
+           AND p.date_time_original::date <= $2::date
+           AND gc.locality_hash ~ '^-?[0-9]+\\.[0-9]+:-?[0-9]+\\.[0-9]+$'
+         ORDER BY gc.locality_id, p.date_time_original ASC
+       )
+       SELECT
+         tm.locality_id,
+         l.name,
+         tm.latitude,
+         tm.longitude,
+         tm.photo_count::int,
+         tm.first_photo_at,
+         l.county,
+         l.region,
+         l.country
+       FROM trip_markers tm
+       JOIN localities l ON l.id = tm.locality_id
+       ORDER BY tm.first_photo_at ASC`,
+      [startDate, endDate],
+    );
+
+    const markers: MapMarkerDto[] = result.rows.map((r) => ({
+      localityId: Number(r.locality_id),
+      name: String(r.name),
+      latitude: parseFloat(String(r.latitude)),
+      longitude: parseFloat(String(r.longitude)),
+      photoCount: Number(r.photo_count),
+      firstPhotoAt: String(r.first_photo_at),
+      county: r.county != null ? String(r.county) : null,
+      region: r.region != null ? String(r.region) : null,
+      country: r.country != null ? String(r.country) : null,
+    }));
+
+    // Compute bounding box from markers
+    let bounds: BoundingBoxDto;
+    if (markers.length === 0) {
+      // Default center (Italy-ish) when no markers exist
+      bounds = { minLat: 37, minLon: 6, maxLat: 47.1, maxLon: 19 };
+    } else {
+      bounds = {
+        minLat: Math.min(...markers.map((m) => m.latitude)),
+        minLon: Math.min(...markers.map((m) => m.longitude)),
+        maxLat: Math.max(...markers.map((m) => m.latitude)),
+        maxLon: Math.max(...markers.map((m) => m.longitude)),
+      };
+    }
+
+    return { markers, bounds };
   }
 }
 
