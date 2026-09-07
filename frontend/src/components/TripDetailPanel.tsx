@@ -23,7 +23,7 @@ import { useEffect, useRef, useState } from "react";
 import type { TripDetail, TripDayInput } from "../api/client";
 import type { TripMapData } from "../api/trips";
 import TripMap from "./TripMap";
-import { formatTripDate, tripDurationDays } from "../utils/format";
+import { formatTripDate, formatTripPeriod, tripDurationDays } from "../utils/format";
 import { errorToMessage } from "../utils/error";
 import {
   autocompleteLocalities,
@@ -195,10 +195,17 @@ export default function TripDetailPanel({ detail, mapData, onReplaceDays }: Trip
   return (
     <div className="trip-diary">
       <div className="trip-diary-header">
-        <h2 className="trip-diary-title">
-          <MapIcon size={20} /> Dettagli Viaggio: {detail.name || "(senza nome)"} (
-          {tripDurationDays(detail.startDate, detail.endDate)} gg)
-        </h2>
+        <div className="trip-diary-heading">
+          <h2 className="trip-diary-title">
+            <MapIcon size={20} /> {detail.name || "(senza nome)"}
+          </h2>
+          {/* Subtitle: period in the same format as the trips table,
+              followed by the duration in days. */}
+          <p className="trip-diary-subtitle">
+            {formatTripPeriod(detail.startDate, detail.endDate)} (
+            {tripDurationDays(detail.startDate, detail.endDate)} gg)
+          </p>
+        </div>
         {editable && !editing && (
           <button
             type="button"
@@ -238,7 +245,7 @@ export default function TripDetailPanel({ detail, mapData, onReplaceDays }: Trip
               {showCommands ? (
                 <>
                   {day.localities.length === 0 ? (
-                    <span className="hint">Giorno senza località</span>
+                    <span className="hint"></span>
                   ) : (
                     <ul className="trip-localities">
                       {day.localities.map((loc) => (
@@ -326,7 +333,7 @@ export default function TripDetailPanel({ detail, mapData, onReplaceDays }: Trip
               ) : day.noPhotos ? (
                 <span className="hint">Nessuna foto</span>
               ) : day.localities.length === 0 ? (
-                <span className="hint">Giorno senza località</span>
+                <span className="hint"></span>
               ) : (
                 <ul className="trip-localities">
                   {day.localities.map((loc) => (

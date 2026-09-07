@@ -2028,6 +2028,30 @@ MVP1 è completato quando:
 
 ---
 
+> **Aggiornamento (richiesta utente): scheda dettaglio viaggio come pagina condivisibile — Completato**
+>
+> * **Bottone link esterno** in ogni riga della tabella viaggi (a destra dei
+>   bottoni di modifica, `ExternalLinkIcon`, presente anche sui viaggi
+>   archiviati): apre la scheda dettaglio (`GET /trips/:id` + mappa) in una
+>   **nuova scheda del browser** all'URL `/trips/:id`, condivisibile.
+> * **Routing URL minimale senza libreria** (`frontend/src/hooks/useRoute.ts`):
+>   parser del pathname + `pushState`/`popstate`; le tab vivono sui rispettivi
+>   path (`/trips`, `/scans`, `/settings`, tecnica `/photos`) e `/trips/:id`
+>   renderizza la nuova `TripDetailPage` (Navbar evidenzia "Viaggi", bottone
+>   "Torna all'elenco viaggi"). Deep-link funzionanti in dev (fallback SPA
+>   Vite) e in produzione (Nginx `try_files` già presente).
+> * La pagina riusa `TripDetailPanel` (incluso editing giorni inline via
+>   `replaceTripDays` sui viaggi attivi, reload dettaglio+mappa). Nessuna
+>   modifica a contratto OpenAPI, backend, schema DB o dipendenze.
+> * Test: +4 `trip-detail-page.test.tsx` (caricamento, ritorno elenco, errore
+>   404, editing attivi/archiviati read-only) e +3 `trip-external-link.test.tsx`
+>   (bottone, `window.open("/trips/:id")`, disponibilità su archiviati).
+>   Smoke E2E reale: deep-link `/trips/19` (viaggio "Sicilia" su
+>   `travelog_dev`) risponde con l'SPA e l'API restituisce il dettaglio.
+>   Totale: **81 test frontend** (tutti verdi), typecheck e build OK.
+
+---
+
 # 13. Stato del piano
 
 Le checkbox di questo documento rappresentano lo stato effettivo dell'implementazione.

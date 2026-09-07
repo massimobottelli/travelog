@@ -21,6 +21,7 @@ import {
   TrashIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ExternalLinkIcon,
 } from "./icons";
 
 interface TripsTableProps {
@@ -179,6 +180,19 @@ export default function TripsTable({
                         onClick={() => onDelete(trip)}
                       >
                         <TrashIcon size={14} />
+                      </button>
+                      {/* Open the trip detail card as a standalone, shareable
+                          page (/trips/:id) in a new browser tab. */}
+                      <button
+                        type="button"
+                        className="icon-button"
+                        aria-label={`Apri la scheda dettaglio di ${
+                          trip.name || "(senza nome)"
+                        } in una nuova pagina`}
+                        title="Apri scheda dettaglio (link condivisibile)"
+                        onClick={() => window.open(`/trips/${trip.id}`, "_blank")}
+                      >
+                        <ExternalLinkIcon size={14} />
                       </button>
                     </span>
                   )}

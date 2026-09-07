@@ -174,7 +174,7 @@ describe("TripsPage", () => {
     // ("Modifica") no edit affordance is visible.
     fireEvent.click(screen.getByRole("button", { name: "Weekend a Roma" }));
     await waitFor(() => {
-      expect(screen.getByText(/Dettagli Viaggio: Weekend a Roma/)).not.toBeNull();
+      expect(screen.getByText(/Weekend a Roma/)).not.toBeNull();
     });
     expect(screen.queryByRole("button", { name: "Elimina il giorno 05/09/2025" })).toBeNull();
     expect(
@@ -202,14 +202,14 @@ describe("TripsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /Chiudi dettaglio di Weekend a Roma/ }));
     fireEvent.click(screen.getByRole("button", { name: "Vacanza in Toscana" }));
     await waitFor(() => {
-      expect(screen.getByText(/Dettagli Viaggio: Vacanza in Toscana/)).not.toBeNull();
+      expect(screen.getByText(/Vacanza in Toscana/)).not.toBeNull();
     });
     fireEvent.click(screen.getByRole("button", { name: "Modifica" }));
     // Four days in the fixture: one trash per day.
     expect(screen.getAllByRole("button", { name: /Elimina il giorno/ }).length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByRole("button", { name: /Elimina la località/ }).length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /Elimina la località/ }).length).toBeGreaterThan(
+      0,
+    );
     expect(
       screen.getAllByRole("button", { name: /Aggiungi località al giorno/ }).length,
     ).toBeGreaterThan(0);

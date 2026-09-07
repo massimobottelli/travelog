@@ -662,6 +662,19 @@ button.secondary:hover:not(:disabled) {
   font-size: 1.05rem;
 }
 
+/* Heading block: title + period subtitle. */
+.trip-diary-heading {
+  min-width: 0;
+}
+
+/* Period + duration subtitle under the trip name. */
+.trip-diary-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.95rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
 .trip-diary-title svg {
   color: #2b6cb0;
   flex-shrink: 0;
@@ -1352,4 +1365,17 @@ button.icon-button:hover {
 
 .day-locality-search {
   margin-top: 0.6rem;
+}
+
+/* Trip detail shareable page (/trips/:id): back-link toolbar above the
+   detail panel. */
+.trip-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.trip-detail-page-toolbar {
+  display: flex;
+  justify-content: flex-start;
 }
