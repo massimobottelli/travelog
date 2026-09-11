@@ -68,9 +68,9 @@ function mockListTrips(): void {
 }
 
 describe("TripDaysModal (creazione manuale viaggi)", () => {
-  it("opens from the global action menu, above the dashboard", async () => {
+  it("opens from the global action menu as a centered dialog", async () => {
     mockListTrips();
-    const { container } = render(<TripsPage />);
+    render(<TripsPage />);
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Nuovo Viaggio" })).not.toBeNull();
     });
@@ -80,12 +80,10 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     await waitFor(() => {
       expect(screen.getByTestId("trip-days-modal")).not.toBeNull();
     });
-    // The modal sits above the two-column dashboard.
+    // The modal is a centered dialog rendered over the page (portal).
     const modal = screen.getByTestId("trip-days-modal");
-    const dashboard = container.querySelector(".trips-dashboard")!;
-    expect(
-      modal.compareDocumentPosition(dashboard) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(modal.closest(".modal-overlay")).not.toBeNull();
+    expect(screen.getByRole("dialog", { name: "Crea viaggio" })).not.toBeNull();
   });
 
   it("follows the day-by-day workflow: day first, then localities", async () => {
@@ -241,5 +239,47 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     });
     // The search input is focused, ready to type.
     expect(document.activeElement?.getAttribute("id")).toBe("trip-day-locality");
+  });
+
+  it("shows a message when the locality search fails", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/localities/autocomplete")) {
+        return jsonResponse(
+          {
+            code: "GEOAPIFY_NOT_CONFIGURED",
+            message: "Ricerca global non disponibile: chiave API Geoapify non configurata",
+            details: {},
+          },
+          503,
+        );
+      }
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
+    render(
+      <TripDaysModal
+        submitting={false}
+        error={null}
+        onSubmit={vi.fn()}
+        onCancel={() => undefined}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Primo giorno"), {
+      target: { value: "2025-08-10" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Aggiungi giorno al viaggio" }));
+    fireEvent.change(screen.getByLabelText("Località visitate il 10/08/2025"), {
+      target: { value: "Verona" },
+    });
+
+    // The failure is surfaced instead of leaving the result list empty.
+    await waitFor(
+      () => {
+        expect(screen.getByText(/chiave API Geoapify non configurata/)).not.toBeNull();
+      },
+      { timeout: 2000 },
+    );
   });
 });

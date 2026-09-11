@@ -25,11 +25,13 @@
 import { useEffect, useRef, useState } from "react";
 import { addDaysIso, formatTripDate } from "../utils/format";
 import { TrashIcon } from "./icons";
+import Modal from "./Modal";
 import {
   autocompleteLocalities,
   resolveLocality,
   type LocalitySuggestion,
 } from "../api/exclusion-zones";
+import { errorToMessage } from "../utils/error";
 
 export interface ModalDayLocality {
   id: number;
@@ -98,10 +100,17 @@ export default function TripDaysModal({
       return;
     }
     setSearching(true);
+    // A new search supersedes the previous error (search or add failure).
+    setAddError(null);
     debounceRef.current = setTimeout(() => {
       autocompleteLocalities(q)
         .then((items) => setSuggestions(items))
-        .catch(() => setSuggestions([]))
+        .catch((err: unknown) => {
+          // Surface the failure (e.g. Geoapify not configured, backend
+          // unreachable): an empty result list alone would hide it.
+          setSuggestions([]);
+          setAddError(errorToMessage(err));
+        })
         .finally(() => setSearching(false));
     }, 300);
     return () => {
@@ -213,172 +222,177 @@ export default function TripDaysModal({
   }
 
   return (
-    <form className="panel dialog" onSubmit={handleSubmit} data-testid="trip-days-modal">
-      <h2>Crea viaggio</h2>
+    <Modal label="Crea viaggio">
+      <form className="panel dialog" onSubmit={handleSubmit} data-testid="trip-days-modal">
+        <h2>Crea viaggio</h2>
 
-      {/* ── Step 2: trip name ────────────────────────────────────── */}
-      <div className="field">
-        <label htmlFor="trip-days-name">Nome viaggio</label>
-        <input
-          id="trip-days-name"
-          name="name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={200}
-          placeholder="Es. Vacanza estiva"
-        />
-      </div>
-
-      {/* ── Step 3: new day + "Aggiungi giorno" ──────────────────── */}
-      <div className="field-row">
+        {/* ── Step 2: trip name ────────────────────────────────────── */}
         <div className="field">
-          <label htmlFor="trip-day-date">Primo giorno</label>
+          <label htmlFor="trip-days-name">Nome viaggio</label>
           <input
-            id="trip-day-date"
-            name="dayDate"
-            type="date"
-            value={dayDate}
-            onChange={(e) => setDayDate(e.target.value)}
+            id="trip-days-name"
+            name="name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={200}
+            placeholder="Es. Vacanza estiva"
           />
         </div>
-        <div className="field">
-          <label aria-hidden="true">&nbsp;</label>
-          <button
-            type="button"
-            onClick={addDay}
-            disabled={!dayDate}
-            aria-label="Aggiungi giorno al viaggio"
-          >
-            Aggiungi giorno
-          </button>
-        </div>
-      </div>
 
-      {/* ── Steps 4–8: day rows with their localities ────────────── */}
-      {sorted.length > 0 ? (
-        <ul className="trip-modal-days" data-testid="trip-modal-days">
-          {sorted.map((day) => (
-            <li key={day.date} className={selectedDate === day.date ? "day-row active" : "day-row"}>
-              <div className="day-row-head">
-                <button
-                  type="button"
-                  className="link"
-                  onClick={() => selectDay(day.date)}
-                  aria-label={`Seleziona il giorno ${formatTripDate(day.date)}`}
-                >
-                  <strong>{formatTripDate(day.date)}</strong>
-                </button>
-                <span className="day-row-actions">
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label={`Rimuovi il giorno ${formatTripDate(day.date)}`}
-                    title="Rimuovi il giorno"
-                    onClick={() => removeDay(day.date)}
-                    disabled={submitting}
-                  >
-                    <TrashIcon size={14} />
-                  </button>
-                </span>
-              </div>
-              {day.localities.length > 0 && (
-                <ul className="exclusion-list">
-                  {day.localities.map((loc) => (
-                    <li key={loc.id}>
-                      <span className="badge">Comune/località</span>
-                      <strong>{localityLabel(loc)}</strong>
-                      <button
-                        type="button"
-                        className="icon-button"
-                        aria-label={`Rimuovi ${loc.name} dal giorno ${formatTripDate(day.date)}`}
-                        title="Rimuovi la località"
-                        onClick={() => removeLocality(day.date, loc.id)}
-                        disabled={submitting}
-                      >
-                        <TrashIcon size={14} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {/* Steps 5–7: the locality search lives INSIDE the blue box
-                  of the day in edit. */}
-              {selectedDate === day.date && (
-                <div className="day-locality-search">
-                  <div className="field">
-                    <input
-                      id="trip-day-locality"
-                      name="localitySearch"
-                      type="text"
-                      ref={searchInputRef}
-                      value={query}
-                      aria-label={`Località visitate il ${formatTripDate(day.date)}`}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Cerca una località…"
-                      autoComplete="off"
-                    />
-                  </div>
-                  {searching && <p className="hint">Ricerca…</p>}
-                  {suggestions.length > 0 && (
-                    <ul className="exclusion-results">
-                      {suggestions.map((s) => (
-                        <li key={s.placeId}>
-                          <span className="badge">Comune/località</span>
-                          <strong>{s.name}</strong>
-                          <span className="hint">
-                            {" "}
-                            — {[s.county, s.region, s.country].filter(Boolean).join(", ")}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => addLocality(s)}
-                            disabled={resolving === s.placeId}
-                          >
-                            {resolving === s.placeId ? "Aggiunta…" : "Aggiungi"}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {addError && <p className="alert alert-error">{addError}</p>}
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="hint">&nbsp;</p>
-      )}
-
-      {/* ── Step 10: conclude the trip ───────────────────────────── */}
-      {/* On success the confirmation replaces the action buttons. */}
-      {message ? (
-        <p className="alert alert-success dialog-message" role="status">
-          {message}
-        </p>
-      ) : (
-        <div className="confirm-actions">
-          {selectedDate !== null && (
+        {/* ── Step 3: new day + "Aggiungi giorno" ──────────────────── */}
+        <div className="field-row">
+          <div className="field">
+            <label htmlFor="trip-day-date">Primo giorno</label>
+            <input
+              id="trip-day-date"
+              name="dayDate"
+              type="date"
+              value={dayDate}
+              onChange={(e) => setDayDate(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label aria-hidden="true">&nbsp;</label>
             <button
               type="button"
-              onClick={addNextDay}
-              disabled={submitting}
-              aria-label="Aggiungi giorno dopo quello selezionato"
+              onClick={addDay}
+              disabled={!dayDate}
+              aria-label="Aggiungi giorno al viaggio"
             >
               Aggiungi giorno
             </button>
-          )}
-          <button type="submit" disabled={submitting || days.length === 0}>
-            {submitting ? "Salvataggio…" : "Salva"}
-          </button>
-          <button type="button" className="secondary" onClick={onCancel} disabled={submitting}>
-            Annulla
-          </button>
+          </div>
         </div>
-      )}
-      {error && <p className="alert alert-error">{error}</p>}
-    </form>
+
+        {/* ── Steps 4–8: day rows with their localities ────────────── */}
+        {sorted.length > 0 ? (
+          <ul className="trip-modal-days" data-testid="trip-modal-days">
+            {sorted.map((day) => (
+              <li
+                key={day.date}
+                className={selectedDate === day.date ? "day-row active" : "day-row"}
+              >
+                <div className="day-row-head">
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => selectDay(day.date)}
+                    aria-label={`Seleziona il giorno ${formatTripDate(day.date)}`}
+                  >
+                    <strong>{formatTripDate(day.date)}</strong>
+                  </button>
+                  <span className="day-row-actions">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={`Rimuovi il giorno ${formatTripDate(day.date)}`}
+                      title="Rimuovi il giorno"
+                      onClick={() => removeDay(day.date)}
+                      disabled={submitting}
+                    >
+                      <TrashIcon size={14} />
+                    </button>
+                  </span>
+                </div>
+                {day.localities.length > 0 && (
+                  <ul className="exclusion-list">
+                    {day.localities.map((loc) => (
+                      <li key={loc.id}>
+                        <span className="badge">Comune/località</span>
+                        <strong>{localityLabel(loc)}</strong>
+                        <button
+                          type="button"
+                          className="icon-button"
+                          aria-label={`Rimuovi ${loc.name} dal giorno ${formatTripDate(day.date)}`}
+                          title="Rimuovi la località"
+                          onClick={() => removeLocality(day.date, loc.id)}
+                          disabled={submitting}
+                        >
+                          <TrashIcon size={14} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* Steps 5–7: the locality search lives INSIDE the blue box
+                  of the day in edit. */}
+                {selectedDate === day.date && (
+                  <div className="day-locality-search">
+                    <div className="field">
+                      <input
+                        id="trip-day-locality"
+                        name="localitySearch"
+                        type="text"
+                        ref={searchInputRef}
+                        value={query}
+                        aria-label={`Località visitate il ${formatTripDate(day.date)}`}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Cerca una località…"
+                        autoComplete="off"
+                      />
+                    </div>
+                    {searching && <p className="hint">Ricerca…</p>}
+                    {suggestions.length > 0 && (
+                      <ul className="exclusion-results">
+                        {suggestions.map((s) => (
+                          <li key={s.placeId}>
+                            <span className="badge">Comune/località</span>
+                            <strong>{s.name}</strong>
+                            <span className="hint">
+                              {" "}
+                              — {[s.county, s.region, s.country].filter(Boolean).join(", ")}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => addLocality(s)}
+                              disabled={resolving === s.placeId}
+                            >
+                              {resolving === s.placeId ? "Aggiunta…" : "Aggiungi"}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {addError && <p className="alert alert-error">{addError}</p>}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="hint">&nbsp;</p>
+        )}
+
+        {/* ── Step 10: conclude the trip ───────────────────────────── */}
+        {/* On success the confirmation replaces the action buttons. */}
+        {message ? (
+          <p className="alert alert-success dialog-message" role="status">
+            {message}
+          </p>
+        ) : (
+          <div className="confirm-actions">
+            {selectedDate !== null && (
+              <button
+                type="button"
+                onClick={addNextDay}
+                disabled={submitting}
+                aria-label="Aggiungi giorno dopo quello selezionato"
+              >
+                Aggiungi giorno
+              </button>
+            )}
+            <button type="submit" disabled={submitting || days.length === 0}>
+              {submitting ? "Salvataggio…" : "Salva"}
+            </button>
+            <button type="button" className="secondary" onClick={onCancel} disabled={submitting}>
+              Annulla
+            </button>
+          </div>
+        )}
+        {error && <p className="alert alert-error">{error}</p>}
+      </form>
+    </Modal>
   );
 }

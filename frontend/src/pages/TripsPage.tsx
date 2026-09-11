@@ -31,6 +31,7 @@ import TripDaysModal, { type TripDaysPayload } from "../components/TripDaysModal
 import TripsDashboard from "../components/TripsDashboard";
 import GlobalActionMenu from "../components/GlobalActionMenu";
 import Modal from "../components/Modal";
+import MergeDialog from "../components/MergeDialog";
 import TopBarSlot from "../components/TopBarSlot";
 import ErrorAlert from "../components/ErrorAlert";
 import { SearchIcon } from "../components/icons";
@@ -56,17 +57,18 @@ export default function TripsPage() {
   // Success notification of an operation run inside a dialog: it is shown at
   // the bottom of the dialog and the dialog closes on its timeout.
   const [dialogMessage, setDialogMessage] = useState<string | null>(null);
-  // Non-dialog operations (merge) keep their notification in the page header.
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   // Manual trip creation (modal).
   const [daysModalOpen, setDaysModalOpen] = useState(false);
   const [daysSubmitting, setDaysSubmitting] = useState(false);
   const [daysModalError, setDaysModalError] = useState<string | null>(null);
 
+  // Merge (§13.4): the selection happens on the cards in merge mode, the
+  // confirmation (recap + optional name) in a centered dialog.
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [mergeTitle, setMergeTitle] = useState("");
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   // The delete confirmation stores the trip name so the success message can
   // stay visible even after the list is reloaded without the deleted trip.
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
@@ -83,7 +85,6 @@ export default function TripsPage() {
   const [exporting, setExporting] = useState(false);
 
   useAutoDismiss(recalcMessage, () => setRecalcMessage(null));
-  useAutoDismiss(actionMessage, () => setActionMessage(null));
 
   // The dialog closes only after its success notification disappears: this
   // callback stays stable so re-renders (e.g. the list reload) do not restart
@@ -93,6 +94,11 @@ export default function TripsPage() {
     setDialog(null);
     setConfirmDelete(null);
     setDaysModalOpen(false);
+    // Merge mode and its selection only end with the (confirmed) merge.
+    setMergeDialogOpen(false);
+    setMergeMode(false);
+    setSelectedIds([]);
+    setMergeTitle("");
   }, []);
   useAutoDismiss(dialogMessage, closeDialogAfterNotification);
 
@@ -202,11 +208,9 @@ export default function TripsPage() {
     setActionError(null);
     try {
       await mergeTrips({ tripIds: selectedIds, title: mergeTitle.trim() || undefined });
-      setMergeMode(false);
-      setSelectedIds([]);
-      setMergeTitle("");
-      // Merge is not a dialog operation: its notification stays in the header.
-      setActionMessage("Viaggi uniti: i viaggi originali restano nello storico.");
+      // The confirmation stays in the dialog, which closes on its timeout
+      // (then merge mode and the selection are dropped).
+      setDialogMessage("Viaggi uniti: i viaggi originali restano nello storico.");
       await refreshAfterOperation();
     } catch (err: unknown) {
       setActionError(errorToMessage(err));
@@ -220,9 +224,16 @@ export default function TripsPage() {
   };
 
   const toggleMergeMode = (): void => {
+    setMergeDialogOpen(false);
+    setDialogMessage(null);
     setMergeMode((value) => !value);
     setSelectedIds([]);
     setMergeTitle("");
+  };
+
+  const closeMergeDialog = (): void => {
+    setDialogMessage(null);
+    setMergeDialogOpen(false);
   };
 
   const handleDelete = async (tripId: number): Promise<void> => {
@@ -289,6 +300,10 @@ export default function TripsPage() {
     }
   };
 
+  // Trips selected for the merge, in sidebar order (only loaded trips can be
+  // selected, see reload()).
+  const selectedTrips = (trips ?? []).filter((trip) => selectedIds.includes(trip.id));
+
   return (
     <div className="page trips-page">
       {/* Top bar content (new UI §1.1): the search field and the global
@@ -334,31 +349,27 @@ export default function TripsPage() {
       {mergeMode && (
         <div className="merge-bar">
           <p className="hint">
-            Seleziona due o più viaggi da unire. Il nome proposto è quello del primo viaggio
-            selezionato; gli originali restano nello storico.
+            Seleziona due o più viaggi da unire: la conferma si apre in una finestra e gli originali
+            restano nello storico.
           </p>
-          <input
-            type="text"
-            placeholder="Nome del viaggio unito (opzionale)"
-            aria-label="Nome del viaggio unito"
-            value={mergeTitle}
-            onChange={(e) => setMergeTitle(e.target.value)}
-          />
           <button
             type="button"
-            onClick={handleMerge}
+            onClick={() => {
+              setDialogMessage(null);
+              setActionError(null);
+              setMergeDialogOpen(true);
+            }}
             disabled={selectedIds.length < 2 || operating}
           >
-            {operating ? "Unione in corso…" : `Unisci ${selectedIds.length} viaggi selezionati`}
+            {`Unisci ${selectedIds.length} viaggi selezionati`}
           </button>
         </div>
       )}
 
-      {(recalcMessage || recalcError || actionMessage || actionError) && (
+      {(recalcMessage || recalcError || actionError) && (
         <div className="trips-messages">
           {recalcMessage && <p className="alert alert-success">{recalcMessage}</p>}
           {recalcError && <ErrorAlert message={recalcError} />}
-          {actionMessage && <p className="alert alert-success">{actionMessage}</p>}
           {actionError && <ErrorAlert message={actionError} />}
         </div>
       )}
@@ -489,6 +500,20 @@ export default function TripsPage() {
             </div>
           )}
         </Modal>
+      )}
+
+      {/* Merge confirmation (§13.4): recap of the trips selected on the cards. */}
+      {mergeDialogOpen && (
+        <MergeDialog
+          trips={selectedTrips}
+          title={mergeTitle}
+          onTitleChange={setMergeTitle}
+          operating={operating}
+          error={actionError}
+          message={dialogMessage}
+          onSubmit={handleMerge}
+          onCancel={closeMergeDialog}
+        />
       )}
     </div>
   );

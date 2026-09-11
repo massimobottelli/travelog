@@ -1793,6 +1793,7 @@ TripsPage                       (dati, operazioni, dialoghi)
 │   └── colonna destra (flex-grow)
 │       └── TripMap (fullHeight)
 ├── Modal ─ TripDialog          (rinomina / date / dividi)
+├── Modal ─ MergeDialog         (unione, §13.4)
 └── Modal ─ conferma eliminazione
 ```
 
@@ -1802,27 +1803,33 @@ TripsPage                       (dati, operazioni, dialoghi)
   di espansione.
 * **`Modal`** — wrapper di presentazione riusabile (`createPortal` su
   `document.body`, overlay oscurato, box centrato orizzontalmente e
-  verticalmente, larghezza 50% con limiti di sicurezza). Il `TripDialog`
-  (rinomina / date / dividi) e la conferma di eliminazione vivono dentro un
-  `Modal`; la creazione manuale (`TripDaysModal`) resta il pannello inline
-  sotto la testata.
+  verticalmente, larghezza 50% con limiti di sicurezza). **Tutti** i dialoghi
+  della pagina vivono dentro un `Modal` e condividono lo stesso aspetto: il
+  `TripDialog` (rinomina / date / dividi), la conferma di eliminazione, la
+  creazione manuale (`TripDaysModal`) e la conferma di unione (`MergeDialog`).
 * **`TripContextMenu`** — menu contestuale (icona ingranaggio) del singolo
   viaggio con *Rinomina / Modifica date / Dividi viaggio / Elimina*. Le azioni
   sono delegate al parent, che riusa `TripDialog` e la conferma di
   eliminazione esistenti.
+* **`MergeDialog`** — conferma dell'unione (§13.4) in una finestra centrata:
+  riepilogo dei viaggi selezionati (recap in `selectedTrips`) e campo opzionale
+  per il nome del viaggio unito. La *selezione* resta invece sulle card in
+  merge mode (`TripCard` checkbox, `onToggleSelected`): la barra `merge-bar`
+  tiene solo il suggerimento e il pulsante che apre il dialog. Un overlay
+  modale bloccherebbe i click sulla sidebar, per questo selezione e conferma
+  sono separate.
 * **Notifica di conferma in-dialog** — le operazioni eseguite dentro un
-  dialogo (rinomina, modifica date, dividi, eliminazione, creazione manuale)
-  non scrivono più la conferma nel messaggio di pagina: il messaggio
-  (`alert-success`) viene mostrato **in fondo al dialogo** e il dialogo resta
-  aperto fino all'auto-dismiss (3s, `useAutoDismiss`), che azzera il messaggio
-  e chiude il dialogo. Durante la notifica i pulsanti di conferma sono
-  disabilitati. L'unica eccezione è l'*Unione* (§13.4), che non ha un dialogo
-  dedicato e mantiene la notifica nella testata della pagina.
+  dialogo (rinomina, modifica date, dividi, eliminazione, creazione manuale,
+  unione) non scrivono la conferma nel messaggio di pagina: il messaggio
+  (`alert-success`) viene mostrato **al posto dei pulsanti** di conferma e il
+  dialogo resta aperto fino all'auto-dismiss (3s, `useAutoDismiss`), che azzera
+  il messaggio e chiude il dialogo.
 * **`GlobalActionMenu`** — dropdown primario "+ Nuovo Viaggio" (blu, come il
   pulsante di conferma; UI
   §1.1) con le azioni d'ingresso *Scansione* (→ `/scans`), *Crea Viaggio*
   (modale `TripDaysModal`, §47bis), *Esporta* (`exportTripsCsv`) e *Unisci*
-  (merge mode esistente, §13.4), più il comando esplicito *Ricalcola* (§46).
+  (attiva la merge mode sulle card, §13.4), più il comando esplicito
+  *Ricalcola* (§46).
   Il componente non esegue chiamate API: ogni voce è delegata al parent, che
   possiede le chiamate, la merge mode e la modale di creazione.
 * **`TripsDashboard`** — layout a due colonne, riceve dati e handler dal

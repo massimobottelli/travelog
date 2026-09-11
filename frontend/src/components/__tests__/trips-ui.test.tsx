@@ -277,7 +277,13 @@ describe("TripsPage", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Unisci" }));
     fireEvent.click(screen.getByLabelText("Seleziona Vacanza in Toscana"));
     fireEvent.click(screen.getByLabelText("Seleziona Weekend a Roma"));
+    // The confirmation happens in a centered dialog showing the recap.
+    expect(screen.queryByRole("dialog", { name: "Unione viaggi" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Unisci 2 viaggi selezionati" }));
+    const dialog = screen.getByRole("dialog", { name: "Unione viaggi" });
+    expect(dialog.textContent).toContain("Vacanza in Toscana");
+    expect(dialog.textContent).toContain("Weekend a Roma");
+    fireEvent.click(screen.getByRole("button", { name: "Conferma unione" }));
 
     await waitFor(() => {
       const mergeCall = fetchMock.mock.calls.find(([url]) => String(url) === "/api/trips/merge");
