@@ -2,10 +2,10 @@
  * Travelog — Trip context menu (new UI, phase 3)
  *
  * The per-trip gear dropdown described in the UI spec §2.1: it exposes the
- * punctual actions of a trip (Rinomina / Modifica date / Elimina Località /
+ * punctual actions of a trip (Rinomina / Modifica date / Modifica viaggio /
  * Dividi viaggio / Elimina) and delegates them to the parent, which reuses
  * the existing dialogs (`TripDialog`) and the delete confirmation. The
- * "Elimina Località" entry appears only on active trips and enables the
+ * "Modifica viaggio" entry appears only on active trips and enables the
  * inline day/locality editing of the expanded card (§51).
  *
  * The menu is self-contained: it owns its open/closed state and closes on
@@ -25,7 +25,7 @@ export interface TripContextMenuProps {
   onRename: () => void;
   onEditDates: () => void;
   /**
-   * Enables the inline day/locality editing (§51): the "Elimina Località"
+   * Enables the inline day/locality editing (§51): the "Modifica viaggio"
    * entry appears only when provided (active trips).
    */
   onEditDays?: () => void;
@@ -140,6 +140,16 @@ export default function TripContextMenu({
             >
               <PencilIcon size={15} /> Rinomina
             </button>
+            {onEditDays && (
+              <button
+                type="button"
+                role="menuitem"
+                className="trip-context-item"
+                onClick={select(onEditDays)}
+              >
+                <PencilIcon size={15} /> Modifica viaggio
+              </button>
+            )}              
             <button
               type="button"
               role="menuitem"
@@ -148,16 +158,6 @@ export default function TripContextMenu({
             >
               <CalendarIcon size={15} /> Modifica date
             </button>
-            {onEditDays && (
-              <button
-                type="button"
-                role="menuitem"
-                className="trip-context-item"
-                onClick={select(onEditDays)}
-              >
-                <TrashIcon size={15} /> Modifica viaggio
-              </button>
-            )}
             <button
               type="button"
               role="menuitem"

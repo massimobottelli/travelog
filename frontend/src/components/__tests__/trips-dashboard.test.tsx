@@ -355,11 +355,11 @@ describe("TripsDashboard (new UI, phase 4)", () => {
   it("keeps the expanded card read-only without onReplaceDays", () => {
     render(<TripsDashboard {...baseProps({ selectedTripId: 1, detail: DETAIL })} />);
 
-    expect(screen.queryByRole("menuitem", { name: "Elimina Località" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Modifica viaggio" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Elimina il giorno/ })).toBeNull();
   });
 
-  it("hides the Elimina Località entry on archived trips", () => {
+  it("hides the Modifica viaggio entry on archived trips", () => {
     const archivedTrips: Trip[] = [makeTrip({ status: "archived" }), TRIPS[1]];
     render(
       <TripsDashboard
@@ -373,10 +373,10 @@ describe("TripsDashboard (new UI, phase 4)", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Azioni per Lozon" }));
-    expect(screen.queryByRole("menuitem", { name: "Elimina Località" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Modifica viaggio" })).toBeNull();
   });
 
-  it('enables the inline day/locality editing from the "Elimina Località" menu voice (§51)', async () => {
+  it('enables the inline day/locality editing from the "Modifica viaggio" menu voice (§51)', async () => {
     const onReplaceDays = vi.fn().mockResolvedValue(undefined);
     render(<TripsDashboard {...baseProps({ selectedTripId: 1, detail: DETAIL, onReplaceDays })} />);
 
@@ -384,7 +384,7 @@ describe("TripsDashboard (new UI, phase 4)", () => {
     expect(screen.queryByRole("button", { name: /Elimina la località/ })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Azioni per Lozon" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Elimina Località" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Modifica viaggio" }));
 
     // Deleting the only locality of the day persists the day without it,
     // reporting the trip id to the parent.

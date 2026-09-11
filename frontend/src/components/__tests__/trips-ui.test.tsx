@@ -184,17 +184,15 @@ describe("TripsPage", () => {
     });
     expect(screen.getByText("05/09/2025")).not.toBeNull();
 
-    // Read-only until the "Elimina Località" context-menu voice is chosen.
+    // Read-only until the "Modifica viaggio" context-menu voice is chosen.
     expect(screen.queryByRole("button", { name: /Elimina la località/ })).toBeNull();
 
     // The voice enables the day/locality commands on the active trip.
     fireEvent.click(screen.getByRole("button", { name: "Azioni per Weekend a Roma" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Elimina Località" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Modifica viaggio" }));
     expect(screen.getByRole("button", { name: /Elimina la località Roma/ })).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Aggiungi località al giorno/ })).not.toBeNull();
     expect(screen.getByRole("button", { name: /Termina la modifica dei giorni/ })).not.toBeNull();
-    // The dashboard's delete-only mode hides the add commands.
-    expect(screen.queryByRole("button", { name: /Aggiungi località al giorno/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Aggiungi giorno/ })).toBeNull();
   });
 
   it("persists an inline day edit of the expanded card through PUT /api/trips/:id/days (§51)", async () => {
@@ -226,7 +224,7 @@ describe("TripsPage", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Azioni per Weekend a Roma" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Elimina Località" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Modifica viaggio" }));
     fireEvent.click(screen.getByRole("button", { name: /Elimina la località Roma/ }));
 
     await waitFor(() => {

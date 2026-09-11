@@ -253,7 +253,7 @@ export default function TripsPage() {
     }
   };
 
-  // Inline day/locality deletion of the expanded card ("Elimina Località",
+  // Inline day/locality editing of the expanded card ("Modifica viaggio",
   // §51): persist the full day list, then refresh detail, map and list
   // together (the trip interval may have changed). On failure the error
   // propagates to the timeline, which shows it in place.

@@ -118,7 +118,7 @@ describe("TripContextMenu (per-trip gear, UI §2.1)", () => {
     expect(screen.queryByRole("menu")).toBeNull(); // closes after the action
   });
 
-  it("shows Elimina Località only when onEditDays is provided and invokes it", () => {
+  it("shows Modifica viaggio only when onEditDays is provided and invokes it", () => {
     const onEditDays = vi.fn();
     render(<TripCard {...baseProps({ onEditDays })} />);
 
@@ -131,12 +131,12 @@ describe("TripContextMenu (per-trip gear, UI §2.1)", () => {
     ).toEqual([
       "Rinomina",
       "Modifica date",
-      "Elimina Località",
+      "Modifica viaggio",
       "Dividi viaggio",
       "Elimina viaggio",
     ]);
 
-    fireEvent.click(screen.getByRole("menuitem", { name: "Elimina Località" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Modifica viaggio" }));
     expect(onEditDays).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).toBeNull();
   });

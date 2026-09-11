@@ -6,9 +6,9 @@
  * - subtitle with the date range and computed duration, preceded by a
  *   calendar icon (e.g. "3 Lug - 31 Lug 2026 · 29 gg");
  * - geographic tags from `Trip.regions` (counties/regions visited);
- * - per-trip gear context menu (Rinomina / Modifica date / Elimina Località /
+ * - per-trip gear context menu (Rinomina / Modifica date / Modifica viaggio /
  *   Dividi / Elimina), delegated to the parent so it reuses the existing
- *   dialogs. The "Elimina Località" entry appears only on active trips and
+ *   dialogs. The "Modifica viaggio" entry appears only on active trips and
  *   enables the inline day/locality editing of the expanded body (§51).
  *
  * The expanded body is provided by the parent through `children`: the
@@ -33,7 +33,7 @@ export interface TripCardProps {
   onEditDates: () => void;
   /**
    * Enables the inline day/locality editing (§51): when provided, the
-   * context menu shows the "Elimina Località" entry.
+   * context menu shows the "Modifica viaggio" entry.
    */
   onEditDays?: () => void;
   onSplit: () => void;

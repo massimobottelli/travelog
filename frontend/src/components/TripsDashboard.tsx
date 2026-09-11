@@ -19,10 +19,10 @@
  * matching pin popup, and clicking a pin highlights its timeline row
  * (UI §3.1).
  *
- * On active trips the expanded body offers the "Elimina Località" entry
+ * On active trips the expanded body offers the "Modifica viaggio" entry
  * (§51) in the trip context menu: it enables the inline day/locality
- * deletion (no locality search / "Aggiungi giorno", which stay on the
- * detail page), persisted through the `onReplaceDays` callback of the page.
+ * editing (same commands as the detail page), persisted through the
+ * `onReplaceDays` callback of the page.
  */
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -55,7 +55,7 @@ export interface TripsDashboardProps {
   onDelete: (trip: Trip) => void;
   /**
    * When provided, every active trip exposes the inline day/locality
-   * deletion through the "Elimina Località" context-menu entry (§51): the
+   * editing through the "Modifica viaggio" context-menu entry (§51): the
    * callback persists the full day list of the trip and refreshes the
    * detail (§47bis).
    */
@@ -95,7 +95,7 @@ export default function TripsDashboard({
   const [highlightedLocalityId, setHighlightedLocalityId] = useState<number | null>(null);
   /**
    * Expanded card whose days are being edited inline, entered from the
-   * "Elimina Località" voice of the trip context menu (§51).
+   * "Modifica viaggio" voice of the trip context menu (§51).
    * Only one card at a time can be edited.
    */
   const [editingTripId, setEditingTripId] = useState<number | null>(null);
@@ -124,8 +124,8 @@ export default function TripsDashboard({
           {trips.map((trip) => {
             const expanded = trip.id === selectedTripId;
             // Inline day editing (§51): active trips only, exactly like the
-            // standalone detail page. It is entered from the "Elimina
-            // Località" entry of the trip context menu, which also expands
+            // standalone detail page. It is entered from the "Modifica
+            // viaggio" entry of the trip context menu, which also expands
             // the card when needed.
             const editing = expanded && editingTripId === trip.id;
             const editable = detail?.status === "active" && onReplaceDays !== undefined;
@@ -168,7 +168,6 @@ export default function TripsDashboard({
                         : undefined
                     }
                     onExitEditing={() => setEditingTripId(null)}
-                    allowAdditions={false}
                     activeLocalityId={highlightedLocalityId}
                     onLocalityHover={setHighlightedLocalityId}
                   />

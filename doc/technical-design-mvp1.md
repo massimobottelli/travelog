@@ -1788,7 +1788,7 @@ TripsPage                       (dati, operazioni, dialoghi)
 │   │   ├── GlobalActionMenu ("+ Nuovo Viaggio", §1.1)
 │   │   ├── campo di ricerca (filtro server-side via GET /trips?search=)
 │   │   ├── TripCard (accordion) + TripContextMenu + link scheda
-│   │   └── TripTimeline (card espansa, §2.2, "Elimina Località" §51)
+│   │   └── TripTimeline (card espansa, §2.2, "Modifica viaggio" §51)
 │   ├── footer sidebar (paginazione)
 │   └── colonna destra (flex-grow)
 │       └── TripMap (fullHeight)
@@ -1808,8 +1808,8 @@ TripsPage                       (dati, operazioni, dialoghi)
   `TripDialog` (rinomina / date / dividi), la conferma di eliminazione, la
   creazione manuale (`TripDaysModal`) e la conferma di unione (`MergeDialog`).
 * **`TripContextMenu`** — menu contestuale (icona ingranaggio) del singolo
-  viaggio con *Rinomina / Modifica date / Elimina Località / Dividi viaggio /
-  Elimina viaggio*. La voce *Elimina Località* compare solo sui viaggi
+  viaggio con *Rinomina / Modifica date / Modifica viaggio / Dividi viaggio /
+  Elimina viaggio*. La voce *Modifica viaggio* compare solo sui viaggi
   `active` e abilita la modifica inline di giorni/località nella card espansa
   (§51). Le azioni sono delegate al parent, che riusa `TripDialog` e la
   conferma di eliminazione esistenti.
@@ -1849,22 +1849,21 @@ TripsPage                       (dati, operazioni, dialoghi)
   `TripDetailPanel` (§16) ed è riusato sia nella card espansa sia nella
   pagina di dettaglio `/trips/:id`; il pannello di dettaglio conserva solo
   l'intestazione, la mappa e il toggle "Modifica" (nella dashboard la
-  modalità si attiva invece dalla voce "Elimina Località", §51).
+  modalità si attiva invece dalla voce "Modifica viaggio", §51).
 * **Sincronizzazione timeline ↔ mappa (§3.1)** — `TripsDashboard` possiede
   `activeLocalityId`: l'hover o il click su una località nella timeline
   (`onLocalityHover` / `onLocalityClick`) apre il popup del pin
   corrispondente e vi vola sopra; il click su un pin (`onMarkerClick`) evidenzia
   la riga corrispondente nella timeline.
 * **Modifica giorni/località (§51)** — `TripTimeline` mostra i comandi
-  (cestino giorno/località e, nella pagina di dettaglio, anche la ricerca
-  località con "+" e "Aggiungi giorno"/"Fine") solo quando il parent abilita
-  `editing` e fornisce `onReplaceDays` (§47bis). Sulla **pagina di
-  dettaglio** il toggle "Modifica" attiva la modifica completa (`allowAdditions`
-  di default `true`). Nella **dashboard** la voce "Elimina Località" del menu
-  contestuale (solo viaggi `active`) espande la card e attiva una modalità di
-  **sola eliminazione** (`allowAdditions={false}`: niente ricerca località né
-  "Aggiungi giorno"); `TripsPage` fornisce `onReplaceDays`
-  (PUT `/trips/{tripId}/days` seguito dal refresh di dettaglio, mappa e lista).
+  (cestino giorno/località, ricerca località con "+" e "Aggiungi
+  giorno"/"Fine") solo quando il parent abilita `editing` e fornisce
+  `onReplaceDays` (§47bis). Sulla **pagina di dettaglio** il toggle
+  "Modifica" attiva la modifica completa; nella **dashboard** la voce
+  "Modifica viaggio" del menu contestuale (solo viaggi `active`) espande la
+  card e attiva la stessa modifica inline; `TripsPage` fornisce
+  `onReplaceDays` (PUT `/trips/{tripId}/days` seguito dal refresh di
+  dettaglio, mappa e lista).
 * **Link scheda condivisibile** — ogni card espone un pulsante (icona link
   esterno) che apre `/trips/:id` in una nuova scheda: la pagina di dettaglio
   `TripDetailPage` (§16) resta raggiungibile e condivisibile.

@@ -16,9 +16,7 @@
  *
  * Inline editing (active trips only) stays available when `onReplaceDays`
  * is provided: the parent toggles it with `editing`, and the trash/add
- * commands persist the full day list atomically. When `allowAdditions` is
- * false (the dashboard's "Elimina Località" mode) only the delete commands
- * are shown; the locality search and "Aggiungi giorno" stay hidden.
+ * commands persist the full day list atomically.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -34,19 +32,12 @@ import { PinIcon, PlusIcon, PhotoIcon, TrashIcon } from "./icons";
 
 export interface TripTimelineProps {
   days: TripDetail["days"];
-  /** Inline edit mode, toggled by the parent ("Modifica" / "Elimina Località"). */
+  /** Inline edit mode, toggled by the parent ("Modifica" / "Fine"). */
   editing?: boolean;
   /** Persists the full day list; when provided the edit commands appear. */
   onReplaceDays?: (days: TripDayInput[]) => Promise<void>;
   /** Leaves the inline edit mode ("Fine" button). */
   onExitEditing?: () => void;
-  /**
-   * Shows the "add" commands in edit mode (locality search and "Aggiungi
-   * giorno"). Defaults to true (full detail-page editing); the dashboard
-   * passes false so its "Elimina Località" entry only removes days and
-   * localities, as the menu label states.
-   */
-  allowAdditions?: boolean;
   /** Locality highlighted on the map (timeline ↔ map sync). */
   activeLocalityId?: number | null;
   /** Reports the locality under the pointer (null when leaving). */
@@ -60,13 +51,11 @@ export default function TripTimeline({
   editing = false,
   onReplaceDays,
   onExitEditing,
-  allowAdditions = true,
   activeLocalityId = null,
   onLocalityHover,
   onLocalityClick,
 }: TripTimelineProps) {
   const showCommands = onReplaceDays !== undefined && editing;
-  const showAddCommands = showCommands && allowAdditions;
   const interactive = onLocalityHover !== undefined || onLocalityClick !== undefined;
 
   // ── Inline locality search (one day at a time) ───────────────────
@@ -268,10 +257,7 @@ export default function TripTimeline({
                       ))}
                     </ul>
                   )}
-                  {/* The locality search and the "+" FAB are only offered in
-                      the full detail-page editing; the "Elimina Località"
-                      mode keeps only the delete commands. */}
-                  {showAddCommands && searchDay === day.date ? (
+                  {searchDay === day.date ? (
                     <div className="day-locality-search">
                       <div className="field">
                         <input
@@ -309,7 +295,7 @@ export default function TripTimeline({
                       )}
                       {addError && <p className="alert alert-error">{addError}</p>}
                     </div>
-                  ) : showAddCommands ? (
+                  ) : (
                     <button
                       type="button"
                       className="icon-button add-locality-fab"
@@ -320,7 +306,7 @@ export default function TripTimeline({
                     >
                       <PlusIcon size={16} />
                     </button>
-                  ) : null}
+                  )}
                 </>
               ) : day.noPhotos ? (
                 <span className="hint">Nessuna foto</span>
@@ -380,17 +366,15 @@ export default function TripTimeline({
       </ul>
       {showCommands && (
         <div className="trip-edit-actions">
-          {allowAdditions && (
-            <button
-              type="button"
-              className="secondary"
-              aria-label="Aggiungi giorno al viaggio"
-              disabled={saving}
-              onClick={addDayAfterLast}
-            >
-              Aggiungi giorno
-            </button>
-          )}
+          <button
+            type="button"
+            className="secondary"
+            aria-label="Aggiungi giorno al viaggio"
+            disabled={saving}
+            onClick={addDayAfterLast}
+          >
+            Aggiungi giorno
+          </button>
           <button
             type="button"
             className="trip-finish"
