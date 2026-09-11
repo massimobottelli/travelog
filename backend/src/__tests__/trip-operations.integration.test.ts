@@ -388,3 +388,66 @@ describe("trip list default (§15)", () => {
     expect(archived.body.items[0].id).toBe(a);
   });
 });
+
+describe("trip card stats: photoCount and regions (new UI)", () => {
+  async function insertCardLocality(
+    hash: string,
+    name: string,
+    county: string,
+    region: string,
+  ): Promise<number> {
+    const res = await pool.query(
+      `INSERT INTO localities (locality_hash, country_code, name, admin_level, county, region, country)
+       VALUES ($1, 'IT', $2, 8, $3, $4, 'Italy') RETURNING id`,
+      [hash, name, county, region],
+    );
+    return Number(res.rows[0].id);
+  }
+
+  it("aggregates photoCount and sorted regions per trip interval in the list", async () => {
+    const erice = await insertCardLocality("ops-test-card-erice", "Erice", "Trapani", "Sicily");
+    const milano = await insertCardLocality("ops-test-card-milano", "Milano", "Milano", "Lombardia");
+    await pool.query(
+      `INSERT INTO presences (photo_date, locality_id, photo_count) VALUES
+         ('2025-08-10', $1, 3),
+         ('2025-08-13', $1, 1),
+         ('2025-08-13', $2, 2)`,
+      [erice, milano],
+    );
+
+    const full = await insertTrip("Sicilia e Lombardia", "2025-08-10", "2025-08-13");
+    const firstDay = await insertTrip("Solo Erice", "2025-08-10", "2025-08-10");
+    const empty = await insertTrip("Vuoto", "2025-09-01", "2025-09-02");
+
+    const res = await request(server).get("/api/trips");
+    expect(res.status).toBe(200);
+    const byId = new Map(
+      res.body.items.map((t: { id: number }) => [t.id, t]),
+    ) as Map<number, { photoCount: number; regions: string[] }>;
+
+    // Full interval: 3 (Erice 08-10) + 1 (Erice 08-13) + 2 (Milano 08-13).
+    expect(byId.get(full)?.photoCount).toBe(6);
+    expect(byId.get(full)?.regions).toEqual(["Milano / Lombardia", "Trapani / Sicily"]);
+    // Only the first day is inside the interval.
+    expect(byId.get(firstDay)?.photoCount).toBe(3);
+    expect(byId.get(firstDay)?.regions).toEqual(["Trapani / Sicily"]);
+    // No presences inside the interval.
+    expect(byId.get(empty)?.photoCount).toBe(0);
+    expect(byId.get(empty)?.regions).toEqual([]);
+  });
+
+  it("exposes photoCount and regions in the single trip detail", async () => {
+    const erice = await insertCardLocality("ops-test-card-erice", "Erice", "Trapani", "Sicily");
+    await pool.query(
+      `INSERT INTO presences (photo_date, locality_id, photo_count) VALUES ('2025-08-10', $1, 4)`,
+      [erice],
+    );
+    const trip = await insertTrip("Dettaglio", "2025-08-10", "2025-08-12");
+
+    const res = await request(server).get(`/api/trips/${trip}`);
+    expect(res.status).toBe(200);
+    expect(res.body.photoCount).toBe(4);
+    expect(res.body.regions).toEqual(["Trapani / Sicily"]);
+  });
+});
+

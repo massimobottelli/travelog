@@ -1285,6 +1285,21 @@ components:
         createdAt:
           type: string
           format: date-time
+        photoCount:
+          type: integer
+          description: |
+            Total number of valid photos (with GPS and geocoding) belonging
+            to the trip. Computed from presences aggregated across all
+            localities in the trip interval. Used by the trip card UI to
+            show "N foto".
+        regions:
+          type: array
+          items:
+            type: string
+          description: |
+            Distinct administrative regions (counties and regions) visited
+            during the trip, used as tags on the trip card. Ordered
+            alphabetically.
 
     CreateTripRequest:
       type: object
@@ -1420,7 +1435,7 @@ components:
     MapMarker:
       type: object
       additionalProperties: false
-      required: [localityId, name, latitude, longitude, photoCount, firstPhotoAt, county, region, country, regionColor]
+      required: [localityId, name, latitude, longitude, photoCount, firstPhotoAt, county, region, country, countyColor]
       properties:
         localityId:
           type: integer
@@ -1445,14 +1460,17 @@ components:
           type: [string, null]
         country:
           type: [string, null]
-        regionColor:
+        countyColor:
           type: string
-          description: Hex color code assigned to this locality's region
+          description: |-
+            Hex color assigned deterministically to this locality's county
+            (province). Localities in the same county share the same color;
+            gray (#999999) when the county is unknown.
 
     TripMapData:
       type: object
       additionalProperties: false
-      required: [id, name, startDate, endDate, bounds, markers, regionColors]
+      required: [id, name, startDate, endDate, bounds, markers, countyColors]
       properties:
         id:
           type: integer
@@ -1471,11 +1489,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MapMarker"
-        regionColors:
+        countyColors:
           type: object
           additionalProperties:
             type: string
-          description: Map region name → hex_color for legend display
+          description: Map county (province) name → hex_color for legend display
 
     TripOperationType:
       type: string

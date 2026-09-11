@@ -24,6 +24,10 @@ export interface TripDto {
   createdManually: boolean;
   status: string;
   createdAt: string;
+  /** Total number of valid photos in the trip (from presences). */
+  photoCount: number;
+  /** Distinct administrative levels visited (county + region), sorted. */
+  regions: string[];
 }
 
 export interface TripDayLocalityDto {
@@ -91,6 +95,8 @@ function mapTripRow(row: Record<string, unknown>): TripDto {
     createdManually: Boolean(row.created_manually ?? row.createdManually),
     status: String(row.status),
     createdAt: String(row.createdAt),
+    photoCount: Number(row.photo_count ?? 0),
+    regions: (row.regions as string[]) ?? [],
   };
 }
 
@@ -134,6 +140,8 @@ class TripsRepository {
     const countResult = await db.select({ total: count() }).from(trips).where(finalCondition);
     const totalCount = countResult[0]?.total ?? 0;
 
+    // Fetch basic trip data (using Drizzle for correct SQL generation),
+    // then enrich with photoCount/regions computed from presences.
     const rows = await db
       .select(tripSelection)
       .from(trips)
@@ -142,12 +150,59 @@ class TripsRepository {
       .limit(pageSize)
       .offset(offset);
 
-    return { items: rows.map(mapTripRow), page, pageSize, total: totalCount };
+    return {
+      items: await this.attachStats(rows.map(mapTripRow)),
+      page,
+      pageSize,
+      total: totalCount,
+    };
+  }
+
+  /**
+   * Enriches trips with two fields used by the trip cards (new UI):
+   * - photoCount: total photos in the trip, from the sum of the presences
+   *   `photo_count` rows whose day falls inside the trip interval (§15/§16);
+   * - regions: distinct "county / region" administrative levels visited,
+   *   ordered alphabetically, used as card tags.
+   * The presences join intentionally does NOT filter on `locality_id` at
+   * the trip level: the interval fully identifies the trip's days.
+   */
+  private async attachStats(items: TripDto[]): Promise<TripDto[]> {
+    if (items.length === 0) return items;
+    const tripIds = items.map((t) => t.id);
+    const statsRows = await dbPool.query(
+      `SELECT t.id,
+              COALESCE(SUM(p.photo_count), 0) AS photo_count,
+              array_agg(DISTINCT COALESCE(l.county, '') || ' / ' || COALESCE(l.region, ''))
+                FILTER (WHERE COALESCE(l.county, '') != '' OR COALESCE(l.region, '') != '') AS regions
+       FROM trips t
+       LEFT JOIN presences p ON p.photo_date >= t.start_date AND p.photo_date <= t.end_date
+       LEFT JOIN localities l ON l.id = p.locality_id
+       WHERE t.id = ANY($1::int[])
+       GROUP BY t.id`,
+      [tripIds],
+    );
+
+    const statsMap = new Map<number, { photoCount: number; regions: string[] }>();
+    for (const row of statsRows.rows) {
+      const regions = ((row.regions as string[]) ?? []).sort((a, b) => a.localeCompare(b));
+      statsMap.set(Number(row.id), {
+        photoCount: Number(row.photo_count ?? 0),
+        regions,
+      });
+    }
+
+    return items.map((trip) => {
+      const stats = statsMap.get(trip.id);
+      return stats ? { ...trip, ...stats } : trip;
+    });
   }
 
   async getTrip(id: number): Promise<TripDto | null> {
     const rows = await db.select(tripSelection).from(trips).where(eq(trips.id, id));
-    return rows.length > 0 ? mapTripRow(rows[0]) : null;
+    if (rows.length === 0) return null;
+    const [trip] = await this.attachStats([mapTripRow(rows[0])]);
+    return trip;
   }
 
   /**
@@ -289,6 +344,8 @@ class TripsRepository {
       createdManually: r.created_manually,
       status: r.status,
       createdAt: r.created_at,
+      photoCount: 0,
+      regions: [],
     };
   }
 

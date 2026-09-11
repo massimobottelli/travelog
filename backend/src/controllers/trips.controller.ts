@@ -89,7 +89,7 @@ class TripsController {
       trip.endDate,
     );
 
-    const { markersWithColor, regionColors } = tripMapService.assignRegionColors(markers);
+    const { markersWithColor, countyColors } = tripMapService.assignCountyColors(markers);
 
     res.status(200).json({
       id: trip.id,
@@ -98,7 +98,7 @@ class TripsController {
       endDate: trip.endDate,
       bounds,
       markers: markersWithColor,
-      regionColors,
+      countyColors,
     });
   }
 }

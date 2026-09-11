@@ -995,6 +995,22 @@ button.icon-button:hover {
   z-index: 0;
 }
 
+/* Full-height variant used by the two-column dashboard (right column). */
+.trip-map-container--full {
+  height: 100%;
+  min-height: 240px;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+
+/* Blue teardrop map pin (mockup style): drop shadow under the marker.
+   The svg shape is anchored at its bottom tip via the Leaflet iconAnchor. */
+.custom-map-marker .trip-map-pin {
+  display: block;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35));
+}
+
 .trip-map-container .map-legend {
   background: rgba(255, 255, 255, 0.92);
   padding: 0.4rem 0.6rem;

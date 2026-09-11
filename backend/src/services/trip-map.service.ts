@@ -1,7 +1,8 @@
 /**
  * Travelog MVP1 — Trip Map Service
  *
- * Assigns deterministic hex colors to regions for map marker visualization.
+ * Assigns deterministic hex colors to counties (provinces) for map marker
+ * visualization: localities in the same province share the same color.
  */
 
 /** Raw marker data before region color assignment. */
@@ -18,10 +19,10 @@ interface RawMapMarker {
 }
 
 /** Final marker shape returned by this service. */
-type MapMarkerWithColor = RawMapMarker & { regionColor: string };
+type MapMarkerWithColor = RawMapMarker & { countyColor: string };
 
-/** Material-like color palette — 48 distinct shades */
-const REGION_COLORS = [
+/** Material-like color palette — distinct shades, one per county */
+const COUNTY_COLORS = [
   "#4285F4", // blue
   "#EA4335", // red
   "#FBBC05", // yellow
@@ -55,33 +56,33 @@ function hashString(str: string): number {
 }
 
 /**
- * Assign a deterministic color to each locality's region.
- * Returns markers with `regionColor` filled and a regionColors map
- * for the legend display.
+ * Assign a deterministic color to each locality's county (province).
+ * Returns markers with `countyColor` filled and a countyColors map
+ * for the legend display. Gray when the county is unknown.
  */
-export function assignRegionColors(markers: RawMapMarker[]): {
+export function assignCountyColors(markers: RawMapMarker[]): {
   markersWithColor: MapMarkerWithColor[];
-  regionColors: Record<string, string>;
+  countyColors: Record<string, string>;
 } {
-  const regionToColor = new Map<string, string>();
+  const countyToColor = new Map<string, string>();
   const results: MapMarkerWithColor[] = [];
 
   for (const m of markers) {
-    if (!m.region) {
-      results.push({ ...m, regionColor: "#999999" }); // gray when no region
+    if (!m.county) {
+      results.push({ ...m, countyColor: "#999999" }); // gray when no county
       continue;
     }
-    if (!regionToColor.has(m.region)) {
-      const idx = regionToColor.size % REGION_COLORS.length;
-      regionToColor.set(m.region, REGION_COLORS[idx]);
+    if (!countyToColor.has(m.county)) {
+      const idx = countyToColor.size % COUNTY_COLORS.length;
+      countyToColor.set(m.county, COUNTY_COLORS[idx]);
     }
-    results.push({ ...m, regionColor: regionToColor.get(m.region)! });
+    results.push({ ...m, countyColor: countyToColor.get(m.county)! });
   }
 
   return {
     markersWithColor: results,
-    regionColors: Object.fromEntries(regionToColor),
+    countyColors: Object.fromEntries(countyToColor),
   };
 }
 
-export default { assignRegionColors };
+export default { assignCountyColors };

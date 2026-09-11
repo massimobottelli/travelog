@@ -676,6 +676,19 @@ export interface components {
             status: "active" | "archived";
             /** Format: date-time */
             createdAt: string;
+            /**
+             * @description Total number of valid photos (with GPS and geocoding) belonging
+             *     to the trip. Computed from presences aggregated across all
+             *     localities in the trip interval. Used by the trip card UI to
+             *     show "N foto".
+             */
+            photoCount?: number;
+            /**
+             * @description Distinct administrative regions (counties and regions) visited
+             *     during the trip, used as tags on the trip card. Ordered
+             *     alphabetically.
+             */
+            regions?: string[];
         };
         CreateTripRequest: {
             name?: string;
@@ -764,8 +777,12 @@ export interface components {
             county: string | null;
             region: string | null;
             country: string | null;
-            /** @description Hex color code assigned to this locality's region */
-            regionColor: string;
+            /**
+             * @description Hex color assigned deterministically to this locality's county
+             *     (province). Localities in the same county share the same color;
+             *     gray (#999999) when the county is unknown.
+             */
+            countyColor: string;
         };
         TripMapData: {
             /** Format: int64 */
@@ -777,8 +794,8 @@ export interface components {
             endDate: string;
             bounds: components["schemas"]["BoundingBox"];
             markers: components["schemas"]["MapMarker"][];
-            /** @description Map region name → hex_color for legend display */
-            regionColors: {
+            /** @description Map county (province) name → hex_color for legend display */
+            countyColors: {
                 [key: string]: string;
             };
         };

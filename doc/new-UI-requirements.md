@@ -90,3 +90,14 @@ Quando una Card Viaggio viene espansa, mostra la sequenza cronologica delle tapp
 | **Click su Menu Contestuale (⚙️)** | Apre il dropdown locale relativo al singolo viaggio con le opzioni: *Rinomina, Modifica date, Dividi viaggio, Elimina*. |
 | **Click su `+ Nuovo Viaggio**` | Apre il menu globale per scegliere l'azione d'ingresso (*Scansione, Crea Viaggio, Esporta, Unisci*). |
 | **Digitazione in `Cerca...**` | Filtra in tempo reale l'elenco delle Card a sinistra in base ai caratteri inseriti nel titolo o nell'anno. |
+
+
+# Piano di implementazione
+
+1. __Contratto OpenAPI__: aggiungere `Trip.photoCount` (numero totale foto valide del viaggio) e `Trip.regions` (elenco regioni/distinti, per i tag della card) → rigenerazione tipi backend+frontend → backend: aggregazione SQL in `trips.repository.listTrips` (JOIN presences/localities, nessuna migration) → integration test.
+2. __TripMap rifattorizzato__: istanza Leaflet persistente (no destroy/recreate), layer switch Standard (OSM) / Satellite (Esri World Imagery), pin a goccia blu stile mockup, ref imperativa per `focusTrip(tripId)` (flyToBounds) e `focusMarker(localityId)` (flyTo + openPopup); test.
+3. __TripCard + TripContextMenu__: card accordion (titolo, `3 Lug - 31 Lug 2026 · 29 gg` con icona calendario, tag regioni, badge "N foto", chevron); menu contestuale ⚙️ con Rinomina / Modifica date / Dividi / Elimina, collegati ai dialog esistenti (`TripDialog`, conferma delete).
+4. __TripsDashboard__: nuovo layout a 2 colonne; selezione card → carica `getTrip` + `getTripMap` → mappa effettua flyToBounds; ricerca nell'header filtra la lista in tempo reale (server-side, già supportata).
+5. __TripTimeline__: estrazione della timeline (linea verticale, nodi data, tappe, badge foto / "Nessuna foto") da `TripDetailPanel` per l'uso dentro la card espansa, con hover→`focusMarker`.
+6. __GlobalActionMenu__: dropdown con Scansione (→ `/scans`), Crea Viaggio (`TripDaysModal`), Esporta (`exportTripsCsv`), Unisci (merge-mode esistente) + Ricalcola.
+7. __Pulizia e test__: `TripsTable` non più usato su `/trips` (resta `TripDetailPanel`/`TripDetailPage` per `/trips/:id`); aggiornamento dei test UI esistenti (circa 15 file referenziano la tabella) + nuovi test (card, menu contestuale, dropdown, sync timeline↔mappa, ricerca header); typecheck, build, lint, suite completa, smoke su `travelog_dev`.

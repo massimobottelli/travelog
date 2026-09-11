@@ -1652,6 +1652,17 @@ trip_day_exclusions (
 * **Dettaglio (§16)**: i giorni manuali sono uniti ai giorni derivati da `presences`
   (flag `manual` sul giorno e sulla località); le località manuali espongono
   `photoCount: 0`.
+* **Statistiche per le trip card (redesign UI)**: `GET /trips` e `GET /trips/{id}`
+  arricchiscono ogni `Trip` con due campi derivati, **senza migrazione** (nessuna
+  nuova colonna):
+  * `photoCount`: somma di `presences.photo_count` per le presenze con
+    `photo_date` nell'intervallo `[start_date, end_date]` del viaggio;
+  * `regions`: elenco distinto e ordinato alfabeticamente di `county / region`
+    delle località visitate nell'intervallo (tag geografici della card).
+  Il calcolo avviene nel repository (`attachStats`) con una query di aggregazione
+  sulle `presences` dell'intervallo; i campi sono opzionali nel contratto OpenAPI
+  (`Trip.photoCount`, `Trip.regions`) e sono valori **derivati** (mai memorizzati,
+  come tutti i dati derivati — §13/§45).
 
 ## UI (workflow nel modal)
 

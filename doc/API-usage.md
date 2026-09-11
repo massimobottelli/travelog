@@ -721,7 +721,7 @@ curl http://localhost:3000/api/trips/19/map
       "county": "Genova",
       "region": "Liguria",
       "country": "Italy",
-      "regionColor": "#4285F4"
+      "countyColor": "#4285F4"
     },
     {
       "localityId": 15,
@@ -733,12 +733,12 @@ curl http://localhost:3000/api/trips/19/map
       "county": "Trapani",
       "region": "Sicily",
       "country": "Italy",
-      "regionColor": "#EA4335"
+      "countyColor": "#EA4335"
     }
   ],
-  "regionColors": {
-    "Liguria": "#4285F4",
-    "Sicily": "#EA4335"
+  "countyColors": {
+    "Genova": "#4285F4",
+    "Trapani": "#EA4335"
   }
 }
 ```
