@@ -17,6 +17,10 @@ router.post("/", tripsController.createTrip);
 // (registered before /:tripId so "export" is not treated as an id)
 router.get("/export", tripsController.exportTripsCsv);
 
+// GET /trips/map — panoramic overview map of all active trips
+// (registered before /:tripId so "map" is not treated as an id)
+router.get("/map", tripsController.getTripsOverviewMap);
+
 // GET /trips/:tripId — get trip details
 router.get("/:tripId", tripsController.getTrip);
 

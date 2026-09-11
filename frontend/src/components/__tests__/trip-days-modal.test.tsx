@@ -59,6 +59,13 @@ const RESOLVED = {
 function mockListTrips(): void {
   fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
     const url = String(input);
+    if (url === "/api/trips/map") {
+      return jsonResponse({
+        bounds: { minLat: 37, minLon: 6, maxLat: 47.1, maxLon: 19 },
+        markers: [],
+        countyColors: {},
+      });
+    }
     if (url.startsWith("/api/trips")) return jsonResponse(TRIPS);
     if (url.startsWith("/api/operations")) {
       return jsonResponse({ items: [], page: 1, pageSize: 20, total: 0 });

@@ -15,15 +15,27 @@
  * The Leaflet instance is created once per mounted container: switching
  * trip (a `data` change) only refreshes markers/track/legend, it does not
  * recreate the map. Callers that only pass `data` keep working as before.
+ *
+ * For the panoramic overview (`showTrack={false}`) only the locality pins
+ * are drawn — no continuous track line, since the localities belong to
+ * several unrelated trips.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import type { TripMapData } from "../api/trips";
+import type { MapMarker } from "../api/client";
+
+/** Map data shape consumed by the component (trip map or overview map). */
+interface MapDataInput {
+  markers: MapMarker[];
+  countyColors: Record<string, string>;
+}
+
+const DEFAULT_EMPTY_MESSAGE = "Nessuna coordinata GPS disponibile per questo viaggio.";
 
 interface TripMapProps {
-  data: TripMapData;
+  data: MapDataInput;
   /** Locality whose popup must be open and brought into view. */
   activeLocalityId?: number | null;
   /** Reports the clicked marker locality id (dashboard selection sync). */
@@ -32,6 +44,10 @@ interface TripMapProps {
   fullHeight?: boolean;
   /** Hovered locality id: triggers a scale-up of the corresponding pin only. */
   hoveredLocalityId?: number | null;
+  /** Draw the continuous blue track line between the markers (trip map). */
+  showTrack?: boolean;
+  /** Message shown when there are no markers (overview vs trip wording). */
+  emptyMessage?: string;
 }
 
 /** Continuous track line color (UI §3: "tracciato vettoriale continuo blu"). */
@@ -47,7 +63,7 @@ const SATELLITE_TILE_URL =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 const SATELLITE_ATTRIBUTION = "Tiles &copy; Esri";
 
-type MapMarkerData = TripMapData["markers"][number];
+type MapMarkerData = MapMarker;
 
 function toLatLngs(markers: MapMarkerData[]): [number, number][] {
   return markers.map((m) => [m.latitude, m.longitude]);
@@ -108,6 +124,8 @@ export default function TripMap({
   onMarkerClick,
   fullHeight = false,
   hoveredLocalityId = null,
+  showTrack = true,
+  emptyMessage = DEFAULT_EMPTY_MESSAGE,
 }: TripMapProps) {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -213,7 +231,7 @@ export default function TripMap({
       });
     }
 
-    if (data.markers.length > 1) {
+    if (showTrack && data.markers.length > 1) {
       trackRef.current = L.polyline(toLatLngs(data.markers), {
         color: TRACK_COLOR,
         weight: 3,
@@ -226,7 +244,7 @@ export default function TripMap({
       padding: [40, 40],
       maxZoom: 16,
     });
-  }, [data, container]);
+  }, [data, container, showTrack]);
 
   // Selection sync: open the active locality popup and bring it into view.
   useEffect(() => {
@@ -275,9 +293,7 @@ export default function TripMap({
   if (data.markers.length === 0) {
     return (
       <div className={containerClass}>
-        <p className="hint trip-map-empty">
-          Nessuna coordinata GPS disponibile per questo viaggio.
-        </p>
+        <p className="hint trip-map-empty">{emptyMessage}</p>
       </div>
     );
   }

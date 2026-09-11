@@ -14,11 +14,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import TripsDashboard from "../TripsDashboard";
-import type { Trip, TripDetail, TripMapData } from "../../api/client";
+import type { Trip, TripDetail, TripMapData, TripsOverviewMap } from "../../api/client";
 
 const h = vi.hoisted(() => ({
-  state: { mapCount: 0, maps: [] as any[], markers: [] as any[] },
+  state: {
+    mapCount: 0,
+    maps: [] as any[],
+    markers: [] as any[],
+    heatLayers: [] as any[],
+  },
 }));
+
+// Mock leaflet.heat plugin (used by HeatMap component)
+vi.mock("leaflet.heat", () => ({}));
 
 vi.mock("leaflet", () => {
   const state = h.state;
@@ -33,6 +41,15 @@ vi.mock("leaflet", () => {
     removeLayer = vi.fn();
     setView = vi.fn(() => this);
     getZoom = () => this.zoom;
+    handlers: Record<string, (ev?: unknown) => void> = {};
+    on(event: string, cb: (ev?: unknown) => void) {
+      this.handlers[event] = cb;
+      return this;
+    }
+    off(event: string) {
+      delete this.handlers[event];
+      return this;
+    }
     constructor(_el: unknown) {
       void _el;
       state.mapCount += 1;
@@ -92,7 +109,24 @@ vi.mock("leaflet", () => {
       divIcon: (opts: unknown) => opts,
       polyline: () => chain(),
       latLngBounds: (latlngs: unknown) => ({ latlngs }),
-      control: { layers: () => chain() },
+      control: { 
+        layers: () => chain(),
+        zoom: () => chain(),
+      },
+      /* HeatMap (overview) records its points: [lat, lng, intensity]. */
+      heatLayer: (latlngs: unknown, opts: unknown) => {
+        const layer: any = {
+          latlngs,
+          opts,
+          addTo: () => layer,
+          setOptions(next: Record<string, unknown>) {
+            layer.opts = { ...layer.opts, ...next };
+            return layer;
+          },
+        };
+        state.heatLayers.push(layer);
+        return layer;
+      },
       Control: class {
         onAdd: (() => HTMLElement) | null = null;
         constructor(_opts: unknown) {
@@ -169,6 +203,38 @@ const MAP_DATA: TripMapData = {
   countyColors: { Aosta: "#2563EB" },
 };
 
+/** Panoramic overview map (all active trips): one marker per locality. */
+const OVERVIEW_MAP: TripsOverviewMap = {
+  bounds: { minLat: 37, minLon: 7, maxLat: 46, maxLon: 13 },
+  markers: [
+    {
+      localityId: 10,
+      name: "Lozon",
+      latitude: 45.7,
+      longitude: 7.6,
+      photoCount: 5,
+      firstPhotoAt: "2026-07-03T10:00:00",
+      county: "Aosta",
+      region: "Valle d'Aosta",
+      country: "Italy",
+      countyColor: "#2563EB",
+    },
+    {
+      localityId: 20,
+      name: "Trapani",
+      latitude: 38.0,
+      longitude: 12.5,
+      photoCount: 7,
+      firstPhotoAt: "2026-08-01T10:00:00",
+      county: "Trapani",
+      region: "Sicilia",
+      country: "Italy",
+      countyColor: "#EA4335",
+    },
+  ],
+  countyColors: { Aosta: "#2563EB", Trapani: "#EA4335" },
+};
+
 /** Detail of trip 1: one day with the locality 10 (matches MAP_DATA). */
 const DETAIL: TripDetail = {
   ...TRIPS[0],
@@ -214,6 +280,7 @@ beforeEach(() => {
   h.state.mapCount = 0;
   h.state.maps = [];
   h.state.markers = [];
+  h.state.heatLayers = [];
 });
 
 describe("TripsDashboard (new UI, phase 4)", () => {
@@ -268,6 +335,67 @@ describe("TripsDashboard (new UI, phase 4)", () => {
     );
 
     expect(h.state.mapCount).toBe(1);
+    expect(container.querySelector(".trip-map-container--full")).toBeTruthy();
+  });
+
+  it("renders the panoramic heatmap when no trip is selected", () => {
+    const { container } = render(
+      <TripsDashboard {...baseProps({ overviewMapData: OVERVIEW_MAP })} />,
+    );
+
+    // The overview is a heatmap of photo density (not the waypoint pins):
+    // no "select a trip" hint, one heat point per locality, no pins.
+    expect(screen.queryByText("Seleziona un viaggio per visualizzarlo sulla mappa.")).toBeNull();
+    expect(h.state.mapCount).toBe(1);
+    expect(h.state.heatLayers).toHaveLength(1);
+    expect(h.state.markers).toHaveLength(0);
+
+    // Intensity normalized 0..1 against the busiest locality (7 photos):
+    // Lozon (5 photos) gets 5/7, Trapani (7 photos) gets full intensity.
+    const heat = h.state.heatLayers[0];
+    expect(heat.latlngs).toEqual([
+      [45.7, 7.6, 5 / 7],
+      [38, 12.5, 1],
+    ]);
+
+    // maxZoom is synced to the CURRENT zoom (8 in the mock), not a fixed
+    // value: the plugin scales intensity by 1/2^(maxZoom - zoom), so a
+    // fixed maxZoom would make the layer invisible at the fit zoom.
+    expect(heat.opts.maxZoom).toBe(8);
+    expect(heat.opts.max).toBe(1);
+
+    // Zooming re-points maxZoom to the new zoom: the intensity factor
+    // stays at 1 and the heat points keep their normalized strength.
+    const map = h.state.maps[0];
+    map.zoom = 10;
+    map.handlers["zoomend"]();
+    expect(heat.opts.maxZoom).toBe(10);
+
+    // No region legend inside the map panel: the heatmap shows only the
+    // heat layer (the county legend belongs to the trip map only).
+    const mapPanel = container.querySelector('[aria-label="Mappa viaggi"]') as HTMLElement;
+    expect(within(mapPanel).queryByText(/regione|Aosta|Trapani/)).toBeNull();
+    expect(container.querySelector(".trip-map-container--full")).toBeTruthy();
+  });
+
+  it("keeps the selected trip map visible after the trip is closed (mapData retained)", () => {
+    // Closing a trip only clears the selection on the parent side: the
+    // dashboard keeps rendering the last trip map (marker + track + legend)
+    // until another trip is selected — the overview heatmap must NOT
+    // come back in between.
+    const { container } = render(
+      <TripsDashboard
+        {...baseProps({
+          selectedTripId: null,
+          mapData: MAP_DATA,
+          overviewMapData: OVERVIEW_MAP,
+        })}
+      />,
+    );
+
+    expect(h.state.mapCount).toBe(1);
+    expect(h.state.heatLayers).toHaveLength(0); // heatmap hidden
+    expect(h.state.markers).toHaveLength(1); // trip pins still visible
     expect(container.querySelector(".trip-map-container--full")).toBeTruthy();
   });
 

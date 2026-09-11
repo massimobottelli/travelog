@@ -22,7 +22,10 @@ import SettingsPage from "./pages/SettingsPage";
 import { useRoute, navigate } from "./hooks/useRoute";
 
 function App() {
-  const route = useRoute();
+  // navSeq identifies each navigation: the trips page is keyed on it so a
+  // brand click (logo + title) restarts the dashboard from its initial
+  // heatmap view even when `/trips` was already the current route.
+  const { route, navSeq } = useRoute();
   // DOM node of the top bar slot: the rendered page portals its own header
   // content (search, global actions) into it.
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
@@ -38,7 +41,7 @@ function App() {
         <main className="app-main">
           {route.name === "scans" && <ScansPage onNavigateTrips={() => navigate("/trips")} />}
           {route.name === "photos" && <PhotosPage />}
-          {route.name === "trips" && <TripsPage />}
+          {route.name === "trips" && <TripsPage key={navSeq} />}
           {route.name === "tripDetail" && <TripDetailPage tripId={route.tripId} />}
           {route.name === "settings" && <SettingsPage />}
         </main>

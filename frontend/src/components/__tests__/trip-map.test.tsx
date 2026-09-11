@@ -212,6 +212,11 @@ describe("TripMap (new UI, phase 2)", () => {
     expect(h.state.polylines).toHaveLength(0);
   });
 
+  it("does not draw a track line in overview mode (showTrack=false)", () => {
+    render(<TripMap data={makeMapData([1, 2, 3])} showTrack={false} />);
+    expect(h.state.polylines).toHaveLength(0);
+  });
+
   it("opens the popup and flies to the active locality", () => {
     const data = makeMapData([1, 2]);
     const { rerender } = render(<TripMap data={data} activeLocalityId={null} />);
@@ -263,6 +268,17 @@ describe("TripMap (new UI, phase 2)", () => {
   it("shows the empty state without creating a map when there are no markers", () => {
     const { getByText } = render(<TripMap data={makeMapData([])} />);
     expect(getByText(/Nessuna coordinata GPS/)).toBeTruthy();
+    expect(h.state.mapCount).toBe(0);
+  });
+
+  it("uses the provided empty message when there are no markers", () => {
+    const { getByText } = render(
+      <TripMap
+        data={makeMapData([])}
+        emptyMessage="Nessuna località da visualizzare sulla mappa."
+      />,
+    );
+    expect(getByText("Nessuna località da visualizzare sulla mappa.")).toBeTruthy();
     expect(h.state.mapCount).toBe(0);
   });
 });

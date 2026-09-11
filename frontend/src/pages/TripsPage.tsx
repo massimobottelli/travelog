@@ -23,10 +23,17 @@ import {
   createTrip,
   replaceTripDays,
   getTripMap,
+  getTripsOverviewMap,
 } from "../api/trips";
 import { splitTrip, mergeTrips } from "../api/operations";
 import { recalculate } from "../api/settings";
-import type { Trip, TripDayInput, TripDetail, TripMapData } from "../api/client";
+import type {
+  Trip,
+  TripDayInput,
+  TripDetail,
+  TripMapData,
+  TripsOverviewMap,
+} from "../api/client";
 import TripDialog, { type TripDialogState } from "../components/TripDialog";
 import TripDaysModal, { type TripDaysPayload } from "../components/TripDaysModal";
 import TripsDashboard from "../components/TripsDashboard";
@@ -51,6 +58,9 @@ export default function TripsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [mapData, setMapData] = useState<TripMapData | null>(null);
+  // Panoramic overview of all active trips (photo-density heatmap, shown
+  // while no trip has been selected yet).
+  const [overviewMap, setOverviewMap] = useState<TripsOverviewMap | null>(null);
 
   const [dialog, setDialog] = useState<TripDialogState | null>(null);
   const [operating, setOperating] = useState(false);
@@ -127,6 +137,22 @@ export default function TripsPage() {
     void reload(search, page);
   }, [reload, search, page]);
 
+  // Panoramic overview of all active trips: loaded once at startup and
+  // refreshed only after operations that change the set of trips. It is
+  // independent of search/pagination (it always covers every active trip).
+  const loadOverview = useCallback(async () => {
+    try {
+      setOverviewMap(await getTripsOverviewMap());
+    } catch {
+      // Soft-fail: the map panel falls back to the hint.
+      setOverviewMap(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadOverview();
+  }, [loadOverview]);
+
   const handleSearchChange = (value: string): void => {
     setSearch(value);
     setPage(1); // a new search always starts from the first page
@@ -164,8 +190,8 @@ export default function TripsPage() {
     setSelectedTripId(null);
     setDetail(null);
     setMapData(null);
-    await reload(search, page);
-  }, [reload, search, page]);
+    await Promise.all([reload(search, page), loadOverview()]);
+  }, [reload, search, page, loadOverview]);
 
   const handleDialogSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -264,7 +290,7 @@ export default function TripsPage() {
       setDetail(detailData);
       setMapData(mapDataLoaded);
     }
-    await reload(search, page);
+    await Promise.all([reload(search, page), loadOverview()]);
   };
 
   const handleRecalculate = async (): Promise<void> => {
@@ -307,7 +333,7 @@ export default function TripsPage() {
     try {
       await createTrip({ name: payload.name || undefined, days: payload.days });
       setDialogMessage("Viaggio creato.");
-      await reload(search, page);
+      await Promise.all([reload(search, page), loadOverview()]);
     } catch (err: unknown) {
       setDaysModalError(errorToMessage(err));
     } finally {
@@ -399,6 +425,7 @@ export default function TripsPage() {
         detailLoading={detailLoading}
         detailError={detailError}
         mapData={mapData}
+        overviewMapData={overviewMap}
         onRename={(trip) => {
           setDialogMessage(null);
           setDialog({ type: "rename", tripId: trip.id, currentName: trip.name });

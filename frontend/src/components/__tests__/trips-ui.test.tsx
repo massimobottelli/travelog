@@ -135,10 +135,22 @@ const EMPTY_MAP = {
   countyColors: {},
 };
 
+/**
+ * Panoramic overview payload (all active trips): kept marker-less here so
+ * the map panel renders its overview empty state without instantiating
+ * Leaflet in jsdom.
+ */
+const OVERVIEW_MAP = {
+  bounds: { minLat: 0, minLon: 0, maxLat: 0, maxLon: 0 },
+  markers: [],
+  countyColors: {},
+};
+
 /** Route mock fetch calls to the fake backend. */
 function mockApi(): void {
   fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
     const url = String(input);
+    if (url === "/api/trips/map") return jsonResponse(OVERVIEW_MAP);
     if (/^\/api\/trips\/\d+\/map$/.test(url)) return jsonResponse(EMPTY_MAP);
     if (/^\/api\/trips\/1(\?|$)/.test(url)) return jsonResponse(TRIP_DETAIL);
     if (/^\/api\/trips\/2(\?|$)/.test(url)) return jsonResponse(TRIP_DETAIL_2);
@@ -203,6 +215,7 @@ describe("TripsPage", () => {
         putCalls.push(String(init.body));
         return jsonResponse(TRIP_DETAIL_2);
       }
+      if (url === "/api/trips/map") return jsonResponse(OVERVIEW_MAP);
       if (/^\/api\/trips\/\d+\/map$/.test(url)) return jsonResponse(EMPTY_MAP);
       if (/^\/api\/trips\/1(\?|$)/.test(url)) return jsonResponse(TRIP_DETAIL);
       if (/^\/api\/trips\/2(\?|$)/.test(url)) return jsonResponse(TRIP_DETAIL_2);
@@ -239,6 +252,7 @@ describe("TripsPage", () => {
       if (url === "/api/settings" && init?.method === "POST") {
         return jsonResponse({ status: "ACCEPTED" });
       }
+      if (url === "/api/trips/map") return jsonResponse(OVERVIEW_MAP);
       if (/^\/api\/trips\?/.test(url) || url === "/api/trips") return jsonResponse(TRIPS);
       if (url.startsWith("/api/operations")) {
         return jsonResponse({ items: [], page: 1, pageSize: 20, total: 0 });
@@ -305,6 +319,24 @@ describe("TripsPage", () => {
     expect(toggle().getAttribute("aria-expanded")).toBe("false");
   });
 
+  it("loads the panoramic overview map at startup instead of auto-selecting a trip", async () => {
+    mockApi();
+
+    render(<TripsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Vacanza in Toscana")).not.toBeNull();
+    });
+
+    // The overview endpoint is fetched and no trip is auto-selected: the
+    // card list stays collapsed and the map panel shows the overview state
+    // (empty in this fixture) instead of the "select a trip" hint.
+    const overviewCall = fetchMock.mock.calls.find(([url]) => String(url) === "/api/trips/map");
+    expect(overviewCall).toBeDefined();
+    expect(screen.queryByText("Seleziona un viaggio per visualizzarlo sulla mappa.")).toBeNull();
+    expect(screen.getByText("Nessuna località da visualizzare sulla mappa.")).not.toBeNull();
+  });
+
   it("merge mode: selecting two trips posts the merge request", async () => {
     mockApi();
 
@@ -344,6 +376,7 @@ describe("TripsPage", () => {
       if (/^\/api\/trips\/1$/.test(url) && init?.method === "DELETE") {
         return new Response(null, { status: 204 });
       }
+      if (url === "/api/trips/map") return jsonResponse(OVERVIEW_MAP);
       if (/^\/api\/trips\/1(\?|$)/.test(url)) return jsonResponse(TRIP_DETAIL);
       if (/^\/api\/trips\?/.test(url) || url === "/api/trips") return jsonResponse(TRIPS);
       if (url.startsWith("/api/operations")) {

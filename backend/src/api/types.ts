@@ -319,6 +319,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trips/map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get overview map data for all active trips
+         * @description Returns a single marker per unique locality (name + county + region)
+         *     across all active trips — presence localities within each trip's
+         *     interval (respecting the day/locality exclusions) plus the manual-day
+         *     localities, deduplicated. Suitable for the panoramic overview map
+         *     shown before a specific trip is selected.
+         *
+         *     Coordinates are extracted from the geocoding cache locality hashes;
+         *     region-based colors are assigned deterministically. `firstPhotoAt` is
+         *     null for manual localities without photos.
+         */
+        get: operations["getTripsOverviewMap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/trips/{tripId}/map": {
         parameters: {
             query?: never;
@@ -792,6 +820,14 @@ export interface components {
             startDate: string;
             /** Format: date */
             endDate: string;
+            bounds: components["schemas"]["BoundingBox"];
+            markers: components["schemas"]["MapMarker"][];
+            /** @description Map county (province) name → hex_color for legend display */
+            countyColors: {
+                [key: string]: string;
+            };
+        };
+        TripsOverviewMap: {
             bounds: components["schemas"]["BoundingBox"];
             markers: components["schemas"]["MapMarker"][];
             /** @description Map county (province) name → hex_color for legend display */
@@ -1541,6 +1577,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getTripsOverviewMap: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Overview map data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripsOverviewMap"];
                 };
             };
         };

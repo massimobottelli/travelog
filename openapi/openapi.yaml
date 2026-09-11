@@ -533,6 +533,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /trips/map:
+    get:
+      tags: [Trip Map]
+      operationId: getTripsOverviewMap
+      summary: Get overview map data for all active trips
+      description: |
+        Returns a single marker per unique locality (name + county + region)
+        across all active trips — presence localities within each trip's
+        interval (respecting the day/locality exclusions) plus the manual-day
+        localities, deduplicated. Suitable for the panoramic overview map
+        shown before a specific trip is selected.
+
+        Coordinates are extracted from the geocoding cache locality hashes;
+        region-based colors are assigned deterministically. `firstPhotoAt` is
+        null for manual localities without photos.
+      responses:
+        "200":
+          description: Overview map data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripsOverviewMap"
+
   /trips/{tripId}/map:
     get:
       tags: [Trip Map]
@@ -1483,6 +1506,23 @@ components:
         endDate:
           type: string
           format: date
+        bounds:
+          $ref: "#/components/schemas/BoundingBox"
+        markers:
+          type: array
+          items:
+            $ref: "#/components/schemas/MapMarker"
+        countyColors:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map county (province) name → hex_color for legend display
+
+    TripsOverviewMap:
+      type: object
+      additionalProperties: false
+      required: [bounds, markers, countyColors]
+      properties:
         bounds:
           $ref: "#/components/schemas/BoundingBox"
         markers:

@@ -39,6 +39,15 @@ function mockAllEndpoints(): void {
     if (url.includes("/api/exclusion-zones")) {
       return Promise.resolve(jsonResponse({ items: [] }));
     }
+    if (url.includes("/api/trips/map")) {
+      return Promise.resolve(
+        jsonResponse({
+          bounds: { minLat: 37, minLon: 6, maxLat: 47.1, maxLon: 19 },
+          markers: [],
+          countyColors: {},
+        }),
+      );
+    }
     if (url.includes("/api/trips")) {
       return Promise.resolve(jsonResponse({ items: [], page: 1, pageSize: 20, total: 0 }));
     }
@@ -124,6 +133,15 @@ describe("App", () => {
             excludedPhotos: 0,
             errors: 0,
             errorMessage: null,
+          }),
+        );
+      }
+      if (url.includes("/api/trips/map")) {
+        return Promise.resolve(
+          jsonResponse({
+            bounds: { minLat: 37, minLon: 6, maxLat: 47.1, maxLon: 19 },
+            markers: [],
+            countyColors: {},
           }),
         );
       }

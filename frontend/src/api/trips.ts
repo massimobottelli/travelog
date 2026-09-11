@@ -15,10 +15,11 @@ import {
   type CreateTripRequest,
   type ReplaceTripDaysRequest,
   type TripMapData,
+  type TripsOverviewMap,
 } from "./client";
 import type { components } from "./types";
 
-export type { TripList, TripDetail, UpdateTripRequest, TripMapData };
+export type { TripList, TripDetail, UpdateTripRequest, TripMapData, TripsOverviewMap };
 export type TripListStatus = components["schemas"]["TripListStatus"];
 
 export interface TripsQuery {
@@ -86,4 +87,13 @@ export function exportTripsCsv(): Promise<void> {
 /** Get trip map visualization data — one marker per unique locality, colored by region. */
 export function getTripMap(tripId: number): Promise<TripMapData> {
   return apiRequest<TripMapData>(`/trips/${tripId}/map`);
+}
+
+/**
+ * Panoramic overview map of all active trips — one marker per unique
+ * locality (deduplicated across trips), for the dashboard before a trip
+ * is selected.
+ */
+export function getTripsOverviewMap(): Promise<TripsOverviewMap> {
+  return apiRequest<TripsOverviewMap>("/trips/map");
 }

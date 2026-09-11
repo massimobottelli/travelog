@@ -101,6 +101,23 @@ class TripsController {
       countyColors,
     });
   }
+
+  /**
+   * Panoramic overview map of all active trips: one marker per unique
+   * locality (deduplicated across trips). No trip header fields — the
+   * overview is not tied to a single trip.
+   */
+  async getTripsOverviewMap(_req: Request, res: Response): Promise<void> {
+    const { markers, bounds } = await tripsRepository.getTripsOverviewMapData();
+
+    const { markersWithColor, countyColors } = tripMapService.assignCountyColors(markers);
+
+    res.status(200).json({
+      bounds,
+      markers: markersWithColor,
+      countyColors,
+    });
+  }
 }
 
 export default new TripsController();

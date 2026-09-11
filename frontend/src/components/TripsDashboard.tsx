@@ -26,9 +26,16 @@
  */
 
 import { useEffect, useState, type ReactNode } from "react";
-import type { Trip, TripDayInput, TripDetail, TripMapData } from "../api/client";
+import type {
+  Trip,
+  TripDayInput,
+  TripDetail,
+  TripMapData,
+  TripsOverviewMap,
+} from "../api/client";
 import TripCard from "./TripCard";
 import TripMap from "./TripMap";
+import HeatMap from "./HeatMap";
 import TripTimeline from "./TripTimeline";
 import Loading from "./Loading";
 import ErrorAlert from "./ErrorAlert";
@@ -49,6 +56,12 @@ export interface TripsDashboardProps {
   detailError: string | null;
   /** Map data of the selected trip (`getTripMap`); drives the fly-to fit. */
   mapData: TripMapData | null;
+  /**
+   * Panoramic overview of all active trips (`getTripsOverviewMap`), shown
+   * as a photo-density heatmap while no trip has been selected yet. One
+   * point per unique locality, intensity proportional to the photo count.
+   */
+  overviewMapData?: TripsOverviewMap | null;
   onRename: (trip: Trip) => void;
   onEditDates: (trip: Trip) => void;
   onSplit: (trip: Trip) => void;
@@ -80,6 +93,7 @@ export default function TripsDashboard({
   detailLoading,
   detailError,
   mapData,
+  overviewMapData,
   onRename,
   onEditDates,
   onSplit,
@@ -180,9 +194,20 @@ export default function TripsDashboard({
         </div>
       </aside>
 
-      <section className="trips-map-panel" aria-label="Mappa del viaggio selezionato">
+      <section className="trips-map-panel" aria-label="Mappa viaggi">
         {mapData ? (
-          <TripMap data={mapData} fullHeight hoveredLocalityId={highlightedLocalityId} />
+          <TripMap
+            data={mapData}
+            fullHeight
+            showTrack
+            hoveredLocalityId={selectedTripId !== null ? highlightedLocalityId : null}
+          />
+        ) : overviewMapData ? (
+          <HeatMap
+            data={overviewMapData}
+            fullHeight
+            emptyMessage="Nessuna località da visualizzare sulla mappa."
+          />
         ) : (
           <p className="hint trips-map-hint">
             {selectedTripId === null
