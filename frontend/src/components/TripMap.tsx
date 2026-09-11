@@ -8,7 +8,9 @@
  *   switcher;
  * - props-driven selection: `activeLocalityId` opens the matching popup
  *   and flies to it (timeline ↔ map sync); `onMarkerClick` reports the
- *   clicked locality back to the parent.
+ *   clicked locality back to the parent;
+ * - hover visual feedback: `hoveredLocalityId` enlarges the matching
+ *   teardrop marker (no popup, no fly-to).
  *
  * The Leaflet instance is created once per mounted container: switching
  * trip (a `data` change) only refreshes markers/track/legend, it does not
@@ -28,6 +30,8 @@ interface TripMapProps {
   onMarkerClick?: (localityId: number) => void;
   /** Fill the parent height (dashboard) instead of the default 320px. */
   fullHeight?: boolean;
+  /** Hovered locality id: triggers a scale-up of the corresponding pin only. */
+  hoveredLocalityId?: number | null;
 }
 
 /** Continuous track line color (UI §3: "tracciato vettoriale continuo blu"). */
@@ -55,9 +59,10 @@ function toLatLngs(markers: MapMarkerData[]): [number, number][] {
  * anchored at its bottom tip so the point sits exactly on the locality
  * coordinates. The fill color is assigned per county (province) by the
  * backend; gray (#999999) when the county is unknown.
+ * @param scale  When `true` produces a ~1.4× enlarged version for hover feedback.
  */
-function buildMarkerIcon(marker: MapMarkerData): L.DivIcon {
-  const [width, height] = PIN_SIZE;
+function buildMarkerIcon(marker: MapMarkerData, scale = false): L.DivIcon {
+  const [width, height] = scale ? [30, 42] : PIN_SIZE;
   const html = `
     <svg class="trip-map-pin" width="${width}" height="${height}" viewBox="0 0 30 42"
          xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -102,12 +107,20 @@ export default function TripMap({
   activeLocalityId = null,
   onMarkerClick,
   fullHeight = false,
+  hoveredLocalityId = null,
 }: TripMapProps) {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const trackRef = useRef<L.Polyline | null>(null);
+  /** Marker instances keyed by locality id. */
   const markerByIdRef = useRef<Map<number, L.Marker>>(new Map());
+  /** Icon instances: `{ normal, enlarged }` per locality — swappable via setIcon(). */
+  const iconPairByIdRef = useRef<Map<number, { normal: L.DivIcon; enlarged: L.DivIcon }>>(
+    new Map(),
+  );
+  /** Which marker was last swapped to enlarged (to restore the previous). */
+  const prevHoveredRef = useRef<number | null>(null);
   const legendRef = useRef<HTMLElement | null>(null);
   const onMarkerClickRef = useRef(onMarkerClick);
 
@@ -158,6 +171,8 @@ export default function TripMap({
       markersLayerRef.current = null;
       trackRef.current = null;
       markerByIdRef.current = new Map();
+      iconPairByIdRef.current = new Map();
+      prevHoveredRef.current = null;
       legendRef.current = null;
     };
   }, [container]);
@@ -170,6 +185,8 @@ export default function TripMap({
 
     markersLayer.clearLayers();
     markerByIdRef.current = new Map();
+    iconPairByIdRef.current = new Map();
+    prevHoveredRef.current = null;
     if (trackRef.current) {
       map.removeLayer(trackRef.current);
       trackRef.current = null;
@@ -180,11 +197,20 @@ export default function TripMap({
     if (data.markers.length === 0) return;
 
     for (const marker of data.markers) {
-      const instance = L.marker(toLatLngs([marker])[0], { icon: buildMarkerIcon(marker) })
+      /* Normal-sized pin. */
+      const normalIcon = buildMarkerIcon(marker);
+      /* Enlarged pin for hover visual feedback (~1.4 × size). */
+      const enlargedIcon = buildMarkerIcon(marker, true);
+
+      const instance = L.marker(toLatLngs([marker])[0], { icon: normalIcon })
         .bindPopup(buildMarkerPopup(marker), { maxWidth: 250 })
         .on("click", () => onMarkerClickRef.current?.(marker.localityId));
       markersLayer.addLayer(instance);
       markerByIdRef.current.set(marker.localityId, instance);
+      iconPairByIdRef.current.set(marker.localityId, {
+        normal: normalIcon,
+        enlarged: enlargedIcon,
+      });
     }
 
     if (data.markers.length > 1) {
@@ -215,6 +241,30 @@ export default function TripMap({
     marker.openPopup();
     map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 13), { duration: 0.6 });
   }, [activeLocalityId, data, container]);
+
+  // Hover visual feedback: enlarge / restore pin without popup or fly-to.
+  useEffect(() => {
+    if (hoveredLocalityId == null) return;
+
+    const pairs = iconPairByIdRef.current.get(hoveredLocalityId);
+    if (!pairs) return;
+
+    /* Restore whatever was previously highlighted. */
+    const prevId = prevHoveredRef.current;
+    if (prevId != null && prevId !== hoveredLocalityId) {
+      const prevPairs = iconPairByIdRef.current.get(prevId);
+      if (prevPairs) {
+        const prevMarker = markerByIdRef.current.get(prevId);
+        if (prevMarker) prevMarker.setIcon(prevPairs.normal);
+      }
+    }
+
+    /* Swap the hovered marker to its enlarged version. */
+    const marker = markerByIdRef.current.get(hoveredLocalityId);
+    if (marker) marker.setIcon(pairs.enlarged);
+
+    prevHoveredRef.current = hoveredLocalityId;
+  }, [hoveredLocalityId]);
 
   const containerClass = fullHeight
     ? "trip-map-container trip-map-container--full"

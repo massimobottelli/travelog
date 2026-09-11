@@ -151,7 +151,7 @@ function mockApi(): void {
 }
 
 describe("TripsPage", () => {
-  it("renders the trip cards with period, duration and photo badge (§15)", async () => {
+  it("renders the trip cards with period and duration (§15)", async () => {
     mockApi();
     render(<TripsPage />);
 
@@ -161,7 +161,6 @@ describe("TripsPage", () => {
     expect(screen.getByText("Weekend a Roma")).not.toBeNull();
     // Card subtitle: short period + computed duration (new UI §2.1).
     expect(screen.getByText("10 Ago - 13 Ago 2025 · 4 gg")).not.toBeNull();
-    expect(screen.getAllByText(/Foto/).length).toBeGreaterThan(0);
   });
 
   it("shows the MANUALE badge and a read-only timeline in the expanded card", async () => {

@@ -6,9 +6,9 @@
  * the right column shows the map of the selected trip.
  *
  * The page owns the data and the operations: list/search, detail and map
- * loading, the manual operations (§13: rename, dates, split, merge, delete),
- * the global actions (scan, manual creation, CSV export, recalculation) and
- * the operation history. All domain rules live in the backend; the
+ * loading, the manual operations (§13: rename, dates, split, merge, delete)
+ * and the global actions (scan, manual creation, CSV export, recalculation).
+ * All domain rules live in the backend; the
  * presentational components (TripsDashboard, TripCard, TripTimeline,
  * GlobalActionMenu) contain no business logic.
  */
@@ -23,14 +23,16 @@ import {
   createTrip,
   getTripMap,
 } from "../api/trips";
-import { splitTrip, mergeTrips, listTripOperations } from "../api/operations";
+import { splitTrip, mergeTrips } from "../api/operations";
 import { recalculate } from "../api/settings";
-import type { Trip, TripDetail, TripOperation, TripMapData } from "../api/client";
+import type { Trip, TripDetail, TripMapData } from "../api/client";
 import TripDialog, { type TripDialogState } from "../components/TripDialog";
 import TripDaysModal, { type TripDaysPayload } from "../components/TripDaysModal";
 import TripsDashboard from "../components/TripsDashboard";
-import Accordion from "../components/Accordion";
+import GlobalActionMenu from "../components/GlobalActionMenu";
+import TopBarSlot from "../components/TopBarSlot";
 import ErrorAlert from "../components/ErrorAlert";
+import { SearchIcon } from "../components/icons";
 import { errorToMessage } from "../utils/error";
 import { useAutoDismiss } from "../hooks/useAutoDismiss";
 import { navigate } from "../hooks/useRoute";
@@ -55,7 +57,6 @@ export default function TripsPage() {
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [mergeTitle, setMergeTitle] = useState("");
-  const [history, setHistory] = useState<TripOperation[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   // Pagination: the backend page size is capped at 100; the controls are
@@ -127,14 +128,6 @@ export default function TripsPage() {
     if (selectedTripId !== null) void loadDetail(selectedTripId);
   }, [selectedTripId, loadDetail]);
 
-  const reloadHistory = useCallback(() => {
-    listTripOperations()
-      .then((res) => setHistory(res.items))
-      .catch(() => undefined);
-  }, []);
-
-  useEffect(() => reloadHistory(), [reloadHistory]);
-
   const refreshAfterOperation = useCallback(
     async (message: string) => {
       setActionMessage(message);
@@ -144,9 +137,8 @@ export default function TripsPage() {
       setDetail(null);
       setMapData(null);
       await reload(search, page);
-      reloadHistory();
     },
-    [reload, search, page, reloadHistory],
+    [reload, search, page],
   );
 
   const handleDialogSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -280,6 +272,31 @@ export default function TripsPage() {
 
   return (
     <div className="page trips-page">
+      {/* Top bar content (new UI §1.1): the search field and the global
+          action menu live in the application header, next to the brand. */}
+      <TopBarSlot>
+        <div className="search-box app-header-search">
+          <SearchIcon size={16} />
+          <input
+            type="search"
+            placeholder="Cerca…"
+            aria-label="Cerca viaggi"
+            value={search}
+            onChange={(event) => handleSearchChange(event.target.value)}
+          />
+        </div>
+        <GlobalActionMenu
+          onScan={() => navigate("/scans")}
+          onCreateTrip={openDaysModal}
+          onExport={handleExportCsv}
+          onMerge={toggleMergeMode}
+          onRecalculate={handleRecalculate}
+          exporting={exporting}
+          recalculating={recalculating}
+          mergeActive={mergeMode}
+          mergeDisabled={(trips?.length ?? 0) < 2}
+        />
+      </TopBarSlot>
       {/* Manual trip creation: the modal opens right below the top of the
           view, before the dashboard. */}
       {daysModalOpen && (
@@ -327,8 +344,6 @@ export default function TripsPage() {
         trips={trips ?? []}
         loading={loading}
         error={loadError}
-        search={search}
-        onSearchChange={handleSearchChange}
         selectedTripId={selectedTripId}
         onSelectTrip={(id) => setSelectedTripId((current) => (current === id ? null : id))}
         detail={detail}
@@ -358,17 +373,6 @@ export default function TripsPage() {
         selectedIds={selectedIds}
         onToggleSelected={toggleSelected}
         onOpenTripDetail={(trip) => window.open(`/trips/${trip.id}`, "_blank")}
-        globalActions={{
-          onScan: () => navigate("/scans"),
-          onCreateTrip: openDaysModal,
-          onExport: handleExportCsv,
-          onMerge: toggleMergeMode,
-          onRecalculate: handleRecalculate,
-          exporting,
-          recalculating,
-          mergeActive: mergeMode,
-          mergeDisabled: trips !== null && trips.length < 2,
-        }}
         sidebarFooter={
           totalPages > 1 && !loading ? (
             <nav className="pagination" aria-label="Paginazione viaggi">
@@ -433,25 +437,6 @@ export default function TripsPage() {
             </button>
           </div>
         </div>
-      )}
-
-      {history.length > 0 && (
-        <Accordion title="Storico operazioni">
-          <ul className="hint">
-            {history.map((op) => (
-              <li key={op.id}>
-                {op.type === "SPLIT"
-                  ? "Divisione"
-                  : op.type === "DELETE"
-                    ? "Eliminazione"
-                    : "Unione"}{" "}
-                · viaggi origine {op.sourceTripIds.join(", ")} → risultati{" "}
-                {op.resultingTripIds.length > 0 ? op.resultingTripIds.join(", ") : "—"} ·{" "}
-                {op.createdAt.replace("T", " ")}
-              </li>
-            ))}
-          </ul>
-        </Accordion>
       )}
     </div>
   );

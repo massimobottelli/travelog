@@ -46,13 +46,12 @@ function baseProps(
 const gearFor = (name = "Lozon") => screen.getByRole("button", { name: `Azioni per ${name}` });
 
 describe("TripCard (new UI, phase 3)", () => {
-  it("renders the title, period + duration, region tags and photo badge", () => {
+  it("renders the title, period + duration and region tags", () => {
     render(<TripCard {...baseProps()} />);
 
     expect(screen.getByText("Lozon")).toBeTruthy();
     expect(screen.getByText("3 Lug - 31 Lug 2026 · 29 gg")).toBeTruthy();
     expect(screen.getByText("Valle d'Aosta")).toBeTruthy();
-    expect(screen.getByText(/42 Foto/)).toBeTruthy();
   });
 
   it("reflects the expanded state and renders children only when open", () => {

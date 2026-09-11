@@ -192,8 +192,6 @@ function baseProps(extra: Partial<ComponentProps<typeof TripsDashboard>> = {}) {
     trips: TRIPS,
     loading: false,
     error: null as string | null,
-    search: "",
-    onSearchChange: vi.fn(),
     selectedTripId: null as number | null,
     onSelectTrip: vi.fn(),
     detailLoading: false,
@@ -214,23 +212,13 @@ beforeEach(() => {
 });
 
 describe("TripsDashboard (new UI, phase 4)", () => {
-  it("renders the sidebar with the search field and one card per trip", () => {
+  it("renders the sidebar with one card per trip", () => {
     render(<TripsDashboard {...baseProps()} />);
 
     expect(screen.getByText("I Miei Viaggi")).toBeTruthy();
-    expect(screen.getByLabelText("Cerca viaggi")).toBeTruthy();
     expect(screen.getByText("Lozon")).toBeTruthy();
     expect(screen.getAllByText("Sicilia").length).toBeGreaterThan(0);
     expect(screen.getByText("3 Lug - 31 Lug 2026 · 29 gg")).toBeTruthy();
-    expect(screen.getByText(/42 Foto/)).toBeTruthy();
-  });
-
-  it("reports every keystroke to the parent (server-side search, §1.1)", () => {
-    const onSearchChange = vi.fn();
-    render(<TripsDashboard {...baseProps({ onSearchChange })} />);
-
-    fireEvent.change(screen.getByLabelText("Cerca viaggi"), { target: { value: "Sic" } });
-    expect(onSearchChange).toHaveBeenCalledWith("Sic");
   });
 
   it("reports the clicked card through onSelectTrip", () => {
@@ -354,27 +342,11 @@ describe("TripsDashboard (new UI, phase 4)", () => {
     expect(row().classList.contains("locality-card--active")).toBe(true);
   });
 
-  it("renders the global action menu in the sidebar header when provided (UI §1.1)", () => {
-    const onScan = vi.fn();
-    const { rerender } = render(<TripsDashboard {...baseProps()} />);
+  it("keeps the search field and the global action menu out of the dashboard (§1.1)", () => {
+    render(<TripsDashboard {...baseProps()} />);
+
+    // Both live in the application top bar, rendered by the page.
+    expect(screen.queryByLabelText("Cerca viaggi")).toBeNull();
     expect(screen.queryByRole("button", { name: "Nuovo Viaggio" })).toBeNull();
-
-    rerender(
-      <TripsDashboard
-        {...baseProps({
-          globalActions: {
-            onScan,
-            onCreateTrip: vi.fn(),
-            onExport: vi.fn(),
-            onMerge: vi.fn(),
-            onRecalculate: vi.fn(),
-          },
-        })}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Nuovo Viaggio" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Scansione" }));
-    expect(onScan).toHaveBeenCalledTimes(1);
   });
 });

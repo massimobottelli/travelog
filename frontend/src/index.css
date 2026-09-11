@@ -31,66 +31,85 @@ body {
   min-height: 100vh;
 }
 
-/* ── Horizontal top bar (desktop and mobile) ───────────── */
+/* ── Application top bar (new UI §1.1) ─────────────────── */
 
+/* White sticky bar with a thin bottom border and the black brand. */
 .app-header {
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 1.5rem;
-  padding: 0 1.5rem;
-  background: #0f1b2a;
-  color: #fff;
-}
-
-.brand {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   display: flex;
   align-items: center;
+  gap: 1.25rem;
+  min-height: 64px;
+  padding: 0 1.5rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  color: #111827;
+}
+
+/* Black brand mark + wordmark; clickable back to the dashboard. */
+button.brand {
+  display: inline-flex;
+  align-items: center;
   gap: 0.55rem;
+  padding: 0;
+  background: none;
+  border: none;
   align-self: center;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 700;
   white-space: nowrap;
-  color: #fff;
+  color: #111827;
 }
 
-.app-nav {
-  /* Center the navigation items, mockup style */
+button.brand:hover:not(:disabled) {
+  background: none;
+  color: #111827;
+}
+
+.brand svg {
+  color: #111827;
+  flex-shrink: 0;
+}
+
+/* Page-specific content (search field, global action menu), centred. */
+.app-header-slot {
   flex: 1;
   display: flex;
-  justify-content: center;
-  gap: 0.25rem;
-}
-
-.nav-button {
-  display: flex;
-  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* Search field inside the top bar: white box with a light border. */
+.app-header .search-box {
+  flex: 0 1 400px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  padding: 0.45rem 0.75rem;
+}
+
+.app-header .search-box:focus-within {
+  border-color: #2b6cb0;
+}
+
+/* Settings gear on the far right. */
+button.app-header-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  padding: 0.4rem;
+  background: none;
   border: none;
-  background: transparent;
-  color: #cfe0f0;
-  padding: 0.95rem 1.4rem;
-  border-radius: 0;
-  cursor: pointer;
-  font-size: 0.98rem;
-  white-space: nowrap;
+  color: #374151;
 }
 
-.nav-button:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.nav-button.active {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  box-shadow: inset 0 -3px 0 #fff;
-}
-
-.nav-label {
-  white-space: nowrap;
+button.app-header-settings:hover:not(:disabled) {
+  background: none;
+  color: #111827;
 }
 
 /* ── Main area ─────────────────────────────────────────── */
@@ -675,7 +694,7 @@ button.trip-finish:hover:not(:disabled) {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.3rem;
   width: 9rem;
   flex-shrink: 0;
   /* Align the date/dot row with the first locality card of the day */
@@ -701,6 +720,7 @@ button.trip-finish:hover:not(:disabled) {
   gap: 0.25rem;
   flex: 1;
   min-width: 0;
+  font-size: 0,78rem;
 }
 
 .trip-day-dot {
@@ -1025,38 +1045,27 @@ button.icon-button:hover {
 
 /* ── Phones (iPhone, ≤ 560px) ───────────────────────────────── */
 @media (max-width: 560px) {
-  /* Header: brand on its own row, nav below, items compressed. */
+  /* Top bar: brand + settings gear on the first row, the search field and
+     the global action menu on a second full-width row. */
   .app-header {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 0;
-    gap: 0;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    min-height: 0;
+    padding: 0.55rem 0.9rem;
   }
 
-  .brand {
-    justify-content: center;
-    padding: 0.55rem 0 0.35rem;
-    font-size: 1.1rem;
+  button.brand {
+    font-size: 1.15rem;
   }
 
-  .app-nav {
+  .app-header-slot {
+    order: 3;
+    flex: 1 1 100%;
     justify-content: space-between;
-    gap: 0;
   }
 
-  .nav-button {
-    flex: 1;
-    gap: 0.3rem;
-    padding: 0.6rem 0.3rem;
-    font-size: 0.85rem;
-  }
-
-  .nav-button.active {
-    box-shadow: inset 0 -2px 0 #fff;
-  }
-
-  .nav-button svg {
-    flex-shrink: 0;
+  .app-header .search-box {
+    flex: 1 1 auto;
   }
 
   .app-main {
@@ -1294,6 +1303,11 @@ button.icon-button:hover {
   font: inherit;
 }
 
+/* Hovering a trip card must not paint the generic blue button background. */
+.trip-card-toggle:hover:not(:disabled) {
+  background: none;
+}
+
 .trip-card-main {
   display: flex;
   flex-direction: column;
@@ -1330,8 +1344,8 @@ button.icon-button:hover {
   display: inline-block;
   padding: 0.1rem 0.55rem;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
+  background: #f1f5f9;
+  color: #64748b;
   font-size: 0.78rem;
 }
 
@@ -1418,9 +1432,9 @@ button.icon-button:hover {
 
 .trips-dashboard {
   display: grid;
-  /* Fixed sidebar (UI §2: 420px) + flexible map column (UI §3). */
-  grid-template-columns: 420px minmax(0, 1fr);
-  gap: 1rem;
+  /* Two equal columns (UI §2/§3): trips list on the left, map on the right. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
   /* Fill the area below the app header; the sidebar scrolls internally. */
   height: calc(100vh - 7rem);
   min-height: 460px;
@@ -1430,23 +1444,26 @@ button.icon-button:hover {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  /* No box around the column (mockup): the title and the cards sit on the
+     page background, separated from the map by a vertical divider. */
+  background: none;
+  border: none;
+  border-right: 1px solid #e5e7eb;
   overflow: hidden;
 }
 
 .trips-sidebar-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  padding: 0.9rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 0.6rem 1.25rem;
 }
 
+/* Section title of the left column, mockup style (uppercase, spaced). */
 .trips-sidebar-title {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1f2933;
 }
 
 /* Independent vertical scroll for the trip card list (UI §2). */
@@ -1454,15 +1471,15 @@ button.icon-button:hover {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0.9rem 1rem;
+  padding: 0.2rem 1.25rem;
 }
 
 .trips-map-panel {
   position: relative;
   min-height: 0;
+  /* The map fills the right half edge to edge (mockup). */
   background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border: none;
   overflow: hidden;
 }
 
@@ -1495,13 +1512,31 @@ button.icon-button:hover {
 
 /* ── Timeline inside the expanded trip card (new UI §2.2) ───── */
 
-/* Narrower day-marker column so the timeline fits the ~420px sidebar. */
+/* Day-marker column: wider spacing so the date sits comfortably away
+   from the left edge of the expanded body. */
 .trip-card-body .trip-day-marker {
-  width: 5.5rem;
+  width: 5.8rem;
 }
 
+/* Shrink the date text so it fits cleanly within the marker column. */
+.trip-card-body .trip-day-marker-main {
+  font-size: 0.78rem;
+}
+
+/* Connector line runs continuously through the locality cards below the dot. */
 .trip-card-body .trip-timeline-day:not(:last-child) .trip-day-marker::after {
-  left: calc(5.5rem - 8px);
+  left: calc(5.8rem - 8px);
+  top: 1.4rem;
+  /* Extend past the marker row into the locality-card space,
+     then add extra margin-bottom to reach the next day's dot level. */
+  height: calc(100% + 3rem);
+  width: 2px;
+  background: #e2e8f0;
+}
+
+/* Wider gap between marker and locality cards gives a cleaner visual break. */
+.trip-card-body .trip-timeline-day {
+  gap: 0.7rem;
 }
 
 /* Locality row is interactive when the timeline drives the map (§3.1). */
@@ -1510,25 +1545,17 @@ button.icon-button:hover {
 }
 
 .locality-card--interactive:hover {
-  border-color: #2b6cb0;
+  border-color: #e8f0ff;
 }
 
 /* Locality highlighted by the map ↔ timeline selection. */
 .locality-card--active {
-  border-color: #2b6cb0;
-  background: #ebf4ff;
+  border-color: #e8f0ff;
+  background: #f7faff;
 }
 
 
 /* ── Global action menu ("+ Nuovo Viaggio", new UI §1.1) ────── */
-
-/* Sidebar header row: title on the left, primary action on the right. */
-.trips-sidebar-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-}
 
 .global-action-menu {
   position: relative;
@@ -1611,7 +1638,8 @@ button.global-action-trigger:hover:not(:disabled) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  height: calc(100vh - 6.5rem);
+  /* Top bar (64px) + main padding (1.5rem top and bottom). */
+  height: calc(100vh - 7rem);
 }
 
 .trips-page > .trips-dashboard {
@@ -1634,13 +1662,12 @@ button.global-action-trigger:hover:not(:disabled) {
   margin: 0;
 }
 
-/* Pagination pinned under the scrolling trip list. */
-.trips-sidebar-footer {
+/* Pagination rendered at the bottom of the scrollable trip list. */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
   padding: 0.6rem 1rem;
-  border-top: 1px solid #e5e7eb;
-}
-
-.trips-sidebar-footer .pagination {
-  margin-top: 0;
 }
 

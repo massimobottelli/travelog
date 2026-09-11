@@ -6,7 +6,6 @@
  * - subtitle with the date range and computed duration, preceded by a
  *   calendar icon (e.g. "3 Lug - 31 Lug 2026 · 29 gg");
  * - geographic tags from `Trip.regions` (counties/regions visited);
- * - photo badge from `Trip.photoCount` ("42 Foto");
  * - per-trip gear context menu (Rinomina / Modifica date / Dividi /
  *   Elimina), delegated to the parent so it reuses the existing dialogs.
  *
@@ -17,7 +16,7 @@
 import type { ReactNode } from "react";
 import type { Trip } from "../api/client";
 import { formatTripPeriodShort, tripDurationDays } from "../utils/format";
-import { CalendarIcon, ChevronDownIcon, ChevronUpIcon, ExternalLinkIcon, PhotoIcon } from "./icons";
+import { CalendarIcon, ChevronDownIcon, ChevronUpIcon, ExternalLinkIcon } from "./icons";
 import TripContextMenu from "./TripContextMenu";
 
 export interface TripCardProps {
@@ -63,7 +62,6 @@ export default function TripCard({
 }: TripCardProps) {
   const title = trip.name || "(senza nome)";
   const regions = trip.regions ?? [];
-  const photoCount = trip.photoCount ?? 0;
 
   return (
     <article className={`trip-card${active ? " trip-card--active" : ""}`} data-trip-id={trip.id}>
@@ -111,9 +109,6 @@ export default function TripCard({
                 ))}
               </span>
             )}
-            <span className="trip-card-photos">
-              <PhotoIcon size={13} /> {photoCount} Foto
-            </span>
           </span>
           <span className="trip-card-chevron" aria-hidden="true">
             {expanded ? <ChevronUpIcon size={18} /> : <ChevronDownIcon size={18} />}

@@ -236,12 +236,12 @@ export function TrashIcon({ size }: IconProps) {
   );
 }
 
-/** Compass in a filled circle — brand mark. */
+/** Compass in a filled circle — brand mark (black circle, white needle). */
 export function CompassIcon({ size }: IconProps) {
   return (
     <svg {...base(size)} viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="10" fill="currentColor" />
-      <path d="M15.5 8.5 13.4 13.4 8.5 15.5l2.1-4.9 4.9-2.1Z" fill="#0f1b2a" />
+      <path d="M15.5 8.5 13.4 13.4 8.5 15.5l2.1-4.9 4.9-2.1Z" fill="#ffffff" />
     </svg>
   );
 }

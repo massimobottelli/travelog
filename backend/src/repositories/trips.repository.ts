@@ -162,8 +162,8 @@ class TripsRepository {
    * Enriches trips with two fields used by the trip cards (new UI):
    * - photoCount: total photos in the trip, from the sum of the presences
    *   `photo_count` rows whose day falls inside the trip interval (§15/§16);
-   * - regions: distinct "county / region" administrative levels visited,
-   *   ordered alphabetically, used as card tags.
+   * - regions: distinct administrative REGION names visited (the provinces
+   *   are not used as tags), ordered alphabetically.
    * The presences join intentionally does NOT filter on `locality_id` at
    * the trip level: the interval fully identifies the trip's days.
    */
@@ -173,8 +173,8 @@ class TripsRepository {
     const statsRows = await dbPool.query(
       `SELECT t.id,
               COALESCE(SUM(p.photo_count), 0) AS photo_count,
-              array_agg(DISTINCT COALESCE(l.county, '') || ' / ' || COALESCE(l.region, ''))
-                FILTER (WHERE COALESCE(l.county, '') != '' OR COALESCE(l.region, '') != '') AS regions
+              array_agg(DISTINCT l.region)
+                FILTER (WHERE COALESCE(l.region, '') != '') AS regions
        FROM trips t
        LEFT JOIN presences p ON p.photo_date >= t.start_date AND p.photo_date <= t.end_date
        LEFT JOIN localities l ON l.id = p.locality_id
