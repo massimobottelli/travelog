@@ -940,6 +940,13 @@ button.icon-button:hover {
   margin: 0;
 }
 
+/* Photo-density heatmap (overview, before a trip is selected): the heat
+   canvas is drawn at ~50% opacity so the basemap underneath — coastlines,
+   region and country boundaries — stays visible through the layer. */
+.trip-map-container .leaflet-heatmap-layer {
+  opacity: 0.6;
+}
+
 /* ── Trips pagination ───────────────────────────────────────── */
 
 .pagination {

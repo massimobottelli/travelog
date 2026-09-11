@@ -371,6 +371,14 @@ describe("TripsDashboard (new UI, phase 4)", () => {
     map.handlers["zoomend"]();
     expect(heat.opts.maxZoom).toBe(10);
 
+    // Tight fit: no integer-zoom rounding (zoomSnap: 0 on the map) and a
+    // raised zoom cap, so the frame is the minimum necessary to contain
+    // all localities without artificial widening.
+    expect(map.fitBounds).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ maxZoom: 18 }),
+    );
+
     // No region legend inside the map panel: the heatmap shows only the
     // heat layer (the county legend belongs to the trip map only).
     const mapPanel = container.querySelector('[aria-label="Mappa viaggi"]') as HTMLElement;

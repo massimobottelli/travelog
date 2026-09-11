@@ -48,8 +48,8 @@ const SATELLITE_ATTRIBUTION = "Tiles &copy; Esri";
 const HEAT_GRADIENT: Record<number, string> = {
   0.2: "#4ade80",  // green (low density)
   0.4: "#facc15",  // yellow
-  0.6: "#fb923c",  // orange
-  0.8: "#ef4444",  // red-orange
+  0.7: "#fb923c",  // orange
+  0.9: "#ef4444",  // red-orange
   1.0: "#dc2626",  // red (high density)
 };
 
@@ -74,6 +74,10 @@ export default function HeatMap({
       center: [41.9, 12.5], // Italy center
       zoom: 6,
       zoomControl: false,
+      // No zoom rounding: fitBounds can land on a fractional zoom, so the
+      // overview is framed at the MINIMUM zoom that contains all localities
+      // instead of being rounded down to a wider integer zoom step.
+      zoomSnap: 0,
     });
 
     // Add zoom control in top-left
@@ -166,9 +170,12 @@ export default function HeatMap({
       }
     };
 
-    // Fit bounds to show all heat points
+    // Fit bounds to show all heat points, framed as tightly as possible:
+    // fractional zoom (zoomSnap: 0) + a high zoom cap mean the view is the
+    // minimum necessary to contain every locality — no extra empty margin
+    // from integer-zoom rounding, no artificial widening of tight clusters.
     const bounds = L.latLngBounds(data.markers.map((m) => [m.latitude, m.longitude]));
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
   }, [data, mapReady]);
 
   const containerClass = fullHeight
