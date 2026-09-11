@@ -98,7 +98,7 @@ describe("TripCard (new UI, phase 3)", () => {
 });
 
 describe("TripContextMenu (per-trip gear, UI §2.1)", () => {
-  it("opens the menu with the four actions and calls Rinomina", () => {
+  it("opens the menu with the default actions and calls Rinomina", () => {
     const onRename = vi.fn();
     render(<TripCard {...baseProps({ onRename })} />);
 
@@ -111,11 +111,34 @@ describe("TripContextMenu (per-trip gear, UI §2.1)", () => {
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent?.trim()),
-    ).toEqual(["Rinomina", "Modifica date", "Dividi viaggio", "Elimina"]);
+    ).toEqual(["Rinomina", "Modifica date", "Dividi viaggio", "Elimina viaggio"]);
 
     fireEvent.click(screen.getByRole("menuitem", { name: /Rinomina/ }));
     expect(onRename).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).toBeNull(); // closes after the action
+  });
+
+  it("shows Elimina Località only when onEditDays is provided and invokes it", () => {
+    const onEditDays = vi.fn();
+    render(<TripCard {...baseProps({ onEditDays })} />);
+
+    fireEvent.click(gearFor());
+    const menu = screen.getByRole("menu");
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent?.trim()),
+    ).toEqual([
+      "Rinomina",
+      "Modifica date",
+      "Elimina Località",
+      "Dividi viaggio",
+      "Elimina viaggio",
+    ]);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Elimina Località" }));
+    expect(onEditDays).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 
   it("invokes Modifica date, Dividi viaggio and Elimina", () => {
@@ -133,7 +156,7 @@ describe("TripContextMenu (per-trip gear, UI §2.1)", () => {
     expect(onSplit).toHaveBeenCalledTimes(1);
 
     fireEvent.click(gearFor());
-    fireEvent.click(screen.getByRole("menuitem", { name: /Elimina/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Elimina viaggio/ }));
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 

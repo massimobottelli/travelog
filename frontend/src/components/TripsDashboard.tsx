@@ -18,10 +18,15 @@
  * synchronized with the map: hovering or clicking a locality opens the
  * matching pin popup, and clicking a pin highlights its timeline row
  * (UI §3.1).
+ *
+ * On active trips the expanded body offers the "Elimina Località" entry
+ * (§51) in the trip context menu: it enables the inline day/locality
+ * deletion (no locality search / "Aggiungi giorno", which stay on the
+ * detail page), persisted through the `onReplaceDays` callback of the page.
  */
 
 import { useEffect, useState, type ReactNode } from "react";
-import type { Trip, TripDetail, TripMapData } from "../api/client";
+import type { Trip, TripDayInput, TripDetail, TripMapData } from "../api/client";
 import TripCard from "./TripCard";
 import TripMap from "./TripMap";
 import TripTimeline from "./TripTimeline";
@@ -48,6 +53,13 @@ export interface TripsDashboardProps {
   onEditDates: (trip: Trip) => void;
   onSplit: (trip: Trip) => void;
   onDelete: (trip: Trip) => void;
+  /**
+   * When provided, every active trip exposes the inline day/locality
+   * deletion through the "Elimina Località" context-menu entry (§51): the
+   * callback persists the full day list of the trip and refreshes the
+   * detail (§47bis).
+   */
+  onReplaceDays?: (tripId: number, days: TripDayInput[]) => Promise<void>;
   /** Merge-selection mode: the cards show a selection checkbox. */
   mergeMode?: boolean;
   selectedIds?: number[];
@@ -72,6 +84,7 @@ export default function TripsDashboard({
   onEditDates,
   onSplit,
   onDelete,
+  onReplaceDays,
   mergeMode = false,
   selectedIds = [],
   onToggleSelected,
@@ -80,9 +93,18 @@ export default function TripsDashboard({
 }: TripsDashboardProps) {
   /* Hover-only visual highlight (no popup, no fly-to — only marker enlarge). */
   const [highlightedLocalityId, setHighlightedLocalityId] = useState<number | null>(null);
+  /**
+   * Expanded card whose days are being edited inline, entered from the
+   * "Elimina Località" voice of the trip context menu (§51).
+   * Only one card at a time can be edited.
+   */
+  const [editingTripId, setEditingTripId] = useState<number | null>(null);
 
   useEffect(() => {
     setHighlightedLocalityId(null);
+    // Keep the editing state when the card was just expanded for it, drop it
+    // when another trip becomes the selected one.
+    setEditingTripId((current) => (current === selectedTripId ? current : null));
   }, [selectedTripId]);
 
   return (
@@ -101,6 +123,15 @@ export default function TripsDashboard({
 
           {trips.map((trip) => {
             const expanded = trip.id === selectedTripId;
+            // Inline day editing (§51): active trips only, exactly like the
+            // standalone detail page. It is entered from the "Elimina
+            // Località" entry of the trip context menu, which also expands
+            // the card when needed.
+            const editing = expanded && editingTripId === trip.id;
+            const editable = detail?.status === "active" && onReplaceDays !== undefined;
+            // The menu entry is per-trip and must not depend on the detail of
+            // the currently selected trip.
+            const canEditDays = trip.status === "active" && onReplaceDays !== undefined;
             return (
               <TripCard
                 key={trip.id}
@@ -110,6 +141,14 @@ export default function TripsDashboard({
                 onToggle={() => onSelectTrip(trip.id)}
                 onRename={() => onRename(trip)}
                 onEditDates={() => onEditDates(trip)}
+                onEditDays={
+                  canEditDays
+                    ? () => {
+                        if (!expanded) onSelectTrip(trip.id);
+                        setEditingTripId(trip.id);
+                      }
+                    : undefined
+                }
                 onSplit={() => onSplit(trip)}
                 onDelete={() => onDelete(trip)}
                 mergeMode={mergeMode}
@@ -122,6 +161,14 @@ export default function TripsDashboard({
                 {!detailLoading && !detailError && detail && (
                   <TripTimeline
                     days={detail.days}
+                    editing={editing}
+                    onReplaceDays={
+                      editable && onReplaceDays
+                        ? (days: TripDayInput[]) => onReplaceDays(trip.id, days)
+                        : undefined
+                    }
+                    onExitEditing={() => setEditingTripId(null)}
+                    allowAdditions={false}
                     activeLocalityId={highlightedLocalityId}
                     onLocalityHover={setHighlightedLocalityId}
                   />

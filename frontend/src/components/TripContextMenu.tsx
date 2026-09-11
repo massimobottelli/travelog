@@ -2,9 +2,11 @@
  * Travelog — Trip context menu (new UI, phase 3)
  *
  * The per-trip gear dropdown described in the UI spec §2.1: it exposes the
- * four punctual actions of a trip (Rinomina / Modifica date / Dividi
- * viaggio / Elimina) and delegates them to the parent, which reuses the
- * existing dialogs (`TripDialog`) and the delete confirmation.
+ * punctual actions of a trip (Rinomina / Modifica date / Elimina Località /
+ * Dividi viaggio / Elimina) and delegates them to the parent, which reuses
+ * the existing dialogs (`TripDialog`) and the delete confirmation. The
+ * "Elimina Località" entry appears only on active trips and enables the
+ * inline day/locality editing of the expanded card (§51).
  *
  * The menu is self-contained: it owns its open/closed state and closes on
  * outside click or Escape.
@@ -22,6 +24,11 @@ import { CalendarIcon, GearIcon, PencilIcon, ScissorsIcon, TrashIcon } from "./i
 export interface TripContextMenuProps {
   onRename: () => void;
   onEditDates: () => void;
+  /**
+   * Enables the inline day/locality editing (§51): the "Elimina Località"
+   * entry appears only when provided (active trips).
+   */
+  onEditDays?: () => void;
   onSplit: () => void;
   onDelete: () => void;
   /** Accessible label for the trigger button. */
@@ -32,6 +39,7 @@ export interface TripContextMenuProps {
 export default function TripContextMenu({
   onRename,
   onEditDates,
+  onEditDays,
   onSplit,
   onDelete,
   label,
@@ -140,6 +148,16 @@ export default function TripContextMenu({
             >
               <CalendarIcon size={15} /> Modifica date
             </button>
+            {onEditDays && (
+              <button
+                type="button"
+                role="menuitem"
+                className="trip-context-item"
+                onClick={select(onEditDays)}
+              >
+                <TrashIcon size={15} /> Modifica viaggio
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"
@@ -154,7 +172,7 @@ export default function TripContextMenu({
               className="trip-context-item trip-context-item--danger"
               onClick={select(onDelete)}
             >
-              <TrashIcon size={15} /> Elimina
+              <TrashIcon size={15} /> Elimina viaggio
             </button>
           </div>,
           document.body,

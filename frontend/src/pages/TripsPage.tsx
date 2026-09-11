@@ -21,11 +21,12 @@ import {
   deleteTrip,
   exportTripsCsv,
   createTrip,
+  replaceTripDays,
   getTripMap,
 } from "../api/trips";
 import { splitTrip, mergeTrips } from "../api/operations";
 import { recalculate } from "../api/settings";
-import type { Trip, TripDetail, TripMapData } from "../api/client";
+import type { Trip, TripDayInput, TripDetail, TripMapData } from "../api/client";
 import TripDialog, { type TripDialogState } from "../components/TripDialog";
 import TripDaysModal, { type TripDaysPayload } from "../components/TripDaysModal";
 import TripsDashboard from "../components/TripsDashboard";
@@ -252,6 +253,20 @@ export default function TripsPage() {
     }
   };
 
+  // Inline day/locality deletion of the expanded card ("Elimina Località",
+  // §51): persist the full day list, then refresh detail, map and list
+  // together (the trip interval may have changed). On failure the error
+  // propagates to the timeline, which shows it in place.
+  const handleReplaceDays = async (tripId: number, days: TripDayInput[]): Promise<void> => {
+    await replaceTripDays(tripId, { days });
+    if (selectedTripId === tripId) {
+      const [detailData, mapDataLoaded] = await Promise.all([getTrip(tripId), getTripMap(tripId)]);
+      setDetail(detailData);
+      setMapData(mapDataLoaded);
+    }
+    await reload(search, page);
+  };
+
   const handleRecalculate = async (): Promise<void> => {
     setRecalculating(true);
     setRecalcError(null);
@@ -411,6 +426,7 @@ export default function TripsPage() {
           setDialogMessage(null);
           setConfirmDelete({ id: trip.id, name: trip.name });
         }}
+        onReplaceDays={handleReplaceDays}
         mergeMode={mergeMode}
         selectedIds={selectedIds}
         onToggleSelected={toggleSelected}

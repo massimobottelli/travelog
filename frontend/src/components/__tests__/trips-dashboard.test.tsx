@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import TripsDashboard from "../TripsDashboard";
 import type { Trip, TripDetail, TripMapData } from "../../api/client";
@@ -350,5 +350,50 @@ describe("TripsDashboard (new UI, phase 4)", () => {
     // Both live in the application top bar, rendered by the page.
     expect(screen.queryByLabelText("Cerca viaggi")).toBeNull();
     expect(screen.queryByRole("button", { name: "Nuovo Viaggio" })).toBeNull();
+  });
+
+  it("keeps the expanded card read-only without onReplaceDays", () => {
+    render(<TripsDashboard {...baseProps({ selectedTripId: 1, detail: DETAIL })} />);
+
+    expect(screen.queryByRole("menuitem", { name: "Elimina Località" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Elimina il giorno/ })).toBeNull();
+  });
+
+  it("hides the Elimina Località entry on archived trips", () => {
+    const archivedTrips: Trip[] = [makeTrip({ status: "archived" }), TRIPS[1]];
+    render(
+      <TripsDashboard
+        {...baseProps({
+          trips: archivedTrips,
+          selectedTripId: 1,
+          detail: DETAIL,
+          onReplaceDays: vi.fn(),
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Azioni per Lozon" }));
+    expect(screen.queryByRole("menuitem", { name: "Elimina Località" })).toBeNull();
+  });
+
+  it('enables the inline day/locality editing from the "Elimina Località" menu voice (§51)', async () => {
+    const onReplaceDays = vi.fn().mockResolvedValue(undefined);
+    render(<TripsDashboard {...baseProps({ selectedTripId: 1, detail: DETAIL, onReplaceDays })} />);
+
+    // Read-only until the context-menu voice is chosen.
+    expect(screen.queryByRole("button", { name: /Elimina la località/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Azioni per Lozon" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Elimina Località" }));
+
+    // Deleting the only locality of the day persists the day without it,
+    // reporting the trip id to the parent.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Elimina la località Lozon del giorno 03/07/2026" }),
+    );
+    await waitFor(() => {
+      expect(onReplaceDays).toHaveBeenCalledTimes(1);
+    });
+    expect(onReplaceDays).toHaveBeenCalledWith(1, [{ date: "2026-07-03" }]);
   });
 });
