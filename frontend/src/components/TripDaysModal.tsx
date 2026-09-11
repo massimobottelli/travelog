@@ -345,9 +345,7 @@ export default function TripDaysModal({
           ))}
         </ul>
       ) : (
-        <p className="hint">
-          &nbsp;
-        </p>
+        <p className="hint">&nbsp;</p>
       )}
 
       {/* ── Step 10: conclude the trip ───────────────────────────── */}

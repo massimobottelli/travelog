@@ -463,7 +463,8 @@ class TripsRepository {
     );
     return result.rows.map((r) => ({
       dayDate: String(r.dayDate),
-      localityKey: r.localityKey === null || r.localityKey === undefined ? null : String(r.localityKey),
+      localityKey:
+        r.localityKey === null || r.localityKey === undefined ? null : String(r.localityKey),
     }));
   }
 

@@ -68,9 +68,9 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Foto" })).toBeNull();
     expect(screen.getByRole("button", { name: "Impostazioni" })).not.toBeNull();
 
-    // Trips page is the default page
+    // Trips dashboard is the default page
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Viaggi" })).not.toBeNull();
+      expect(screen.getByRole("heading", { name: "I Miei Viaggi" })).not.toBeNull();
     });
   });
 

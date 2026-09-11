@@ -130,9 +130,11 @@ export default function TripMap({
     const standard = L.tileLayer(STANDARD_TILE_URL, { attribution: STANDARD_ATTRIBUTION });
     const satellite = L.tileLayer(SATELLITE_TILE_URL, { attribution: SATELLITE_ATTRIBUTION });
     standard.addTo(map);
-    L.control.layers({ Standard: standard, Satellite: satellite }, undefined, {
-      position: "topleft",
-    }).addTo(map);
+    L.control
+      .layers({ Standard: standard, Satellite: satellite }, undefined, {
+        position: "topleft",
+      })
+      .addTo(map);
 
     const markersLayer = L.layerGroup().addTo(map);
 
@@ -230,4 +232,3 @@ export default function TripMap({
 
   return <div ref={setMapContainer} className={containerClass} />;
 }
-

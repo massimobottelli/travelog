@@ -105,3 +105,35 @@ export function formatTripPeriod(startDate: string, endDate: string): string {
   }
   return `${formatTripDate(startDate)} - ${end}`;
 }
+
+const MONTHS_IT_SHORT = [
+  "Gen",
+  "Feb",
+  "Mar",
+  "Apr",
+  "Mag",
+  "Giu",
+  "Lug",
+  "Ago",
+  "Set",
+  "Ott",
+  "Nov",
+  "Dic",
+];
+
+/** Short trip date for the card, e.g. "3 Lug" or "3 Lug 2026" (no leading zero). */
+function formatTripDateShort(date: string, withYear: boolean): string {
+  const [year, month, day] = date.split("-");
+  const monthName = MONTHS_IT_SHORT[Number(month) - 1] ?? "";
+  const dayNumber = String(Number(day));
+  return withYear ? `${dayNumber} ${monthName} ${year}` : `${dayNumber} ${monthName}`;
+}
+
+/**
+ * Trip period for the trip card (UI §2.1), e.g. "3 Lug - 31 Lug 2026".
+ * The start year is shown only when the trip spans two different years.
+ */
+export function formatTripPeriodShort(startDate: string, endDate: string): string {
+  const sameYear = tripYear(startDate) === tripYear(endDate);
+  return `${formatTripDateShort(startDate, !sameYear)} - ${formatTripDateShort(endDate, true)}`;
+}

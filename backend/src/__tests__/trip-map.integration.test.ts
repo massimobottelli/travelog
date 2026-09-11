@@ -201,7 +201,6 @@ describe("GET /trips/:id/map — one waymark per detail locality", () => {
   });
 });
 
-
 beforeEach(async () => {
   await cleanup();
 });

@@ -266,4 +266,3 @@ describe("TripMap (new UI, phase 2)", () => {
     expect(h.state.mapCount).toBe(0);
   });
 });
-

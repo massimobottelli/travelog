@@ -68,24 +68,23 @@ function mockListTrips(): void {
 }
 
 describe("TripDaysModal (creazione manuale viaggi)", () => {
-  it("opens from the toolbar button after Ricalcola, before the trip list", async () => {
+  it("opens from the global action menu, above the dashboard", async () => {
     mockListTrips();
     const { container } = render(<TripsPage />);
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Ricalcola" })).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Nuovo Viaggio" })).not.toBeNull();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Crea viaggio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nuovo Viaggio" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Crea Viaggio" }));
     await waitFor(() => {
       expect(screen.getByTestId("trip-days-modal")).not.toBeNull();
     });
-    // The modal sits between the header card and the trips panel.
-    const header = container.querySelector(".page-header-card")!;
+    // The modal sits above the two-column dashboard.
     const modal = screen.getByTestId("trip-days-modal");
-    const tripsPanel = container.querySelector(".trips-panel")!;
-    expect(header.compareDocumentPosition(modal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const dashboard = container.querySelector(".trips-dashboard")!;
     expect(
-      modal.compareDocumentPosition(tripsPanel) & Node.DOCUMENT_POSITION_FOLLOWING,
+      modal.compareDocumentPosition(dashboard) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 
@@ -210,12 +209,12 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
 
     // Concluding submits the three days.
     fireEvent.click(screen.getByRole("button", { name: "Salva" }));
-    expect(
-      (screen.getByRole("button", { name: "Salva" }) as HTMLButtonElement).disabled,
-    ).toBe(false);
+    expect((screen.getByRole("button", { name: "Salva" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
   });
 
-  it('selecting a day (clicking its date) opens its locality search', async () => {
+  it("selecting a day (clicking its date) opens its locality search", async () => {
     render(
       <TripDaysModal
         submitting={false}

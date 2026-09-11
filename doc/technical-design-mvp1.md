@@ -1774,6 +1774,77 @@ Le pagine rappresentano i principali contesti dell'applicazione.
 
 La UI non contiene business logic di dominio.
 
+### Nuova dashboard dei viaggi (redesign UI)
+
+La pagina **Viaggi** (`/trips`, `TripsPage`) è organizzata a due colonne; la
+vecchia tabella (`TripsTable`) è stata rimossa: la lista è ora composta dalle
+card.
+
+```text
+TripsPage                       (dati, operazioni, dialoghi)
+├── TripDaysModal / merge-bar / messaggi        (sopra le colonne)
+├── TripsDashboard              (layout, solo UI state)
+│   ├── colonna sinistra (~420px, scroll interno)
+│   │   ├── GlobalActionMenu ("+ Nuovo Viaggio", §1.1)
+│   │   ├── campo di ricerca (filtro server-side via GET /trips?search=)
+│   │   ├── TripCard (accordion) + TripContextMenu + link scheda
+│   │   └── TripTimeline (card espansa, §2.2)
+│   ├── footer sidebar (paginazione)
+│   └── colonna destra (flex-grow)
+│       └── TripMap (fullHeight)
+├── TripDialog                  (rinomina / date / dividi)
+└── conferma eliminazione + storico operazioni
+```
+
+* **`TripCard`** — card viaggio espandibile (accordion): titolo, periodo e
+  durata calcolata (`formatTripPeriodShort`, es. `3 Lug - 31 Lug 2026 · 29 gg`),
+  tag geografici da `Trip.regions`, badge foto da `Trip.photoCount` e chevron
+  di espansione.
+* **`TripContextMenu`** — menu contestuale (icona ingranaggio) del singolo
+  viaggio con *Rinomina / Modifica date / Dividi viaggio / Elimina*. Le azioni
+  sono delegate al parent, che riusa `TripDialog` e la conferma di
+  eliminazione esistenti.
+* **`GlobalActionMenu`** — dropdown primario verde "+ Nuovo Viaggio" (UI
+  §1.1) con le azioni d'ingresso *Scansione* (→ `/scans`), *Crea Viaggio*
+  (modale `TripDaysModal`, §47bis), *Esporta* (`exportTripsCsv`) e *Unisci*
+  (merge mode esistente, §13.4), più il comando esplicito *Ricalcola* (§46).
+  Il componente non esegue chiamate API: ogni voce è delegata al parent, che
+  possiede le chiamate, la merge mode e la modale di creazione.
+* **`TripsDashboard`** — layout a due colonne, riceve dati e handler dal
+  parent e possiede solo UI state. La selezione è controllata: il click sulla
+  card riporta l'id del viaggio (`onSelectTrip`); il parent carica `getTrip` +
+  `getTripMap` e passa i nuovi `mapData` alla mappa, che esegue il
+  *fly-to/zoom fit* sui pin del viaggio selezionato.
+* **Ricerca** — server-side: ogni digitazione è riportata al parent, che
+  ri-interroga `listTrips` con il termine di ricerca.
+* **`TripTimeline`** — cronologia dei giorni/località del viaggio (linea
+  verticale con un nodo per giorno, data, card località con badge foto,
+  marcatore "Nessuna foto" per i giorni vuoti). È **estratto** da
+  `TripDetailPanel` (§16) ed è riusato sia nella card espansa sia nella
+  pagina di dettaglio `/trips/:id`; il pannello di dettaglio conserva solo
+  l'intestazione, la mappa e il toggle "Modifica".
+* **Sincronizzazione timeline ↔ mappa (§3.1)** — `TripsDashboard` possiede
+  `activeLocalityId`: l'hover o il click su una località nella timeline
+  (`onLocalityHover` / `onLocalityClick`) apre il popup del pin
+  corrispondente e vi vola sopra; il click su un pin (`onMarkerClick`) evidenzia
+  la riga corrispondente nella timeline.
+* **Modifica inline giorni** — resta disponibile solo nella pagina di
+  dettaglio: `TripTimeline` mostra i comandi (cestino giorno/località,
+  ricerca località con "+", "Aggiungi giorno"/"Fine") solo quando il parent
+  abilita `editing` e fornisce `onReplaceDays` (§47bis). Nella dashboard la
+  timeline è di sola lettura.
+* **Link scheda condivisibile** — ogni card espone un pulsante (icona link
+  esterno) che apre `/trips/:id` in una nuova scheda: la pagina di dettaglio
+  `TripDetailPage` (§16) resta raggiungibile e condivisibile.
+* **Paginazione** — il backend limita la pagina a 100 viaggi: i controlli
+  vivono nel footer della sidebar (`sidebarFooter` di `TripsDashboard`) e
+  scompaiono quando tutti i viaggi stanno in una pagina.
+* **Badge di provenienza** — le card conservano il badge `MANUALE`
+  (viaggi creati a mano) e `Archiviato`, come nella precedente lista.
+
+Le regole di dominio dei viaggi restano nel backend (§44, §45); i componenti
+frontend non contengono business logic.
+
 ---
 
 # 52. Frontend state

@@ -1,18 +1,17 @@
 /**
- * Travelog MVP1 — External link button on the trips table rows
+ * Travelog MVP1 — External link on the trip cards
  *
- * Every trip row exposes an external-link button (right of the edit
- * buttons) that opens the trip detail card as a standalone, shareable
- * page (/trips/:id) in a new browser tab.
+ * Every trip card exposes an external-link button (next to the context
+ * menu) that opens the trip detail card as a standalone, shareable page
+ * (/trips/:id) in a new browser tab. The button appears only when the
+ * parent provides the `onOpenDetail` handler.
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import TripsTable from "../../components/TripsTable";
+import TripCard from "../TripCard";
 import type { Trip } from "../../api/client";
 
-const fetchMock = vi.fn();
-vi.stubGlobal("fetch", fetchMock);
 vi.stubGlobal("open", vi.fn());
 
 afterEach(() => {
@@ -30,62 +29,73 @@ const TRIP: Trip = {
   createdAt: "2025-09-01T10:00:00",
 };
 
-function renderTable(trip: Trip = TRIP): void {
+const LINK_NAME = "Apri la scheda dettaglio di Vacanza in Toscana in una nuova pagina";
+
+function renderCard(trip: Trip = TRIP): void {
   render(
-    <TripsTable
-      trips={[trip]}
-      mergeMode={false}
-      selectedIds={[]}
-      selectedTripId={null}
-      confirmDeleteId={null}
-      detail={null}
-      detailLoading={false}
-      detailError={null}
-      dialog={null}
-      operating={false}
-      onSelectTrip={() => undefined}
-      onCloseDetail={() => undefined}
-      onToggleSelected={() => undefined}
+    <TripCard
+      trip={trip}
+      expanded={false}
+      onToggle={() => undefined}
       onRename={() => undefined}
-      onDates={() => undefined}
+      onEditDates={() => undefined}
       onSplit={() => undefined}
       onDelete={() => undefined}
-      onDeleteConfirm={() => undefined}
-      onDeleteCancel={() => undefined}
-      onDialogSubmit={() => undefined}
-      onDialogCancel={() => undefined}
-      deleting={false}
+      onOpenDetail={(t) => window.open(`/trips/${t.id}`, "_blank")}
     />,
   );
 }
 
-describe("TripsTable — external link button", () => {
-  it("renders the external-link button next to the edit buttons", () => {
-    renderTable();
-    expect(
-      screen.getByRole("button", {
-        name: "Apri la scheda dettaglio di Vacanza in Toscana in una nuova pagina",
-      }),
-    ).not.toBeNull();
+describe("TripCard — external link button", () => {
+  it("renders the external-link button next to the context menu", () => {
+    renderCard();
+    expect(screen.getByRole("button", { name: LINK_NAME })).not.toBeNull();
   });
 
   it("opens /trips/:id in a new tab when clicked", () => {
-    renderTable();
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Apri la scheda dettaglio di Vacanza in Toscana in una nuova pagina",
-      }),
-    );
+    renderCard();
+    fireEvent.click(screen.getByRole("button", { name: LINK_NAME }));
     expect(window.open).toHaveBeenCalledWith("/trips/1", "_blank");
   });
 
   it("is also available for archived trips", () => {
-    renderTable({ ...TRIP, id: 3, status: "archived" });
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Apri la scheda dettaglio di Vacanza in Toscana in una nuova pagina",
-      }),
-    );
+    renderCard({ ...TRIP, id: 3, status: "archived" });
+    fireEvent.click(screen.getByRole("button", { name: LINK_NAME }));
     expect(window.open).toHaveBeenCalledWith("/trips/3", "_blank");
+  });
+
+  it("does not expand the card when clicked", () => {
+    const onToggle = vi.fn();
+    render(
+      <TripCard
+        trip={TRIP}
+        expanded={false}
+        onToggle={onToggle}
+        onRename={() => undefined}
+        onEditDates={() => undefined}
+        onSplit={() => undefined}
+        onDelete={() => undefined}
+        onOpenDetail={(t) => window.open(`/trips/${t.id}`, "_blank")}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: LINK_NAME }));
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("is not rendered without an onOpenDetail handler", () => {
+    render(
+      <TripCard
+        trip={TRIP}
+        expanded={false}
+        onToggle={() => undefined}
+        onRename={() => undefined}
+        onEditDates={() => undefined}
+        onSplit={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: LINK_NAME })).toBeNull();
   });
 });

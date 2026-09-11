@@ -406,7 +406,12 @@ describe("trip card stats: photoCount and regions (new UI)", () => {
 
   it("aggregates photoCount and sorted regions per trip interval in the list", async () => {
     const erice = await insertCardLocality("ops-test-card-erice", "Erice", "Trapani", "Sicily");
-    const milano = await insertCardLocality("ops-test-card-milano", "Milano", "Milano", "Lombardia");
+    const milano = await insertCardLocality(
+      "ops-test-card-milano",
+      "Milano",
+      "Milano",
+      "Lombardia",
+    );
     await pool.query(
       `INSERT INTO presences (photo_date, locality_id, photo_count) VALUES
          ('2025-08-10', $1, 3),
@@ -421,9 +426,10 @@ describe("trip card stats: photoCount and regions (new UI)", () => {
 
     const res = await request(server).get("/api/trips");
     expect(res.status).toBe(200);
-    const byId = new Map(
-      res.body.items.map((t: { id: number }) => [t.id, t]),
-    ) as Map<number, { photoCount: number; regions: string[] }>;
+    const byId = new Map(res.body.items.map((t: { id: number }) => [t.id, t])) as Map<
+      number,
+      { photoCount: number; regions: string[] }
+    >;
 
     // Full interval: 3 (Erice 08-10) + 1 (Erice 08-13) + 2 (Milano 08-13).
     expect(byId.get(full)?.photoCount).toBe(6);
@@ -450,4 +456,3 @@ describe("trip card stats: photoCount and regions (new UI)", () => {
     expect(res.body.regions).toEqual(["Trapani / Sicily"]);
   });
 });
-
