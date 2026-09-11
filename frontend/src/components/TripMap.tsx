@@ -244,12 +244,8 @@ export default function TripMap({
 
   // Hover visual feedback: enlarge / restore pin without popup or fly-to.
   useEffect(() => {
-    if (hoveredLocalityId == null) return;
-
-    const pairs = iconPairByIdRef.current.get(hoveredLocalityId);
-    if (!pairs) return;
-
-    /* Restore whatever was previously highlighted. */
+    /* Restore whatever was previously highlighted (also when the pointer
+       leaves the timeline: the hover id becomes null again). */
     const prevId = prevHoveredRef.current;
     if (prevId != null && prevId !== hoveredLocalityId) {
       const prevPairs = iconPairByIdRef.current.get(prevId);
@@ -257,7 +253,13 @@ export default function TripMap({
         const prevMarker = markerByIdRef.current.get(prevId);
         if (prevMarker) prevMarker.setIcon(prevPairs.normal);
       }
+      prevHoveredRef.current = null;
     }
+
+    if (hoveredLocalityId == null) return;
+
+    const pairs = iconPairByIdRef.current.get(hoveredLocalityId);
+    if (!pairs) return;
 
     /* Swap the hovered marker to its enlarged version. */
     const marker = markerByIdRef.current.get(hoveredLocalityId);

@@ -30,6 +30,7 @@ import TripDialog, { type TripDialogState } from "../components/TripDialog";
 import TripDaysModal, { type TripDaysPayload } from "../components/TripDaysModal";
 import TripsDashboard from "../components/TripsDashboard";
 import GlobalActionMenu from "../components/GlobalActionMenu";
+import Modal from "../components/Modal";
 import TopBarSlot from "../components/TopBarSlot";
 import ErrorAlert from "../components/ErrorAlert";
 import { SearchIcon } from "../components/icons";
@@ -52,12 +53,23 @@ export default function TripsPage() {
   const [dialog, setDialog] = useState<TripDialogState | null>(null);
   const [operating, setOperating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Success notification of an operation run inside a dialog: it is shown at
+  // the bottom of the dialog and the dialog closes on its timeout.
+  const [dialogMessage, setDialogMessage] = useState<string | null>(null);
+  // Non-dialog operations (merge) keep their notification in the page header.
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  // Manual trip creation (modal).
+  const [daysModalOpen, setDaysModalOpen] = useState(false);
+  const [daysSubmitting, setDaysSubmitting] = useState(false);
+  const [daysModalError, setDaysModalError] = useState<string | null>(null);
 
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [mergeTitle, setMergeTitle] = useState("");
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  // The delete confirmation stores the trip name so the success message can
+  // stay visible even after the list is reloaded without the deleted trip.
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
 
   // Pagination: the backend page size is capped at 100; the controls are
   // shown only when the active trips exceed one page.
@@ -72,6 +84,17 @@ export default function TripsPage() {
 
   useAutoDismiss(recalcMessage, () => setRecalcMessage(null));
   useAutoDismiss(actionMessage, () => setActionMessage(null));
+
+  // The dialog closes only after its success notification disappears: this
+  // callback stays stable so re-renders (e.g. the list reload) do not restart
+  // the auto-dismiss timer.
+  const closeDialogAfterNotification = useCallback((): void => {
+    setDialogMessage(null);
+    setDialog(null);
+    setConfirmDelete(null);
+    setDaysModalOpen(false);
+  }, []);
+  useAutoDismiss(dialogMessage, closeDialogAfterNotification);
 
   const reload = useCallback(async (query: string, requestedPage: number) => {
     setLoading(true);
@@ -128,18 +151,14 @@ export default function TripsPage() {
     if (selectedTripId !== null) void loadDetail(selectedTripId);
   }, [selectedTripId, loadDetail]);
 
-  const refreshAfterOperation = useCallback(
-    async (message: string) => {
-      setActionMessage(message);
-      setActionError(null);
-      setDialog(null);
-      setSelectedTripId(null);
-      setDetail(null);
-      setMapData(null);
-      await reload(search, page);
-    },
-    [reload, search, page],
-  );
+  // Re-fetches the list and drops the current selection after an operation
+  // that changed the trips. The success notification is owned by the caller.
+  const refreshAfterOperation = useCallback(async () => {
+    setSelectedTripId(null);
+    setDetail(null);
+    setMapData(null);
+    await reload(search, page);
+  }, [reload, search, page]);
 
   const handleDialogSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -148,25 +167,28 @@ export default function TripsPage() {
     setActionError(null);
     try {
       const form = new FormData(event.currentTarget);
+      let message: string;
       if (dialog.type === "rename") {
         await updateTrip(dialog.tripId, { name: String(form.get("name") ?? "").trim() });
-        await refreshAfterOperation("Viaggio rinominato.");
+        message = "Viaggio rinominato.";
       } else if (dialog.type === "dates") {
         await updateTrip(dialog.tripId, {
           startDate: String(form.get("startDate") ?? ""),
           endDate: String(form.get("endDate") ?? ""),
         });
-        await refreshAfterOperation("Date del viaggio aggiornate.");
+        message = "Date del viaggio aggiornate.";
       } else {
         const name = String(form.get("name") ?? "").trim();
         await splitTrip(dialog.tripId, {
           splitDate: String(form.get("splitDate") ?? ""),
           name: name || undefined,
         });
-        await refreshAfterOperation(
-          "Viaggio diviso: la data scelta appartiene al secondo viaggio.",
-        );
+        message = "Viaggio diviso: la data scelta appartiene al secondo viaggio.";
       }
+      // Keep the dialog open and show the confirmation inside it; the dialog
+      // is closed when the notification auto-dismisses.
+      setDialogMessage(message);
+      await refreshAfterOperation();
     } catch (err: unknown) {
       setActionError(errorToMessage(err));
     } finally {
@@ -183,7 +205,9 @@ export default function TripsPage() {
       setMergeMode(false);
       setSelectedIds([]);
       setMergeTitle("");
-      await refreshAfterOperation("Viaggi uniti: i viaggi originali restano nello storico.");
+      // Merge is not a dialog operation: its notification stays in the header.
+      setActionMessage("Viaggi uniti: i viaggi originali restano nello storico.");
+      await refreshAfterOperation();
     } catch (err: unknown) {
       setActionError(errorToMessage(err));
     } finally {
@@ -206,8 +230,10 @@ export default function TripsPage() {
     setActionError(null);
     try {
       await deleteTrip(tripId);
-      setConfirmDeleteId(null);
-      await refreshAfterOperation("Viaggio eliminato: l'operazione è registrata nello storico.");
+      // The success notification stays in the confirmation dialog (which
+      // closes on its timeout), so the deleted trip name is kept aside.
+      setDialogMessage(`Viaggio «${confirmDelete?.name || "(senza nome)"}» eliminato.`);
+      await refreshAfterOperation();
     } catch (err: unknown) {
       setActionError(errorToMessage(err));
     } finally {
@@ -244,10 +270,6 @@ export default function TripsPage() {
   };
 
   // ── Manual trip creation (modal) ─────────────────────────────────
-  const [daysModalOpen, setDaysModalOpen] = useState(false);
-  const [daysSubmitting, setDaysSubmitting] = useState(false);
-  const [daysModalError, setDaysModalError] = useState<string | null>(null);
-
   const openDaysModal = (): void => {
     setDaysModalError(null);
     setDaysModalOpen(true);
@@ -258,8 +280,7 @@ export default function TripsPage() {
     setDaysModalError(null);
     try {
       await createTrip({ name: payload.name || undefined, days: payload.days });
-      setDaysModalOpen(false);
-      setActionMessage("Viaggio creato.");
+      setDialogMessage("Viaggio creato.");
       await reload(search, page);
     } catch (err: unknown) {
       setDaysModalError(errorToMessage(err));
@@ -267,8 +288,6 @@ export default function TripsPage() {
       setDaysSubmitting(false);
     }
   };
-
-  const confirmTrip = trips?.find((trip) => trip.id === confirmDeleteId) ?? null;
 
   return (
     <div className="page trips-page">
@@ -303,8 +322,12 @@ export default function TripsPage() {
         <TripDaysModal
           submitting={daysSubmitting}
           error={daysModalError}
+          message={dialogMessage}
           onSubmit={handleDaysSubmit}
-          onCancel={() => setDaysModalOpen(false)}
+          onCancel={() => {
+            setDialogMessage(null);
+            setDaysModalOpen(false);
+          }}
         />
       )}
 
@@ -350,25 +373,33 @@ export default function TripsPage() {
         detailLoading={detailLoading}
         detailError={detailError}
         mapData={mapData}
-        onRename={(trip) => setDialog({ type: "rename", tripId: trip.id, currentName: trip.name })}
-        onEditDates={(trip) =>
+        onRename={(trip) => {
+          setDialogMessage(null);
+          setDialog({ type: "rename", tripId: trip.id, currentName: trip.name });
+        }}
+        onEditDates={(trip) => {
+          setDialogMessage(null);
           setDialog({
             type: "dates",
             tripId: trip.id,
             startDate: trip.startDate,
             endDate: trip.endDate,
-          })
-        }
-        onSplit={(trip) =>
+          });
+        }}
+        onSplit={(trip) => {
+          setDialogMessage(null);
           setDialog({
             type: "split",
             tripId: trip.id,
             startDate: trip.startDate,
             endDate: trip.endDate,
             proposedName: `${trip.name} (2)`,
-          })
-        }
-        onDelete={(trip) => setConfirmDeleteId(trip.id)}
+          });
+        }}
+        onDelete={(trip) => {
+          setDialogMessage(null);
+          setConfirmDelete({ id: trip.id, name: trip.name });
+        }}
         mergeMode={mergeMode}
         selectedIds={selectedIds}
         onToggleSelected={toggleSelected}
@@ -405,38 +436,59 @@ export default function TripsPage() {
         <TripDialog
           dialog={dialog}
           operating={operating}
+          message={dialogMessage}
           onSubmit={handleDialogSubmit}
-          onCancel={() => setDialog(null)}
+          onCancel={() => {
+            setDialogMessage(null);
+            setDialog(null);
+          }}
         />
       )}
 
-      {/* Destructive delete: explicit confirmation, history preserved. */}
-      {confirmDeleteId !== null && confirmTrip && (
-        <div className="confirm-box" role="alertdialog" aria-label="Conferma eliminazione viaggio">
-          <p>
-            Eliminare definitivamente il viaggio{" "}
-            <strong>«{confirmTrip.name || "(senza nome)"}»</strong>? Le foto e le presenze non
-            vengono toccate; l'operazione resta nello storico.
-          </p>
-          <div className="confirm-actions">
-            <button
-              type="button"
-              className="danger"
-              onClick={() => handleDelete(confirmDeleteId)}
-              disabled={operating}
+      {/* Destructive delete: explicit confirmation, history preserved. The
+          success confirmation replaces the question until the auto-dismiss. */}
+      {confirmDelete !== null && (
+        <Modal label="Conferma eliminazione viaggio">
+          {dialogMessage ? (
+            <div className="panel" role="alertdialog" aria-label="Conferma eliminazione viaggio">
+              <p className="alert alert-success dialog-message" role="status">
+                {dialogMessage}
+              </p>
+            </div>
+          ) : (
+            <div
+              className="confirm-box"
+              role="alertdialog"
+              aria-label="Conferma eliminazione viaggio"
             >
-              {operating ? "Eliminazione…" : "Sì, elimina viaggio"}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setConfirmDeleteId(null)}
-              disabled={operating}
-            >
-              Annulla
-            </button>
-          </div>
-        </div>
+              <p>
+                Eliminare definitivamente il viaggio{" "}
+                <strong>«{confirmDelete.name || "(senza nome)"}»</strong>?
+              </p>
+              <div className="confirm-actions">
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => handleDelete(confirmDelete.id)}
+                  disabled={operating}
+                >
+                  {operating ? "Eliminazione…" : "Sì, elimina viaggio"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    setDialogMessage(null);
+                    setConfirmDelete(null);
+                  }}
+                  disabled={operating}
+                >
+                  Annulla
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
       )}
     </div>
   );

@@ -720,7 +720,7 @@ button.trip-finish:hover:not(:disabled) {
   gap: 0.25rem;
   flex: 1;
   min-width: 0;
-  font-size: 0,78rem;
+  font-size: 0, 78rem;
 }
 
 .trip-day-dot {
@@ -1400,6 +1400,16 @@ button.icon-button:hover {
   box-shadow: 0 8px 24px rgba(15, 27, 42, 0.15);
 }
 
+/* Portal-rendered dropdown (document.body): positioned via inline
+   `top`/`left` viewport coordinates, right-aligned with the trigger,
+   so it is never clipped by the trip card overflow (accordion). */
+.trip-context-dropdown--floating {
+  position: fixed;
+  right: auto;
+  top: auto;
+  z-index: 1000;
+}
+
 .trip-context-item {
   display: flex;
   align-items: center;
@@ -1415,7 +1425,8 @@ button.icon-button:hover {
   cursor: pointer;
 }
 
-.trip-context-item:hover {
+/* Hover must stay a light gray: beats the global dark-blue `button:hover`. */
+.trip-context-item:hover:not(:disabled) {
   background: #f1f5f9;
 }
 
@@ -1423,10 +1434,9 @@ button.icon-button:hover {
   color: #b91c1c;
 }
 
-.trip-context-item--danger:hover {
+.trip-context-item--danger:hover:not(:disabled) {
   background: #fdecea;
 }
-
 
 /* ── Trips dashboard (two columns, new UI §2/§3) ────────────── */
 
@@ -1509,7 +1519,6 @@ button.icon-button:hover {
   }
 }
 
-
 /* ── Timeline inside the expanded trip card (new UI §2.2) ───── */
 
 /* Day-marker column: wider spacing so the date sits comfortably away
@@ -1554,7 +1563,6 @@ button.icon-button:hover {
   background: #f7faff;
 }
 
-
 /* ── Global action menu ("+ Nuovo Viaggio", new UI §1.1) ────── */
 
 .global-action-menu {
@@ -1562,14 +1570,14 @@ button.icon-button:hover {
   flex-shrink: 0;
 }
 
-/* Green primary button (UI §1.1: #10B981). */
+/* Primary button, same blue as the confirm button. */
 button.global-action-trigger {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   padding: 0.4rem 0.8rem;
-  background: #10b981;
-  border: 1px solid #10b981;
+  background: #2b6cb0;
+  border: 1px solid #2b6cb0;
   border-radius: 8px;
   color: #ffffff;
   font-size: 0.88rem;
@@ -1579,8 +1587,8 @@ button.global-action-trigger {
 }
 
 button.global-action-trigger:hover:not(:disabled) {
-  background: #059669;
-  border-color: #059669;
+  background: #2c5282;
+  border-color: #2c5282;
 }
 
 /* The dropdown is anchored to the right edge so it never overflows the
@@ -1623,7 +1631,6 @@ button.global-action-trigger:hover:not(:disabled) {
   color: #9ca3af;
   cursor: not-allowed;
 }
-
 
 /* ── Trips page layout (new UI §1/§2) ───────────────────────── */
 
@@ -1671,3 +1678,49 @@ button.global-action-trigger:hover:not(:disabled) {
   padding: 0.6rem 1rem;
 }
 
+/* ── Modal dialog (centered box, new UI) ─────────────────────── */
+
+/* Dimmed full-screen overlay, above every page element. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+/* Box centered horizontally and vertically: 50% of the page width,
+   with sensible bounds so it stays usable on small screens. */
+.modal-box {
+  width: 50%;
+  min-width: 320px;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 10px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+}
+
+/* The panel/dialog inside the modal box drops its outer margins. */
+.modal-box > .panel {
+  margin-bottom: 0;
+}
+
+/* Breathing room between the form fields and the confirm/cancel buttons. */
+.dialog .confirm-actions {
+  margin-top: 1.25rem;
+}
+
+/* Success confirmation shown at the bottom of a dialog, before it closes. */
+.dialog-message {
+  margin: 1rem 0 0;
+}
+
+/* Confirm box (delete) inherits the modal sizing. */
+.modal-box .confirm-box {
+  max-width: none;
+  margin: 0;
+}

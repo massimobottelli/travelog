@@ -52,6 +52,9 @@ export interface TripDaysPayload {
 interface TripDaysModalProps {
   submitting: boolean;
   error: string | null;
+  /** Success confirmation, shown at the bottom; the modal closes right
+   *  after the notification timeout. */
+  message?: string | null;
   onSubmit: (payload: TripDaysPayload) => void;
   onCancel: () => void;
 }
@@ -64,6 +67,7 @@ export function localityLabel(loc: ModalDayLocality): string {
 export default function TripDaysModal({
   submitting,
   error,
+  message,
   onSubmit,
   onCancel,
 }: TripDaysModalProps) {
@@ -349,24 +353,31 @@ export default function TripDaysModal({
       )}
 
       {/* ── Step 10: conclude the trip ───────────────────────────── */}
-      <div className="confirm-actions">
-        {selectedDate !== null && (
-          <button
-            type="button"
-            onClick={addNextDay}
-            disabled={submitting}
-            aria-label="Aggiungi giorno dopo quello selezionato"
-          >
-            Aggiungi giorno
+      {/* On success the confirmation replaces the action buttons. */}
+      {message ? (
+        <p className="alert alert-success dialog-message" role="status">
+          {message}
+        </p>
+      ) : (
+        <div className="confirm-actions">
+          {selectedDate !== null && (
+            <button
+              type="button"
+              onClick={addNextDay}
+              disabled={submitting}
+              aria-label="Aggiungi giorno dopo quello selezionato"
+            >
+              Aggiungi giorno
+            </button>
+          )}
+          <button type="submit" disabled={submitting || days.length === 0}>
+            {submitting ? "Salvataggio…" : "Salva"}
           </button>
-        )}
-        <button type="submit" disabled={submitting || days.length === 0}>
-          {submitting ? "Salvataggio…" : "Salva"}
-        </button>
-        <button type="button" className="secondary" onClick={onCancel} disabled={submitting}>
-          Annulla
-        </button>
-      </div>
+          <button type="button" className="secondary" onClick={onCancel} disabled={submitting}>
+            Annulla
+          </button>
+        </div>
+      )}
       {error && <p className="alert alert-error">{error}</p>}
     </form>
   );

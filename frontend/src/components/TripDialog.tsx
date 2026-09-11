@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, type FormEvent } from "react";
 import { addDaysIso } from "../utils/format";
+import Modal from "./Modal";
 
 export type TripDialogState =
   | { type: "rename"; tripId: number; currentName: string }
@@ -24,6 +25,9 @@ export type TripDialogState =
 interface TripDialogProps {
   dialog: TripDialogState;
   operating: boolean;
+  /** Success confirmation, shown at the bottom; the dialog closes right
+   *  after the notification timeout. */
+  message?: string | null;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
 }
@@ -34,7 +38,13 @@ const TITLES: Record<TripDialogState["type"], string> = {
   split: "Dividi viaggio",
 };
 
-export default function TripDialog({ dialog, operating, onSubmit, onCancel }: TripDialogProps) {
+export default function TripDialog({
+  dialog,
+  operating,
+  message,
+  onSubmit,
+  onCancel,
+}: TripDialogProps) {
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   // On rename, focus the input and select the current name so the user can
@@ -47,90 +57,92 @@ export default function TripDialog({ dialog, operating, onSubmit, onCancel }: Tr
   }, [dialog]);
 
   return (
-    <form className="panel dialog" onSubmit={onSubmit}>
-      <h2>{TITLES[dialog.type]}</h2>
-      {dialog.type === "rename" && (
-        <div className="field">
-          <label htmlFor="trip-name">Nome viaggio</label>
-          <input
-            id="trip-name"
-            name="name"
-            type="text"
-            ref={renameInputRef}
-            defaultValue={dialog.currentName}
-            maxLength={200}
-            required
-          />
-        </div>
-      )}
-      {dialog.type === "dates" && (
-        <>
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="trip-start">Data inizio</label>
-              <input
-                id="trip-start"
-                name="startDate"
-                type="date"
-                defaultValue={dialog.startDate}
-                required
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="trip-end">Data fine</label>
-              <input
-                id="trip-end"
-                name="endDate"
-                type="date"
-                defaultValue={dialog.endDate}
-                required
-              />
-            </div>
+    <Modal label={TITLES[dialog.type]}>
+      <form className="panel dialog" onSubmit={onSubmit}>
+        <h2>{TITLES[dialog.type]}</h2>
+        {dialog.type === "rename" && (
+          <div className="field">
+            <label htmlFor="trip-name">Nome viaggio</label>
+            <input
+              id="trip-name"
+              name="name"
+              type="text"
+              ref={renameInputRef}
+              defaultValue={dialog.currentName}
+              maxLength={200}
+              required
+            />
           </div>
-          <p className="hint">
-            Il sistema blocca qualsiasi sovrapposizione temporale con altri viaggi attivi.
-          </p>
-        </>
-      )}
-      {dialog.type === "split" && (
-        <>
-          <p className="hint">
-            La data di divisione appartiene al secondo viaggio. Il viaggio originale resta nello
-            storico.
-          </p>
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="split-date">Data di divisione</label>
-              <input
-                id="split-date"
-                name="splitDate"
-                type="date"
-                min={addDaysIso(dialog.startDate, 1)}
-                max={dialog.endDate}
-                required
-              />
+        )}
+        {dialog.type === "dates" && (
+          <>
+            <div className="field-row">
+              <div className="field">
+                <label htmlFor="trip-start">Data inizio</label>
+                <input
+                  id="trip-start"
+                  name="startDate"
+                  type="date"
+                  defaultValue={dialog.startDate}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="trip-end">Data fine</label>
+                <input
+                  id="trip-end"
+                  name="endDate"
+                  type="date"
+                  defaultValue={dialog.endDate}
+                  required
+                />
+              </div>
             </div>
-            <div className="field">
-              <label htmlFor="split-name">Nome del secondo viaggio</label>
-              <input
-                id="split-name"
-                name="name"
-                type="text"
-                defaultValue={dialog.proposedName}
-                maxLength={200}
-              />
+          </>
+        )}
+        {dialog.type === "split" && (
+          <>
+            <div className="field-row">
+              <div className="field">
+                <label htmlFor="split-date">Data di divisione</label>
+                <input
+                  id="split-date"
+                  name="splitDate"
+                  type="date"
+                  min={addDaysIso(dialog.startDate, 1)}
+                  max={dialog.endDate}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="split-name">Nome del secondo viaggio</label>
+                <input
+                  id="split-name"
+                  name="name"
+                  type="text"
+                  defaultValue={dialog.proposedName}
+                  maxLength={200}
+                />
+              </div>
             </div>
+          </>
+        )}
+        {/* On success the confirmation replaces the action buttons. */}
+        {message ? (
+          <p className="alert alert-success dialog-message" role="status">
+            {message}
+          </p>
+        ) : (
+          <div className="confirm-actions">
+            <button type="submit" disabled={operating}>
+              {operating ? "Operazione in corso…" : "Conferma"}
+            </button>
+            <button type="button" className="secondary" onClick={onCancel} disabled={operating}>
+              Annulla
+            </button>
           </div>
-        </>
-      )}
-      <div className="confirm-actions">
-        <button type="submit" disabled={operating}>
-          {operating ? "Operazione in corso…" : "Conferma"}
-        </button>
-        <button type="button" className="secondary" onClick={onCancel} disabled={operating}>
-          Annulla
-        </button>
-      </div>
-    </form>
+        )}
+      </form>
+    </Modal>
   );
 }

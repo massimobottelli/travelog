@@ -8,9 +8,15 @@
  *
  * The menu is self-contained: it owns its open/closed state and closes on
  * outside click or Escape.
+ *
+ * The dropdown is rendered through a React portal attached to `document.body`
+ * (`position: fixed`, aligned with the trigger): the trip card clips its
+ * own overflow (accordion), so an in-place dropdown would be cut off when
+ * the card is collapsed.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarIcon, GearIcon, PencilIcon, ScissorsIcon, TrashIcon } from "./icons";
 
 export interface TripContextMenuProps {
@@ -32,25 +38,61 @@ export default function TripContextMenu({
   disabled = false,
 }: TripContextMenuProps) {
   const [open, setOpen] = useState(false);
+  /** Wrapper of the trigger: anchor for the outside-click detection. */
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  /** Fixed viewport position of the floating dropdown (null = not measured yet). */
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
+  /** Align the dropdown's right edge with the trigger (viewport coordinates). */
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    const dropdown = dropdownRef.current;
+    if (!trigger || !dropdown) return;
+    const rect = trigger.getBoundingClientRect();
+    const width = dropdown.offsetWidth;
+    const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
+    setPosition({ top: rect.bottom + 6, left });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPosition(null);
+      return;
+    }
+    updatePosition();
+
     function handlePointerDown(event: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        rootRef.current &&
+        !rootRef.current.contains(target) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     }
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
     }
+    // Capture phase: scroll events of inner containers (the trip list) do
+    // not bubble to `window`, but they are caught here while captured.
+    function reposition() {
+      updatePosition();
+    }
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
     };
-  }, [open]);
+  }, [open, updatePosition]);
 
   /** Run an action and close the menu. */
   const select = (action: () => void) => () => {
@@ -63,6 +105,7 @@ export default function TripContextMenu({
     <div className="trip-context-menu" ref={rootRef} onClick={(event) => event.stopPropagation()}>
       <button
         type="button"
+        ref={triggerRef}
         className="icon-button trip-context-trigger"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -73,42 +116,49 @@ export default function TripContextMenu({
       >
         <GearIcon size={16} />
       </button>
-      {open && (
-        <div className="trip-context-dropdown" role="menu">
-          <button
-            type="button"
-            role="menuitem"
-            className="trip-context-item"
-            onClick={select(onRename)}
+      {open &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            className="trip-context-dropdown trip-context-dropdown--floating"
+            role="menu"
+            style={position ?? { top: -9999, left: -9999 }}
           >
-            <PencilIcon size={15} /> Rinomina
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="trip-context-item"
-            onClick={select(onEditDates)}
-          >
-            <CalendarIcon size={15} /> Modifica date
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="trip-context-item"
-            onClick={select(onSplit)}
-          >
-            <ScissorsIcon size={15} /> Dividi viaggio
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="trip-context-item trip-context-item--danger"
-            onClick={select(onDelete)}
-          >
-            <TrashIcon size={15} /> Elimina
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              role="menuitem"
+              className="trip-context-item"
+              onClick={select(onRename)}
+            >
+              <PencilIcon size={15} /> Rinomina
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="trip-context-item"
+              onClick={select(onEditDates)}
+            >
+              <CalendarIcon size={15} /> Modifica date
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="trip-context-item"
+              onClick={select(onSplit)}
+            >
+              <ScissorsIcon size={15} /> Dividi viaggio
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="trip-context-item trip-context-item--danger"
+              onClick={select(onDelete)}
+            >
+              <TrashIcon size={15} /> Elimina
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

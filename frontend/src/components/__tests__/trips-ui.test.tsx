@@ -330,6 +330,12 @@ describe("TripsPage", () => {
       );
       expect(del).toBeDefined();
     });
+
+    // The confirmation is shown inside the dialog, which stays open until the
+    // notification auto-dismisses (3s).
+    const confirmation = await screen.findByRole("status");
+    expect(confirmation.textContent).toContain("Vacanza in Toscana");
+    expect(screen.getByRole("alertdialog")).not.toBeNull();
   });
 
   it("re-queries the list server-side while typing in the search field (§1.1)", async () => {

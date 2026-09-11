@@ -136,11 +136,7 @@ export default function TripsDashboard({
 
       <section className="trips-map-panel" aria-label="Mappa del viaggio selezionato">
         {mapData ? (
-          <TripMap
-            data={mapData}
-            fullHeight
-            hoveredLocalityId={highlightedLocalityId}
-          />
+          <TripMap data={mapData} fullHeight hoveredLocalityId={highlightedLocalityId} />
         ) : (
           <p className="hint trips-map-hint">
             {selectedTripId === null

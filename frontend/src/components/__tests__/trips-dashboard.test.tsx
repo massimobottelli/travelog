@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within, act } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import TripsDashboard from "../TripsDashboard";
 import type { Trip, TripDetail, TripMapData } from "../../api/client";
@@ -61,6 +61,11 @@ vi.mock("leaflet", () => {
       },
       getLatLng() {
         return marker.latlng;
+      },
+      /* Hover visual feedback swaps the icon (TripMap enlarge-on-hover). */
+      setIcon(newIcon: unknown) {
+        marker.opts = { ...marker.opts, icon: newIcon };
+        return marker;
       },
     };
     state.markers.push(marker);
@@ -323,23 +328,20 @@ describe("TripsDashboard (new UI, phase 4)", () => {
     const row = () => container.querySelector('[data-locality-id="10"]') as HTMLElement;
     const map = h.state.maps[0];
     const marker = h.state.markers[0];
+    const normalIcon = marker.opts.icon;
 
-    // Hovering a timeline row opens the matching pin popup and flies to it.
+    // Hovering a timeline row only enlarges the matching pin: no popup and
+    // no fly-to (hover must never move the map view).
     fireEvent.mouseEnter(row());
-    expect(marker.popupOpen).toBe(true);
-    expect(map.flyTo).toHaveBeenCalledTimes(1);
+    expect(marker.popupOpen).toBe(false);
+    expect(map.flyTo).not.toHaveBeenCalled();
+    expect(marker.opts.icon).not.toBe(normalIcon);
     expect(row().classList.contains("locality-card--active")).toBe(true);
 
-    // Leaving the row clears the selection and closes the popup.
+    // Leaving the row restores the normal pin and clears the highlight.
     fireEvent.mouseLeave(row());
-    expect(map.closePopup).toHaveBeenCalled();
+    expect(marker.opts.icon).toBe(normalIcon);
     expect(row().classList.contains("locality-card--active")).toBe(false);
-
-    // Clicking a pin highlights the corresponding timeline row.
-    act(() => {
-      marker.handlers.click();
-    });
-    expect(row().classList.contains("locality-card--active")).toBe(true);
   });
 
   it("keeps the search field and the global action menu out of the dashboard (§1.1)", () => {

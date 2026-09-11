@@ -1792,19 +1792,34 @@ TripsPage                       (dati, operazioni, dialoghi)
 │   ├── footer sidebar (paginazione)
 │   └── colonna destra (flex-grow)
 │       └── TripMap (fullHeight)
-├── TripDialog                  (rinomina / date / dividi)
-└── conferma eliminazione + storico operazioni
+├── Modal ─ TripDialog          (rinomina / date / dividi)
+└── Modal ─ conferma eliminazione
 ```
 
 * **`TripCard`** — card viaggio espandibile (accordion): titolo, periodo e
   durata calcolata (`formatTripPeriodShort`, es. `3 Lug - 31 Lug 2026 · 29 gg`),
   tag geografici da `Trip.regions`, badge foto da `Trip.photoCount` e chevron
   di espansione.
+* **`Modal`** — wrapper di presentazione riusabile (`createPortal` su
+  `document.body`, overlay oscurato, box centrato orizzontalmente e
+  verticalmente, larghezza 50% con limiti di sicurezza). Il `TripDialog`
+  (rinomina / date / dividi) e la conferma di eliminazione vivono dentro un
+  `Modal`; la creazione manuale (`TripDaysModal`) resta il pannello inline
+  sotto la testata.
 * **`TripContextMenu`** — menu contestuale (icona ingranaggio) del singolo
   viaggio con *Rinomina / Modifica date / Dividi viaggio / Elimina*. Le azioni
   sono delegate al parent, che riusa `TripDialog` e la conferma di
   eliminazione esistenti.
-* **`GlobalActionMenu`** — dropdown primario verde "+ Nuovo Viaggio" (UI
+* **Notifica di conferma in-dialog** — le operazioni eseguite dentro un
+  dialogo (rinomina, modifica date, dividi, eliminazione, creazione manuale)
+  non scrivono più la conferma nel messaggio di pagina: il messaggio
+  (`alert-success`) viene mostrato **in fondo al dialogo** e il dialogo resta
+  aperto fino all'auto-dismiss (3s, `useAutoDismiss`), che azzera il messaggio
+  e chiude il dialogo. Durante la notifica i pulsanti di conferma sono
+  disabilitati. L'unica eccezione è l'*Unione* (§13.4), che non ha un dialogo
+  dedicato e mantiene la notifica nella testata della pagina.
+* **`GlobalActionMenu`** — dropdown primario "+ Nuovo Viaggio" (blu, come il
+  pulsante di conferma; UI
   §1.1) con le azioni d'ingresso *Scansione* (→ `/scans`), *Crea Viaggio*
   (modale `TripDaysModal`, §47bis), *Esporta* (`exportTripsCsv`) e *Unisci*
   (merge mode esistente, §13.4), più il comando esplicito *Ricalcola* (§46).
