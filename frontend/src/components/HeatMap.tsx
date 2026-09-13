@@ -58,7 +58,7 @@ const HEAT_GRADIENT: Record<number, string> = {
  * (radius + blur), so a constant size merges distant localities into one
  * single blob when zoomed out: the size grows linearly with the zoom
  * instead, anchored so the overview fit zoom (~8) uses the initial
- * radius 12 / blur 10 (blur kept proportional, ~10/12 of the radius).
+ * radius 12 / blur 10 (blur kept proportional, ~10/26 of the radius).
  * Bounds: radius 6 (zoom ≤ 5, far overview) → 34 (zoom ≥ 19, max detail).
  */
 function heatSizeForZoom(zoom: number): { radius: number; blur: number } {

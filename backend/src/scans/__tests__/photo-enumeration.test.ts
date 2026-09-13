@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { existsSync } from "node:fs";
 import { isSupportedFormat, enumerateSupportedFiles } from "../photo-enumeration.js";
 
 describe("isSupportedFormat", () => {
@@ -34,7 +35,12 @@ describe("isSupportedFormat", () => {
 describe("enumerateSupportedFiles", () => {
   const testPhotoRoot = "/Volumes/home/Photos/MobileBackup/iPhone/2026/08";
 
-  it("should find supported JPEG and HEIC files in the test directory", async () => {
+  // These are integration tests against a real directory on the mounted
+  // NAS photo root: they only run when the volume is actually available,
+  // otherwise they are skipped (the CI/dev machine may not have it mounted).
+  const nasAvailable = existsSync(testPhotoRoot);
+
+  it.skipIf(!nasAvailable)("should find supported JPEG and HEIC files in the test directory", async () => {
     // This uses a real directory with real photos — integration test
     const entries = await enumerateSupportedFiles(testPhotoRoot);
 
@@ -53,7 +59,7 @@ describe("enumerateSupportedFiles", () => {
     }
   }, 30_000);
 
-  it("should filter out non-photo files (mov, png, etc.)", async () => {
+  it.skipIf(!nasAvailable)("should filter out non-photo files (mov, png, etc.)", async () => {
     const entries = await enumerateSupportedFiles(testPhotoRoot);
 
     // Check that no unsupported extensions made it through

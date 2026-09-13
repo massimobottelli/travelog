@@ -374,13 +374,14 @@ describe("TripsDashboard (new UI, phase 4)", () => {
 
     // Zooming re-points maxZoom to the new zoom (intensity factor stays 1,
     // heat points keep their normalized strength) and rescales the blob
-    // size: zoom 10 → radius round((10-2)*2) = 16, blur round(16*10/12) = 13.
+    // size: zoom 10 → radius round((10-2)*2) = 16,
+    // blur round(16*10/26) = 6 (blur ≈ 10/26 of the radius).
     const map = h.state.maps[0];
     map.zoom = 10;
     map.handlers["zoomend"]();
     expect(heat.opts.maxZoom).toBe(10);
     expect(heat.opts.radius).toBe(16);
-    expect(heat.opts.blur).toBe(13);
+    expect(heat.opts.blur).toBe(6);
 
     // Tight fit: no integer-zoom rounding (zoomSnap: 0 on the map) and a
     // raised zoom cap, so the frame is the minimum necessary to contain

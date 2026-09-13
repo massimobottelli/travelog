@@ -433,10 +433,10 @@ describe("trip card stats: photoCount and regions (new UI)", () => {
 
     // Full interval: 3 (Erice 08-10) + 1 (Erice 08-13) + 2 (Milano 08-13).
     expect(byId.get(full)?.photoCount).toBe(6);
-    expect(byId.get(full)?.regions).toEqual(["Milano / Lombardia", "Trapani / Sicily"]);
+    expect(byId.get(full)?.regions).toEqual(["Lombardia", "Sicily"]);
     // Only the first day is inside the interval.
     expect(byId.get(firstDay)?.photoCount).toBe(3);
-    expect(byId.get(firstDay)?.regions).toEqual(["Trapani / Sicily"]);
+    expect(byId.get(firstDay)?.regions).toEqual(["Sicily"]);
     // No presences inside the interval.
     expect(byId.get(empty)?.photoCount).toBe(0);
     expect(byId.get(empty)?.regions).toEqual([]);
@@ -453,6 +453,6 @@ describe("trip card stats: photoCount and regions (new UI)", () => {
     const res = await request(server).get(`/api/trips/${trip}`);
     expect(res.status).toBe(200);
     expect(res.body.photoCount).toBe(4);
-    expect(res.body.regions).toEqual(["Trapani / Sicily"]);
+    expect(res.body.regions).toEqual(["Sicily"]);
   });
 });
