@@ -97,3 +97,13 @@ export function getTripMap(tripId: number): Promise<TripMapData> {
 export function getTripsOverviewMap(): Promise<TripsOverviewMap> {
   return apiRequest<TripsOverviewMap>("/trips/map");
 }
+
+/**
+ * Explicit recalculation of the cached overview aggregation (migration
+ * 0017): recomputes, overwrites the persistent cache and returns the
+ * fresh overview. Synchronous — the dashboard re-renders the heatmap
+ * with the result.
+ */
+export function recalculateTripsOverviewMap(): Promise<TripsOverviewMap> {
+  return apiRequest<TripsOverviewMap>("/trips/map/recalculate", { method: "POST" });
+}

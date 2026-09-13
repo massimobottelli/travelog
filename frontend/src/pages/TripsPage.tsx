@@ -24,6 +24,7 @@ import {
   replaceTripDays,
   getTripMap,
   getTripsOverviewMap,
+  recalculateTripsOverviewMap,
 } from "../api/trips";
 import { splitTrip, mergeTrips } from "../api/operations";
 import { recalculate } from "../api/settings";
@@ -59,8 +60,12 @@ export default function TripsPage() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [mapData, setMapData] = useState<TripMapData | null>(null);
   // Panoramic overview of all active trips (photo-density heatmap, shown
-  // while no trip has been selected yet).
+  // while no trip has been selected yet). It is a persistent cached
+  // snapshot (migration 0017): served from the cache on every load, its
+  // age is shown in the map toolbar and the refresh is explicit.
   const [overviewMap, setOverviewMap] = useState<TripsOverviewMap | null>(null);
+  const [overviewRecalculating, setOverviewRecalculating] = useState(false);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
 
   const [dialog, setDialog] = useState<TripDialogState | null>(null);
   const [operating, setOperating] = useState(false);
@@ -152,6 +157,21 @@ export default function TripsPage() {
   useEffect(() => {
     void loadOverview();
   }, [loadOverview]);
+
+  // Explicit recalculation of the cached overview (migration 0017): the
+  // fresh aggregation replaces the served snapshot in place. On failure
+  // the toolbar shows the error and keeps the cached heatmap visible.
+  const handleRecalculateOverview = useCallback(async (): Promise<void> => {
+    setOverviewRecalculating(true);
+    setOverviewError(null);
+    try {
+      setOverviewMap(await recalculateTripsOverviewMap());
+    } catch (err: unknown) {
+      setOverviewError(errorToMessage(err));
+    } finally {
+      setOverviewRecalculating(false);
+    }
+  }, []);
 
   const handleSearchChange = (value: string): void => {
     setSearch(value);
@@ -426,6 +446,9 @@ export default function TripsPage() {
         detailError={detailError}
         mapData={mapData}
         overviewMapData={overviewMap}
+        overviewRecalculating={overviewRecalculating}
+        overviewError={overviewError}
+        onRecalculateOverview={handleRecalculateOverview}
         onRename={(trip) => {
           setDialogMessage(null);
           setDialog({ type: "rename", tripId: trip.id, currentName: trip.name });

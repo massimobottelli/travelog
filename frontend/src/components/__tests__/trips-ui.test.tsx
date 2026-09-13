@@ -144,6 +144,7 @@ const OVERVIEW_MAP = {
   bounds: { minLat: 0, minLon: 0, maxLat: 0, maxLon: 0 },
   markers: [],
   countyColors: {},
+  computedAt: "2025-11-09T21:43:58",
 };
 
 /** Route mock fetch calls to the fake backend. */
@@ -335,6 +336,38 @@ describe("TripsPage", () => {
     expect(overviewCall).toBeDefined();
     expect(screen.queryByText("Seleziona un viaggio per visualizzarlo sulla mappa.")).toBeNull();
     expect(screen.getByText("Nessuna località da visualizzare sulla mappa.")).not.toBeNull();
+  });
+
+  it("recalculates the overview heatmap through POST /api/trips/map/recalculate", async () => {
+    // The overview is a persistent cached snapshot (migration 0017): the
+    // explicit recalculation replaces it with the fresh aggregation.
+    const postCalls: string[] = [];
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/trips/map/recalculate" && init?.method === "POST") {
+        postCalls.push(url);
+        return jsonResponse({ ...OVERVIEW_MAP, computedAt: "2025-11-09T22:15:00" });
+      }
+      if (url === "/api/trips/map") return jsonResponse(OVERVIEW_MAP);
+      if (/^\/api\/trips\/\d+\/map$/.test(url)) return jsonResponse(EMPTY_MAP);
+      if (/^\/api\/trips\/1(\?|$)/.test(url)) return jsonResponse(TRIP_DETAIL);
+      if (/^\/api\/trips\/2(\?|$)/.test(url)) return jsonResponse(TRIP_DETAIL_2);
+      if (/^\/api\/trips\?/.test(url) || url === "/api/trips") return jsonResponse(TRIPS);
+      if (url.startsWith("/api/operations")) {
+        return jsonResponse({ items: [], page: 1, pageSize: 20, total: 0 });
+      }
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
+    render(<TripsPage />);
+
+    // The toolbar appears once the (empty) overview is served from the
+    // cache; clicking it issues exactly one explicit recalculation.
+    fireEvent.click(await screen.findByRole("button", { name: "Ricalcola" }));
+    await waitFor(() => {
+      expect(postCalls).toHaveLength(1);
+    });
+    expect(screen.getByText("Calcolata il 09/11/2025 22:15")).not.toBeNull();
   });
 
   it("merge mode: selecting two trips posts the merge request", async () => {

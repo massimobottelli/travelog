@@ -233,6 +233,7 @@ const OVERVIEW_MAP: TripsOverviewMap = {
     },
   ],
   countyColors: { Aosta: "#2563EB", Trapani: "#EA4335" },
+  computedAt: "2026-07-03T10:00:00",
 };
 
 /** Detail of trip 1: one day with the locality 10 (matches MAP_DATA). */
@@ -384,6 +385,67 @@ describe("TripsDashboard (new UI, phase 4)", () => {
     const mapPanel = container.querySelector('[aria-label="Mappa viaggi"]') as HTMLElement;
     expect(within(mapPanel).queryByText(/regione|Aosta|Trapani/)).toBeNull();
     expect(container.querySelector(".trip-map-container--full")).toBeTruthy();
+  });
+
+  it("shows the overview toolbar with the snapshot age and recalculates on demand", () => {
+    const onRecalculateOverview = vi.fn();
+    render(
+      <TripsDashboard {...baseProps({ overviewMapData: OVERVIEW_MAP, onRecalculateOverview })} />,
+    );
+
+    // The toolbar floats over the heatmap: the age of the cached snapshot
+    // (computedAt "2026-07-03T10:00:00") and the explicit recalculation
+    // command (the aggregation is NOT rerun automatically on every load).
+    expect(screen.getByText("Calcolata il 03/07/2026 10:00")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Ricalcola" }));
+    expect(onRecalculateOverview).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables the overview recalculation while running and shows its error", () => {
+    const { rerender } = render(
+      <TripsDashboard
+        {...baseProps({
+          overviewMapData: OVERVIEW_MAP,
+          onRecalculateOverview: vi.fn(),
+          overviewRecalculating: true,
+        })}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Ricalcolo…" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+
+    // On failure the toolbar reports the error and keeps the cached
+    // heatmap: the snapshot data is never dropped on a failed refresh.
+    rerender(
+      <TripsDashboard
+        {...baseProps({
+          overviewMapData: OVERVIEW_MAP,
+          onRecalculateOverview: vi.fn(),
+          overviewError: "Ricalcolo non riuscito",
+        })}
+      />,
+    );
+    expect(screen.getByText("Ricalcolo non riuscito")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ricalcola" })).toBeTruthy();
+  });
+
+  it("does not show the overview toolbar over a selected trip map", () => {
+    render(
+      <TripsDashboard
+        {...baseProps({
+          selectedTripId: 1,
+          mapData: MAP_DATA,
+          overviewMapData: OVERVIEW_MAP,
+          onRecalculateOverview: vi.fn(),
+        })}
+      />,
+    );
+
+    // Per-trip maps are computed per selection (not cached): the toolbar
+    // with the snapshot age/recalculation belongs to the heatmap only.
+    expect(screen.queryByRole("button", { name: "Ricalcola" })).toBeNull();
+    expect(h.state.heatLayers).toHaveLength(0);
   });
 
   it("keeps the selected trip map visible after the trip is closed (mapData retained)", () => {

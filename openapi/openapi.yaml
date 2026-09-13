@@ -545,12 +545,35 @@ paths:
         localities, deduplicated. Suitable for the panoramic overview map
         shown before a specific trip is selected.
 
+        The aggregation is served from a persistent read-through cache
+        (`POST /trips/map/recalculate` refreshes it): `computedAt` reports
+        when the served snapshot was computed, so the client can show the
+        data age and offer an explicit recalculation.
+
         Coordinates are extracted from the geocoding cache locality hashes;
         region-based colors are assigned deterministically. `firstPhotoAt` is
         null for manual localities without photos.
       responses:
         "200":
-          description: Overview map data
+          description: Overview map data (cached; `computedAt` is its snapshot time)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripsOverviewMap"
+
+  /trips/map/recalculate:
+    post:
+      tags: [Trip Map]
+      operationId: recalculateTripsOverviewMap
+      summary: Explicitly recalculate the cached overview map
+      description: |
+        Recomputes the overview aggregation (one marker per unique locality
+        across all active trips), overwrites the persistent cache read by
+        `GET /trips/map` and returns the fresh data. The operation is
+        synchronous and explicit: no other API operation triggers it.
+      responses:
+        "200":
+          description: Freshly computed overview map data
           content:
             application/json:
               schema:
@@ -1521,7 +1544,7 @@ components:
     TripsOverviewMap:
       type: object
       additionalProperties: false
-      required: [bounds, markers, countyColors]
+      required: [bounds, markers, countyColors, computedAt]
       properties:
         bounds:
           $ref: "#/components/schemas/BoundingBox"
@@ -1534,6 +1557,14 @@ components:
           additionalProperties:
             type: string
           description: Map county (province) name → hex_color for legend display
+        computedAt:
+          type: string
+          format: date-time
+          description: |
+            When the served overview snapshot was computed (naive server local
+            time, YYYY-MM-DDTHH:mm:ss). The overview is a persistent cached
+            aggregation: compare this value with the current time to decide
+            whether an explicit `POST /trips/map/recalculate` is due.
 
     TripOperationType:
       type: string

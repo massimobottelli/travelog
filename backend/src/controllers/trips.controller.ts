@@ -105,18 +105,21 @@ class TripsController {
   /**
    * Panoramic overview map of all active trips: one marker per unique
    * locality (deduplicated across trips). No trip header fields — the
-   * overview is not tied to a single trip.
+   * overview is not tied to a single trip. Served from the persistent
+   * read-through cache (migration 0017): `computedAt` reports the age of
+   * the served snapshot; the refresh is an explicit POST (see below).
    */
   async getTripsOverviewMap(_req: Request, res: Response): Promise<void> {
-    const { markers, bounds } = await tripsRepository.getTripsOverviewMapData();
+    res.status(200).json(await tripMapService.getOverviewMap());
+  }
 
-    const { markersWithColor, countyColors } = tripMapService.assignCountyColors(markers);
-
-    res.status(200).json({
-      bounds,
-      markers: markersWithColor,
-      countyColors,
-    });
+  /**
+   * Explicit recalculation of the cached overview (user-requested):
+   * recomputes the aggregation, overwrites the cache and returns the
+   * fresh data synchronously.
+   */
+  async recalculateTripsOverviewMap(_req: Request, res: Response): Promise<void> {
+    res.status(200).json(await tripMapService.recalculateOverviewMap());
   }
 }
 

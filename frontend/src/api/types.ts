@@ -334,6 +334,11 @@ export interface paths {
          *     localities, deduplicated. Suitable for the panoramic overview map
          *     shown before a specific trip is selected.
          *
+         *     The aggregation is served from a persistent read-through cache
+         *     (`POST /trips/map/recalculate` refreshes it): `computedAt` reports
+         *     when the served snapshot was computed, so the client can show the
+         *     data age and offer an explicit recalculation.
+         *
          *     Coordinates are extracted from the geocoding cache locality hashes;
          *     region-based colors are assigned deterministically. `firstPhotoAt` is
          *     null for manual localities without photos.
@@ -341,6 +346,29 @@ export interface paths {
         get: operations["getTripsOverviewMap"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trips/map/recalculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly recalculate the cached overview map
+         * @description Recomputes the overview aggregation (one marker per unique locality
+         *     across all active trips), overwrites the persistent cache read by
+         *     `GET /trips/map` and returns the fresh data. The operation is
+         *     synchronous and explicit: no other API operation triggers it.
+         */
+        post: operations["recalculateTripsOverviewMap"];
         delete?: never;
         options?: never;
         head?: never;
@@ -834,6 +862,14 @@ export interface components {
             countyColors: {
                 [key: string]: string;
             };
+            /**
+             * Format: date-time
+             * @description When the served overview snapshot was computed (naive server local
+             *     time, YYYY-MM-DDTHH:mm:ss). The overview is a persistent cached
+             *     aggregation: compare this value with the current time to decide
+             *     whether an explicit `POST /trips/map/recalculate` is due.
+             */
+            computedAt: string;
         };
         /** @enum {string} */
         TripOperationType: "SPLIT" | "MERGE" | "DELETE";
@@ -1590,7 +1626,27 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Overview map data */
+            /** @description Overview map data (cached; `computedAt` is its snapshot time) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripsOverviewMap"];
+                };
+            };
+        };
+    };
+    recalculateTripsOverviewMap: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Freshly computed overview map data */
             200: {
                 headers: {
                     [name: string]: unknown;

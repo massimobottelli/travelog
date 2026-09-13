@@ -21,6 +21,8 @@ const ROUTE_OPS: Record<string, Record<string, string>> = {
   "/photos": { get: "listPhotos" },
   "/trips": { get: "listTrips", post: "createTrip" },
   "/trips/export": { get: "exportTrips" },
+  "/trips/map": { get: "getTripsOverviewMap" },
+  "/trips/map/recalculate": { post: "recalculateTripsOverviewMap" },
   "/trips/:tripId": { get: "getTrip", patch: "updateTrip", delete: "deleteTrip" },
   "/trips/:tripId/days": { put: "replaceTripDays" },
   "/trips/:tripId/split": { post: "splitTrip" },
@@ -63,6 +65,7 @@ const REQUIRED_BODY_FIELDS: Record<string, string[]> = {
   mergeTrips: ["tripIds"],
   updateSettings: [],
   recalculate: [],
+  recalculateTripsOverviewMap: [],
   createExclusionZone: ["localityId"],
   resolveLocality: ["placeId"],
 };

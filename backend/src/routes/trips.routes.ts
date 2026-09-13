@@ -21,6 +21,9 @@ router.get("/export", tripsController.exportTripsCsv);
 // (registered before /:tripId so "map" is not treated as an id)
 router.get("/map", tripsController.getTripsOverviewMap);
 
+// POST /trips/map/recalculate — rebuild the cached overview aggregation
+router.post("/map/recalculate", tripsController.recalculateTripsOverviewMap);
+
 // GET /trips/:tripId — get trip details
 router.get("/:tripId", tripsController.getTrip);
 

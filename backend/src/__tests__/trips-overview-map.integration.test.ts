@@ -71,6 +71,9 @@ async function cleanup() {
   await pool.query(
     "TRUNCATE trips, trip_history, manual_trip_days, manual_trip_day_localities, trip_day_exclusions RESTART IDENTITY",
   );
+  // The overview snapshot must never leak between tests: every test then
+  // starts with a cache miss and recomputes from the fixtures it created.
+  await pool.query("TRUNCATE trips_overview_map_cache RESTART IDENTITY");
   await pool.query(
     "DELETE FROM geocoding_cache WHERE locality_hash = ANY($1::text[])",
     [HASHES],
@@ -136,6 +139,64 @@ describe("GET /trips/map — panoramic overview (one marker per locality)", () =
 
     const body = await getOverview();
     expect(Object.keys(body.countyColors).sort()).toEqual(["Asti", "Cuneo"]);
+  });
+});
+
+describe("GET/POST /trips/map — persistent read-through cache (migration 0017)", () => {
+  it("serves the cached snapshot until an explicit recalculation", async () => {
+    const roma = await insertLocality("41.90:12.50", "Roma", "Roma", "Lazio");
+
+    // First request: cache miss → computed, stored and served. The
+    // fixtures create no trips yet, so the snapshot is empty but valid.
+    const first = await getOverview();
+    expect(first.markers).toEqual([]);
+    expect(typeof first.computedAt).toBe("string");
+    expect(first.computedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);
+
+    // The data changes afterwards: a new trip visits Roma.
+    const created = await request(server).post("/api/trips").send({
+      name: "Dopo la snapshot",
+      days: [{ date: "2025-08-10", localityIds: [roma] }],
+    });
+    expect(created.status).toBe(201);
+
+    // The next GET serves the CACHED snapshot: still empty, same
+    // computedAt — the aggregation is not rerun on every request.
+    const second = await getOverview();
+    expect(second.markers).toEqual([]);
+    expect(second.computedAt).toBe(first.computedAt);
+
+    // The explicit recalculation recomputes, overwrites the cache and
+    // returns the fresh data synchronously.
+    const recalculated = await request(server).post("/api/trips/map/recalculate");
+    expect(recalculated.status).toBe(200);
+    expect(recalculated.body.markers.map((m: { name: string }) => m.name)).toEqual(["Roma"]);
+    expect(
+      new Date(recalculated.body.computedAt as string).getTime(),
+    ).toBeGreaterThanOrEqual(new Date(first.computedAt).getTime());
+
+    // And the following GET serves the refreshed snapshot.
+    const third = await getOverview();
+    expect(third.markers.map((m: { name: string }) => m.name)).toEqual(["Roma"]);
+    expect(third.computedAt).toBe(recalculated.body.computedAt);
+  });
+
+  it("recalculates from an empty cache on the first request (read-through)", async () => {
+    const alba = await insertLocality("44.71:8.03", "Alba", "Cuneo", "Piemonte");
+    const created = await request(server).post("/api/trips").send({
+      name: "Read-through",
+      days: [{ date: "2025-08-10", localityIds: [alba] }],
+    });
+    expect(created.status).toBe(201);
+
+    // No snapshot exists (beforeEach truncates the cache): the plain GET
+    // must compute and serve the data — no recalculation endpoint needed.
+    const body = await getOverview();
+    expect(body.markers.map((m: { name: string }) => m.name)).toEqual(["Alba"]);
+
+    // The snapshot is now cached: verified by re-reading the table.
+    const rows = await pool.query("SELECT id FROM trips_overview_map_cache WHERE id = 1");
+    expect(rows.rows).toHaveLength(1);
   });
 });
 

@@ -788,6 +788,60 @@ class TripsRepository {
   }
 
   /**
+   * Cached overview aggregation (see getTripsOverviewMapData): the
+   * singleton `trips_overview_map_cache` row (migration 0017) stores the
+   * pre-color DTOs plus the timestamp the snapshot was computed at.
+   * Returns null when no snapshot exists yet (first-ever request → the
+   * service computes and stores it). A malformed payload is treated as a
+   * miss (recompute), never as an error.
+   */
+  async getOverviewMapCache(): Promise<{
+    bounds: BoundingBoxDto;
+    markers: MapMarkerDto[];
+    computedAt: string;
+  } | null> {
+    const result = await dbPool.query(
+      `SELECT payload,
+              to_char(computed_at, 'YYYY-MM-DD"T"HH24:MI:SS') AS computed_at
+         FROM trips_overview_map_cache
+        WHERE id = 1`,
+    );
+    if (result.rows.length === 0) return null;
+
+    const payload = result.rows[0].payload as
+      | { bounds?: BoundingBoxDto; markers?: unknown }
+      | null;
+    if (!payload || !payload.bounds || !Array.isArray(payload.markers)) return null;
+
+    return {
+      bounds: payload.bounds,
+      markers: payload.markers as MapMarkerDto[],
+      computedAt: String(result.rows[0].computed_at),
+    };
+  }
+
+  /**
+   * Insert or refresh the singleton overview cache row (id = 1) with the
+   * given pre-color aggregation and now() as computed_at. Returns the
+   * naive computed_at timestamp string (YYYY-MM-DDTHH:mm:ss).
+   */
+  async saveOverviewMapCache(payload: {
+    bounds: BoundingBoxDto;
+    markers: MapMarkerDto[];
+  }): Promise<string> {
+    const result = await dbPool.query(
+      `INSERT INTO trips_overview_map_cache (id, payload, computed_at)
+       VALUES (1, $1::jsonb, now())
+       ON CONFLICT (id) DO UPDATE
+            SET payload = EXCLUDED.payload,
+                computed_at = now()
+       RETURNING to_char(computed_at, 'YYYY-MM-DD"T"HH24:MI:SS') AS computed_at`,
+      [JSON.stringify(payload)],
+    );
+    return String(result.rows[0].computed_at);
+  }
+
+  /**
    * Overview map data for the panoramic dashboard view: ONE marker per
    * unique locality (name + county + region) across all active trips —
    * presence localities within each trip's interval (respecting the
