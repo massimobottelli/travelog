@@ -24,6 +24,10 @@ export interface TripDto {
   createdManually: boolean;
   status: string;
   createdAt: string;
+  /** Total number of valid photos in the trip (from presences). */
+  photoCount: number;
+  /** Distinct administrative levels visited (county + region), sorted. */
+  regions: string[];
 }
 
 export interface TripDayLocalityDto {
@@ -91,6 +95,8 @@ function mapTripRow(row: Record<string, unknown>): TripDto {
     createdManually: Boolean(row.created_manually ?? row.createdManually),
     status: String(row.status),
     createdAt: String(row.createdAt),
+    photoCount: Number(row.photo_count ?? 0),
+    regions: (row.regions as string[]) ?? [],
   };
 }
 
@@ -134,6 +140,8 @@ class TripsRepository {
     const countResult = await db.select({ total: count() }).from(trips).where(finalCondition);
     const totalCount = countResult[0]?.total ?? 0;
 
+    // Fetch basic trip data (using Drizzle for correct SQL generation),
+    // then enrich with photoCount/regions computed from presences.
     const rows = await db
       .select(tripSelection)
       .from(trips)
@@ -142,12 +150,59 @@ class TripsRepository {
       .limit(pageSize)
       .offset(offset);
 
-    return { items: rows.map(mapTripRow), page, pageSize, total: totalCount };
+    return {
+      items: await this.attachStats(rows.map(mapTripRow)),
+      page,
+      pageSize,
+      total: totalCount,
+    };
+  }
+
+  /**
+   * Enriches trips with two fields used by the trip cards (new UI):
+   * - photoCount: total photos in the trip, from the sum of the presences
+   *   `photo_count` rows whose day falls inside the trip interval (§15/§16);
+   * - regions: distinct administrative REGION names visited (the provinces
+   *   are not used as tags), ordered alphabetically.
+   * The presences join intentionally does NOT filter on `locality_id` at
+   * the trip level: the interval fully identifies the trip's days.
+   */
+  private async attachStats(items: TripDto[]): Promise<TripDto[]> {
+    if (items.length === 0) return items;
+    const tripIds = items.map((t) => t.id);
+    const statsRows = await dbPool.query(
+      `SELECT t.id,
+              COALESCE(SUM(p.photo_count), 0) AS photo_count,
+              array_agg(DISTINCT l.region)
+                FILTER (WHERE COALESCE(l.region, '') != '') AS regions
+       FROM trips t
+       LEFT JOIN presences p ON p.photo_date >= t.start_date AND p.photo_date <= t.end_date
+       LEFT JOIN localities l ON l.id = p.locality_id
+       WHERE t.id = ANY($1::int[])
+       GROUP BY t.id`,
+      [tripIds],
+    );
+
+    const statsMap = new Map<number, { photoCount: number; regions: string[] }>();
+    for (const row of statsRows.rows) {
+      const regions = ((row.regions as string[]) ?? []).sort((a, b) => a.localeCompare(b));
+      statsMap.set(Number(row.id), {
+        photoCount: Number(row.photo_count ?? 0),
+        regions,
+      });
+    }
+
+    return items.map((trip) => {
+      const stats = statsMap.get(trip.id);
+      return stats ? { ...trip, ...stats } : trip;
+    });
   }
 
   async getTrip(id: number): Promise<TripDto | null> {
     const rows = await db.select(tripSelection).from(trips).where(eq(trips.id, id));
-    return rows.length > 0 ? mapTripRow(rows[0]) : null;
+    if (rows.length === 0) return null;
+    const [trip] = await this.attachStats([mapTripRow(rows[0])]);
+    return trip;
   }
 
   /**
@@ -289,6 +344,8 @@ class TripsRepository {
       createdManually: r.created_manually,
       status: r.status,
       createdAt: r.created_at,
+      photoCount: 0,
+      regions: [],
     };
   }
 
@@ -406,7 +463,8 @@ class TripsRepository {
     );
     return result.rows.map((r) => ({
       dayDate: String(r.dayDate),
-      localityKey: r.localityKey === null || r.localityKey === undefined ? null : String(r.localityKey),
+      localityKey:
+        r.localityKey === null || r.localityKey === undefined ? null : String(r.localityKey),
     }));
   }
 
@@ -698,6 +756,176 @@ class TripsRepository {
        FROM representative
        ORDER BY COALESCE(first_photo_at, first_day::timestamp) NULLS LAST, name`,
       [startDate, endDate, tripId],
+    );
+
+    const markers: MapMarkerDto[] = result.rows.map((r) => ({
+      localityId: Number(r.locality_id),
+      name: String(r.name),
+      latitude: parseFloat(String(r.latitude)),
+      longitude: parseFloat(String(r.longitude)),
+      photoCount: Number(r.photo_count),
+      firstPhotoAt: r.first_photo_at != null ? String(r.first_photo_at) : null,
+      county: r.county != null ? String(r.county) : null,
+      region: r.region != null ? String(r.region) : null,
+      country: r.country != null ? String(r.country) : null,
+    }));
+
+    // Compute bounding box from markers
+    let bounds: BoundingBoxDto;
+    if (markers.length === 0) {
+      // Default center (Italy-ish) when no markers exist
+      bounds = { minLat: 37, minLon: 6, maxLat: 47.1, maxLon: 19 };
+    } else {
+      bounds = {
+        minLat: Math.min(...markers.map((m) => m.latitude)),
+        minLon: Math.min(...markers.map((m) => m.longitude)),
+        maxLat: Math.max(...markers.map((m) => m.latitude)),
+        maxLon: Math.max(...markers.map((m) => m.longitude)),
+      };
+    }
+
+    return { markers, bounds };
+  }
+
+  /**
+   * Cached overview aggregation (see getTripsOverviewMapData): the
+   * singleton `trips_overview_map_cache` row (migration 0017) stores the
+   * pre-color DTOs plus the timestamp the snapshot was computed at.
+   * Returns null when no snapshot exists yet (first-ever request → the
+   * service computes and stores it). A malformed payload is treated as a
+   * miss (recompute), never as an error.
+   */
+  async getOverviewMapCache(): Promise<{
+    bounds: BoundingBoxDto;
+    markers: MapMarkerDto[];
+    computedAt: string;
+  } | null> {
+    const result = await dbPool.query(
+      `SELECT payload,
+              to_char(computed_at, 'YYYY-MM-DD"T"HH24:MI:SS') AS computed_at
+         FROM trips_overview_map_cache
+        WHERE id = 1`,
+    );
+    if (result.rows.length === 0) return null;
+
+    const payload = result.rows[0].payload as { bounds?: BoundingBoxDto; markers?: unknown } | null;
+    if (!payload || !payload.bounds || !Array.isArray(payload.markers)) return null;
+
+    return {
+      bounds: payload.bounds,
+      markers: payload.markers as MapMarkerDto[],
+      computedAt: String(result.rows[0].computed_at),
+    };
+  }
+
+  /**
+   * Insert or refresh the singleton overview cache row (id = 1) with the
+   * given pre-color aggregation and now() as computed_at. Returns the
+   * naive computed_at timestamp string (YYYY-MM-DDTHH:mm:ss).
+   */
+  async saveOverviewMapCache(payload: {
+    bounds: BoundingBoxDto;
+    markers: MapMarkerDto[];
+  }): Promise<string> {
+    const result = await dbPool.query(
+      `INSERT INTO trips_overview_map_cache (id, payload, computed_at)
+       VALUES (1, $1::jsonb, now())
+       ON CONFLICT (id) DO UPDATE
+            SET payload = EXCLUDED.payload,
+                computed_at = now()
+       RETURNING to_char(computed_at, 'YYYY-MM-DD"T"HH24:MI:SS') AS computed_at`,
+      [JSON.stringify(payload)],
+    );
+    return String(result.rows[0].computed_at);
+  }
+
+  /**
+   * Overview map data for the panoramic dashboard view: ONE marker per
+   * unique locality (name + county + region) across all active trips —
+   * presence localities within each trip's interval (respecting the
+   * day/locality exclusions) plus manual-day localities, deduplicated.
+   * Same aggregation rule as getTripMapData (§16/§6.3/§7.2), but scoped to
+   * the whole set of active trips instead of a single trip.
+   */
+  async getTripsOverviewMapData(): Promise<{
+    markers: MapMarkerDto[];
+    bounds: BoundingBoxDto;
+  }> {
+    const result = await dbPool.query(
+      `WITH active_trips AS (
+         SELECT id, start_date, end_date FROM trips WHERE status = 'active'
+       ),
+       presence_rows AS (
+         SELECT p.locality_id,
+                l.name, l.county, l.region, l.country, l.locality_hash,
+                p.photo_count,
+                (SELECT MIN(ph.date_time_original)
+                   FROM photos ph
+                   JOIN geocoding_cache gc
+                     ON gc.original_latitude = ph.original_latitude
+                    AND gc.original_longitude = ph.original_longitude
+                    AND gc.locality_id = p.locality_id
+                  WHERE ph.date_time_original IS NOT NULL
+                    AND ph.date_time_original::date = p.photo_date) AS first_photo_at,
+                NULL::date AS first_day
+         FROM presences p
+         JOIN localities l ON l.id = p.locality_id
+         JOIN active_trips t
+           ON p.photo_date >= t.start_date AND p.photo_date <= t.end_date
+         WHERE NOT EXISTS (
+           SELECT 1 FROM trip_day_exclusions e
+           WHERE e.trip_id = t.id
+             AND e.day_date = p.photo_date
+             AND (e.locality_key IS NULL
+                  OR e.locality_key = lower(l.name) || '|' || COALESCE(l.county, '') || '|' || COALESCE(l.region, ''))
+         )
+       ),
+       manual_rows AS (
+         SELECT m.locality_id,
+                l.name, l.county, l.region, l.country, l.locality_hash,
+                0::int AS photo_count,
+                NULL::timestamp AS first_photo_at,
+                MIN(d.day_date) AS first_day
+         FROM manual_trip_days d
+         JOIN manual_trip_day_localities m ON m.day_id = d.id
+         JOIN localities l ON l.id = m.locality_id
+         JOIN active_trips t ON t.id = d.trip_id
+         GROUP BY m.locality_id, l.name, l.county, l.region, l.country, l.locality_hash
+       ),
+       all_rows AS (
+         SELECT * FROM presence_rows
+         UNION ALL
+         SELECT * FROM manual_rows
+       ),
+       aggregated AS (
+         SELECT name,
+                COALESCE(county, '') AS county_key,
+                COALESCE(region, '') AS region_key,
+                SUM(photo_count)::int AS photo_count,
+                MIN(first_photo_at)   AS first_photo_at,
+                MIN(first_day)        AS first_day
+         FROM all_rows
+         GROUP BY name, COALESCE(county, ''), COALESCE(region, '')
+       ),
+       representative AS (
+         SELECT DISTINCT ON (r.name, COALESCE(r.county, ''), COALESCE(r.region, ''))
+           r.locality_id, r.name, r.county, r.region, r.country, r.locality_hash,
+           a.photo_count, a.first_photo_at, a.first_day
+         FROM all_rows r
+         JOIN aggregated a
+           ON a.name = r.name
+          AND a.county_key = COALESCE(r.county, '')
+          AND a.region_key = COALESCE(r.region, '')
+         WHERE r.locality_hash ~ '^-?[0-9]+\\.[0-9]+:-?[0-9]+\\.[0-9]+$'
+         ORDER BY r.name, COALESCE(r.county, ''), COALESCE(r.region, ''),
+                  r.first_photo_at NULLS LAST, r.locality_id
+       )
+       SELECT locality_id, name, county, region, country,
+              photo_count, first_photo_at::text AS first_photo_at,
+              split_part(locality_hash, ':', 1)::double precision AS latitude,
+              split_part(locality_hash, ':', 2)::double precision AS longitude
+       FROM representative
+       ORDER BY COALESCE(first_photo_at, first_day::timestamp) NULLS LAST, name`,
     );
 
     const markers: MapMarkerDto[] = result.rows.map((r) => ({

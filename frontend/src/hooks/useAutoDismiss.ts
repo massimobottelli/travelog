@@ -8,7 +8,7 @@
 
 import { useEffect } from "react";
 
-export function useAutoDismiss(message: string | null, clear: () => void, delayMs = 3000): void {
+export function useAutoDismiss(message: string | null, clear: () => void, delayMs = 1500): void {
   useEffect(() => {
     if (!message) return;
     const timer = window.setTimeout(clear, delayMs);

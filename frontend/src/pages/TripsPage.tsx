@@ -1,10 +1,16 @@
 /**
- * Travelog MVP1 — Trips page
+ * Travelog MVP1 — Trips page ("I Miei Viaggi")
  *
- * Main view (functional requirements §15, §16): chronological trip list
- * with search and archived filter, trip detail with the day/locality
- * chronology, and the manual operations (§13): rename, date change,
- * split and merge. All domain rules live in the backend.
+ * Main view (functional requirements §15, §16) built on the new two-column
+ * dashboard (new UI §1–§3): the sidebar lists the trips as accordion cards,
+ * the right column shows the map of the selected trip.
+ *
+ * The page owns the data and the operations: list/search, detail and map
+ * loading, the manual operations (§13: rename, dates, split, merge, delete)
+ * and the global actions (scan, manual creation, CSV export, recalculation).
+ * All domain rules live in the backend; the
+ * presentational components (TripsDashboard, TripCard, TripTimeline,
+ * GlobalActionMenu) contain no business logic.
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -17,19 +23,24 @@ import {
   createTrip,
   replaceTripDays,
   getTripMap,
+  getTripsOverviewMap,
+  recalculateTripsOverviewMap,
 } from "../api/trips";
-import { splitTrip, mergeTrips, listTripOperations } from "../api/operations";
+import { splitTrip, mergeTrips } from "../api/operations";
 import { recalculate } from "../api/settings";
-import type { Trip, TripDetail, TripDayInput, TripOperation, TripMapData } from "../api/client";
-import type { TripDialogState } from "../components/TripDialog";
+import type { Trip, TripDayInput, TripDetail, TripMapData, TripsOverviewMap } from "../api/client";
+import TripDialog, { type TripDialogState } from "../components/TripDialog";
 import TripDaysModal, { type TripDaysPayload } from "../components/TripDaysModal";
-import TripsTable from "../components/TripsTable";
-import Accordion from "../components/Accordion";
-import Loading from "../components/Loading";
+import TripsDashboard from "../components/TripsDashboard";
+import GlobalActionMenu from "../components/GlobalActionMenu";
+import Modal from "../components/Modal";
+import MergeDialog from "../components/MergeDialog";
+import TopBarSlot from "../components/TopBarSlot";
 import ErrorAlert from "../components/ErrorAlert";
+import { SearchIcon } from "../components/icons";
 import { errorToMessage } from "../utils/error";
 import { useAutoDismiss } from "../hooks/useAutoDismiss";
-import { RefreshIcon, MergeIcon, DownloadIcon, SearchIcon } from "../components/icons";
+import { navigate } from "../hooks/useRoute";
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[] | null>(null);
@@ -42,17 +53,38 @@ export default function TripsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [mapData, setMapData] = useState<TripMapData | null>(null);
+  // Panoramic overview of all active trips (photo-density heatmap, shown
+  // while no trip has been selected yet). It is a persistent cached
+  // snapshot (migration 0017): served from the cache on every load, its
+  // age is shown in the map toolbar and the refresh is explicit.
+  const [overviewMap, setOverviewMap] = useState<TripsOverviewMap | null>(null);
+  const [overviewRecalculating, setOverviewRecalculating] = useState(false);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  // Success notification of the explicit overview recalculation (shown in
+  // the page messages area, auto-dismissed like the other notifications).
+  const [overviewMessage, setOverviewMessage] = useState<string | null>(null);
 
   const [dialog, setDialog] = useState<TripDialogState | null>(null);
   const [operating, setOperating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  // Success notification of an operation run inside a dialog: it is shown at
+  // the bottom of the dialog and the dialog closes on its timeout.
+  const [dialogMessage, setDialogMessage] = useState<string | null>(null);
 
+  // Manual trip creation (modal).
+  const [daysModalOpen, setDaysModalOpen] = useState(false);
+  const [daysSubmitting, setDaysSubmitting] = useState(false);
+  const [daysModalError, setDaysModalError] = useState<string | null>(null);
+
+  // Merge (§13.4): the selection happens on the cards in merge mode, the
+  // confirmation (recap + optional name) in a centered dialog.
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [mergeTitle, setMergeTitle] = useState("");
-  const [history, setHistory] = useState<TripOperation[]>([]);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  // The delete confirmation stores the trip name so the success message can
+  // stay visible even after the list is reloaded without the deleted trip.
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
 
   // Pagination: the backend page size is capped at 100; the controls are
   // shown only when the active trips exceed one page.
@@ -66,7 +98,23 @@ export default function TripsPage() {
   const [exporting, setExporting] = useState(false);
 
   useAutoDismiss(recalcMessage, () => setRecalcMessage(null));
-  useAutoDismiss(actionMessage, () => setActionMessage(null));
+  useAutoDismiss(overviewMessage, () => setOverviewMessage(null));
+
+  // The dialog closes only after its success notification disappears: this
+  // callback stays stable so re-renders (e.g. the list reload) do not restart
+  // the auto-dismiss timer.
+  const closeDialogAfterNotification = useCallback((): void => {
+    setDialogMessage(null);
+    setDialog(null);
+    setConfirmDelete(null);
+    setDaysModalOpen(false);
+    // Merge mode and its selection only end with the (confirmed) merge.
+    setMergeDialogOpen(false);
+    setMergeMode(false);
+    setSelectedIds([]);
+    setMergeTitle("");
+  }, []);
+  useAutoDismiss(dialogMessage, closeDialogAfterNotification);
 
   const reload = useCallback(async (query: string, requestedPage: number) => {
     setLoading(true);
@@ -92,6 +140,40 @@ export default function TripsPage() {
     void reload(search, page);
   }, [reload, search, page]);
 
+  // Panoramic overview of all active trips: loaded once at startup and
+  // refreshed only after operations that change the set of trips. It is
+  // independent of search/pagination (it always covers every active trip).
+  const loadOverview = useCallback(async () => {
+    try {
+      setOverviewMap(await getTripsOverviewMap());
+    } catch {
+      // Soft-fail: the map panel falls back to the hint.
+      setOverviewMap(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadOverview();
+  }, [loadOverview]);
+
+  // Explicit recalculation of the cached overview (migration 0017): the
+  // fresh aggregation replaces the served snapshot in place and a success
+  // notification confirms the completion. On failure the error is shown
+  // in the page messages area and the cached heatmap is kept as-is.
+  const handleRecalculateOverview = useCallback(async (): Promise<void> => {
+    setOverviewRecalculating(true);
+    setOverviewError(null);
+    setOverviewMessage(null);
+    try {
+      setOverviewMap(await recalculateTripsOverviewMap());
+      setOverviewMessage("Heatmap aggiornata.");
+    } catch (err: unknown) {
+      setOverviewError(errorToMessage(err));
+    } finally {
+      setOverviewRecalculating(false);
+    }
+  }, []);
+
   const handleSearchChange = (value: string): void => {
     setSearch(value);
     setPage(1); // a new search always starts from the first page
@@ -113,6 +195,7 @@ export default function TripsPage() {
     } catch (err: unknown) {
       setDetailError(errorToMessage(err));
       setDetail(null);
+      setMapData(null);
     } finally {
       setDetailLoading(false);
     }
@@ -122,27 +205,14 @@ export default function TripsPage() {
     if (selectedTripId !== null) void loadDetail(selectedTripId);
   }, [selectedTripId, loadDetail]);
 
-  const reloadHistory = useCallback(() => {
-    listTripOperations()
-      .then((res) => setHistory(res.items))
-      .catch(() => undefined);
-  }, []);
-
-  useEffect(() => reloadHistory(), [reloadHistory]);
-
-  const refreshAfterOperation = useCallback(
-    async (message: string) => {
-      setActionMessage(message);
-      setActionError(null);
-      setDialog(null);
-      setSelectedTripId(null);
-      setDetail(null);
-      setMapData(null);
-      await reload(search, page);
-      reloadHistory();
-    },
-    [reload, search, page, reloadHistory],
-  );
+  // Re-fetches the list and drops the current selection after an operation
+  // that changed the trips. The success notification is owned by the caller.
+  const refreshAfterOperation = useCallback(async () => {
+    setSelectedTripId(null);
+    setDetail(null);
+    setMapData(null);
+    await Promise.all([reload(search, page), loadOverview()]);
+  }, [reload, search, page, loadOverview]);
 
   const handleDialogSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -151,25 +221,28 @@ export default function TripsPage() {
     setActionError(null);
     try {
       const form = new FormData(event.currentTarget);
+      let message: string;
       if (dialog.type === "rename") {
         await updateTrip(dialog.tripId, { name: String(form.get("name") ?? "").trim() });
-        await refreshAfterOperation("Viaggio rinominato.");
+        message = "Viaggio rinominato.";
       } else if (dialog.type === "dates") {
         await updateTrip(dialog.tripId, {
           startDate: String(form.get("startDate") ?? ""),
           endDate: String(form.get("endDate") ?? ""),
         });
-        await refreshAfterOperation("Date del viaggio aggiornate.");
+        message = "Date del viaggio aggiornate.";
       } else {
         const name = String(form.get("name") ?? "").trim();
         await splitTrip(dialog.tripId, {
           splitDate: String(form.get("splitDate") ?? ""),
           name: name || undefined,
         });
-        await refreshAfterOperation(
-          "Viaggio diviso: la data scelta appartiene al secondo viaggio.",
-        );
+        message = "Viaggio diviso: la data scelta appartiene al secondo viaggio.";
       }
+      // Keep the dialog open and show the confirmation inside it; the dialog
+      // is closed when the notification auto-dismisses.
+      setDialogMessage(message);
+      await refreshAfterOperation();
     } catch (err: unknown) {
       setActionError(errorToMessage(err));
     } finally {
@@ -183,10 +256,10 @@ export default function TripsPage() {
     setActionError(null);
     try {
       await mergeTrips({ tripIds: selectedIds, title: mergeTitle.trim() || undefined });
-      setMergeMode(false);
-      setSelectedIds([]);
-      setMergeTitle("");
-      await refreshAfterOperation("Viaggi uniti: i viaggi originali restano nello storico.");
+      // The confirmation stays in the dialog, which closes on its timeout
+      // (then merge mode and the selection are dropped).
+      setDialogMessage("Viaggi uniti: i viaggi originali restano nello storico.");
+      await refreshAfterOperation();
     } catch (err: unknown) {
       setActionError(errorToMessage(err));
     } finally {
@@ -198,23 +271,47 @@ export default function TripsPage() {
     setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   };
 
+  const toggleMergeMode = (): void => {
+    setMergeDialogOpen(false);
+    setDialogMessage(null);
+    setMergeMode((value) => !value);
+    setSelectedIds([]);
+    setMergeTitle("");
+  };
+
+  const closeMergeDialog = (): void => {
+    setDialogMessage(null);
+    setMergeDialogOpen(false);
+  };
+
   const handleDelete = async (tripId: number): Promise<void> => {
     setOperating(true);
     setActionError(null);
     try {
       await deleteTrip(tripId);
-      setConfirmDeleteId(null);
-      if (selectedTripId === tripId) {
-        setSelectedTripId(null);
-        setDetail(null);
-        setMapData(null);
-      }
-      await refreshAfterOperation("Viaggio eliminato: l'operazione è registrata nello storico.");
+      // The success notification stays in the confirmation dialog (which
+      // closes on its timeout), so the deleted trip name is kept aside.
+      setDialogMessage(`Viaggio «${confirmDelete?.name || "(senza nome)"}» eliminato.`);
+      await refreshAfterOperation();
     } catch (err: unknown) {
       setActionError(errorToMessage(err));
     } finally {
       setOperating(false);
     }
+  };
+
+  // Inline day/locality editing of the expanded card ("Modifica viaggio",
+  // §51): persist the full day list, then refresh detail, map and list
+  // together (the trip interval may have changed). On failure the error
+  // propagates to the timeline, which shows it in place.
+  const handleReplaceDays = async (tripId: number, days: TripDayInput[]): Promise<void> => {
+    await replaceTripDays(tripId, { days });
+    if (selectedTripId === tripId) {
+      const [detailData, mapDataLoaded] = await Promise.all([getTrip(tripId), getTripMap(tripId)]);
+      setDetail(detailData);
+      setMapData(mapDataLoaded);
+    }
+    await Promise.all([reload(search, page), loadOverview()]);
   };
 
   const handleRecalculate = async (): Promise<void> => {
@@ -245,19 +342,19 @@ export default function TripsPage() {
     }
   };
 
-  // ── Manual trip creation (modal) and inline day editing ─────────
-  const [daysModalOpen, setDaysModalOpen] = useState(false);
-  const [daysSubmitting, setDaysSubmitting] = useState(false);
-  const [daysModalError, setDaysModalError] = useState<string | null>(null);
+  // ── Manual trip creation (modal) ─────────────────────────────────
+  const openDaysModal = (): void => {
+    setDaysModalError(null);
+    setDaysModalOpen(true);
+  };
 
   const handleDaysSubmit = async (payload: TripDaysPayload): Promise<void> => {
     setDaysSubmitting(true);
     setDaysModalError(null);
     try {
       await createTrip({ name: payload.name || undefined, days: payload.days });
-      setDaysModalOpen(false);
-      setActionMessage("Viaggio creato.");
-      await reload(search, page);
+      setDialogMessage("Viaggio creato.");
+      await Promise.all([reload(search, page), loadOverview()]);
     } catch (err: unknown) {
       setDaysModalError(errorToMessage(err));
     } finally {
@@ -265,241 +362,236 @@ export default function TripsPage() {
     }
   };
 
-  /**
-   * Inline day editing from the trip detail (manual trips): replaces
-   * the full manual day list, refreshes the detail and the list. Errors
-   * propagate to the detail panel, which shows them in place.
-   */
-  const handleReplaceDays = async (tripId: number, days: TripDayInput[]): Promise<void> => {
-    await replaceTripDays(tripId, { days });
-    if (selectedTripId === tripId) {
-      // Day replacement can change which localities are visited: refresh
-      // the detail and the map data together.
-      const [detailData, mapData] = await Promise.all([getTrip(tripId), getTripMap(tripId)]);
-      setDetail(detailData);
-      setMapData(mapData);
-    }
-    setActionMessage("Giorni del viaggio aggiornati.");
-    await reload(search, page).catch(() => undefined);
-  };
+  // Trips selected for the merge, in sidebar order (only loaded trips can be
+  // selected, see reload()).
+  const selectedTrips = (trips ?? []).filter((trip) => selectedIds.includes(trip.id));
 
   return (
-    <div className="page">
-      <section className="panel page-header-card">
-        <div className="page-header-row">
-          <h1 className="page-title">Viaggi</h1>
-          <div className="trips-toolbar">
-            <div className="search-box">
-              <SearchIcon size={16} />
-              <input
-                type="search"
-                placeholder="Cerca per nome o anno…"
-                aria-label="Ricerca rapida viaggi"
-                value={search}
-                onChange={(e) => handleSearchChange(e.target.value)}
-              />
-            </div>
-            <button
-              type="button"
-              className="secondary"
-              onClick={handleRecalculate}
-              disabled={recalculating}
-            >
-              <RefreshIcon size={18} /> {recalculating ? "Richiesta in corso…" : "Ricalcola"}
-            </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                setDaysModalError(null);
-                setDaysModalOpen(true);
-              }}
-            >
-              + Crea viaggio
-            </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                setMergeMode((m) => !m);
-                setSelectedIds([]);
-                setMergeTitle("");
-              }}
-              disabled={trips !== null && trips.length < 2}
-            >
-              <MergeIcon size={18} /> {mergeMode ? "Annulla unione" : "Unisci viaggi"}
-            </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={handleExportCsv}
-              disabled={exporting || (trips !== null && trips.length === 0)}
-            >
-              <DownloadIcon size={18} /> {exporting ? "Esportazione…" : "Esporta CSV"}
-            </button>
-          </div>
+    <div className="page trips-page">
+      {/* Top bar content (new UI §1.1): the search field and the global
+          action menu live in the application header, next to the brand. */}
+      <TopBarSlot>
+        <div className="search-box app-header-search">
+          <SearchIcon size={16} />
+          <input
+            type="search"
+            placeholder="Cerca…"
+            aria-label="Cerca viaggi"
+            value={search}
+            onChange={(event) => handleSearchChange(event.target.value)}
+          />
         </div>
-        {recalcMessage && <p className="alert alert-success">{recalcMessage}</p>}
-        {recalcError && <ErrorAlert message={recalcError} />}
-      </section>
-
-      {/* Manual trip creation: the modal opens right under the page
-          title, before the trip list. Day editing happens inline in the
-          trip detail (TripDetailPanel). */}
+        <GlobalActionMenu
+          onScan={() => navigate("/scans")}
+          onCreateTrip={openDaysModal}
+          onExport={handleExportCsv}
+          onMerge={toggleMergeMode}
+          onRecalculate={handleRecalculate}
+          onRecalculateOverview={handleRecalculateOverview}
+          exporting={exporting}
+          recalculating={recalculating}
+          recalculatingOverview={overviewRecalculating}
+          mergeActive={mergeMode}
+          mergeDisabled={(trips?.length ?? 0) < 2}
+        />
+      </TopBarSlot>
+      {/* Manual trip creation: the modal opens right below the top of the
+          view, before the dashboard. */}
       {daysModalOpen && (
         <TripDaysModal
           submitting={daysSubmitting}
           error={daysModalError}
+          message={dialogMessage}
           onSubmit={handleDaysSubmit}
-          onCancel={() => setDaysModalOpen(false)}
+          onCancel={() => {
+            setDialogMessage(null);
+            setDaysModalOpen(false);
+          }}
         />
       )}
 
-      <section className="panel trips-panel">
-        {mergeMode && (
-          <div className="merge-bar">
-            <p className="hint">
-              Seleziona due o più viaggi da unire. Il nome proposto è quello del primo viaggio
-              selezionato; gli originali restano nello storico.
-            </p>
-            <input
-              type="text"
-              placeholder="Nome del viaggio unito (opzionale)"
-              aria-label="Nome del viaggio unito"
-              value={mergeTitle}
-              onChange={(e) => setMergeTitle(e.target.value)}
-            />
-            <button
-              type="button"
-              onClick={handleMerge}
-              disabled={selectedIds.length < 2 || operating}
-            >
-              {operating ? "Unione in corso…" : `Unisci ${selectedIds.length} viaggi selezionati`}
-            </button>
-          </div>
-        )}
-
-        {loading && <Loading />}
-        {loadError && <ErrorAlert message={loadError} />}
-
-        {trips !== null && trips.length === 0 && !loading && (
-          <p className="hint">Nessun viaggio trovato.</p>
-        )}
-
-        {trips !== null && trips.length > 0 && (
-          <TripsTable
-            trips={trips}
-            mergeMode={mergeMode}
-            selectedIds={selectedIds}
-            selectedTripId={selectedTripId}
-            confirmDeleteId={confirmDeleteId}
-            detail={detail}
-            detailLoading={detailLoading}
-            detailError={detailError}
-            mapData={mapData}
-            onToggleSelected={toggleSelected}
-            onSelectTrip={(id) => setSelectedTripId((current) => (current === id ? null : id))}
-            onCloseDetail={(tripId) => {
-              setSelectedTripId(null);
-              setDetail(null);
-              setMapData(null);
-              // After the accordion collapses the trip row can end up above
-              // the viewport: bring it back into view (minimal scroll).
-              requestAnimationFrame(() => {
-                // Bring the closed trip back into view showing at least the
-                // previous trip row above it: anchor the scroll on the
-                // previous row instead of the closed one.
-                const row = document.getElementById(`trip-row-${tripId}`);
-                if (!row || typeof row.scrollIntoView !== "function") return;
-                let anchor: HTMLElement = row;
-                let sibling = row.previousElementSibling;
-                while (sibling) {
-                  if (sibling.id.startsWith("trip-row-")) {
-                    anchor = sibling as HTMLElement;
-                    break;
-                  }
-                  sibling = sibling.previousElementSibling;
-                }
-                anchor.scrollIntoView({ behavior: "smooth", block: "start" });
-              });
+      {mergeMode && (
+        <div className="merge-bar">
+          <p className="hint">
+            Seleziona due o più viaggi da unire: la conferma si apre in una finestra e gli originali
+            restano nello storico.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setDialogMessage(null);
+              setActionError(null);
+              setMergeDialogOpen(true);
             }}
-            onRename={(trip) =>
-              setDialog({ type: "rename", tripId: trip.id, currentName: trip.name })
-            }
-            onDates={(trip) =>
-              setDialog({
-                type: "dates",
-                tripId: trip.id,
-                startDate: trip.startDate,
-                endDate: trip.endDate,
-              })
-            }
-            onSplit={(trip) =>
-              setDialog({
-                type: "split",
-                tripId: trip.id,
-                startDate: trip.startDate,
-                endDate: trip.endDate,
-                proposedName: `${trip.name} (2)`,
-              })
-            }
-            onReplaceDays={handleReplaceDays}
-            onDelete={(trip) => setConfirmDeleteId(trip.id)}
-            onDeleteConfirm={handleDelete}
-            onDeleteCancel={() => setConfirmDeleteId(null)}
-            deleting={operating}
-            dialog={dialog}
-            operating={operating}
-            onDialogSubmit={handleDialogSubmit}
-            onDialogCancel={() => setDialog(null)}
-          />
-        )}
+            disabled={selectedIds.length < 2 || operating}
+          >
+            {`Unisci ${selectedIds.length} viaggi selezionati`}
+          </button>
+        </div>
+      )}
 
-        {totalPages > 1 && !loading && (
-          <nav className="pagination" aria-label="Paginazione viaggi">
-            <button
-              type="button"
-              onClick={() => goToPage(page - 1)}
-              disabled={page <= 1}
-              aria-label="Pagina precedente"
+      {(recalcMessage ||
+        recalcError ||
+        actionError ||
+        overviewMessage ||
+        overviewError ||
+        overviewRecalculating) && (
+        <div className="trips-messages">
+          {recalcMessage && <p className="alert alert-success">{recalcMessage}</p>}
+          {recalcError && <ErrorAlert message={recalcError} />}
+          {actionError && <ErrorAlert message={actionError} />}
+          {overviewRecalculating && (
+            <p className="alert alert-warning" role="status">
+              Ricalcolo Heatmap in corso...
+            </p>
+          )}
+          {overviewMessage && <p className="alert alert-success">{overviewMessage}</p>}
+          {overviewError && <ErrorAlert message={overviewError} />}
+        </div>
+      )}
+
+      <TripsDashboard
+        trips={trips ?? []}
+        loading={loading}
+        error={loadError}
+        selectedTripId={selectedTripId}
+        onSelectTrip={(id) => setSelectedTripId((current) => (current === id ? null : id))}
+        detail={detail}
+        detailLoading={detailLoading}
+        detailError={detailError}
+        mapData={mapData}
+        overviewMapData={overviewMap}
+        onRename={(trip) => {
+          setDialogMessage(null);
+          setDialog({ type: "rename", tripId: trip.id, currentName: trip.name });
+        }}
+        onEditDates={(trip) => {
+          setDialogMessage(null);
+          setDialog({
+            type: "dates",
+            tripId: trip.id,
+            startDate: trip.startDate,
+            endDate: trip.endDate,
+          });
+        }}
+        onSplit={(trip) => {
+          setDialogMessage(null);
+          setDialog({
+            type: "split",
+            tripId: trip.id,
+            startDate: trip.startDate,
+            endDate: trip.endDate,
+            proposedName: `${trip.name} (2)`,
+          });
+        }}
+        onDelete={(trip) => {
+          setDialogMessage(null);
+          setConfirmDelete({ id: trip.id, name: trip.name });
+        }}
+        onReplaceDays={handleReplaceDays}
+        mergeMode={mergeMode}
+        selectedIds={selectedIds}
+        onToggleSelected={toggleSelected}
+        onOpenTripDetail={(trip) => window.open(`/trips/${trip.id}`, "_blank")}
+        sidebarFooter={
+          totalPages > 1 && !loading ? (
+            <nav className="pagination" aria-label="Paginazione viaggi">
+              <button
+                type="button"
+                onClick={() => goToPage(page - 1)}
+                disabled={page <= 1}
+                aria-label="Pagina precedente"
+              >
+                ‹ Precedente
+              </button>
+              <span className="hint">
+                Pagina {page} di {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => goToPage(page + 1)}
+                disabled={page >= totalPages}
+                aria-label="Pagina successiva"
+              >
+                Successiva ›
+              </button>
+            </nav>
+          ) : undefined
+        }
+      />
+
+      {/* Trip operations dialog: rename, dates, split (§13.1–§13.3). */}
+      {dialog !== null && (
+        <TripDialog
+          dialog={dialog}
+          operating={operating}
+          message={dialogMessage}
+          onSubmit={handleDialogSubmit}
+          onCancel={() => {
+            setDialogMessage(null);
+            setDialog(null);
+          }}
+        />
+      )}
+
+      {/* Destructive delete: explicit confirmation, history preserved. The
+          success confirmation replaces the question until the auto-dismiss. */}
+      {confirmDelete !== null && (
+        <Modal label="Conferma eliminazione viaggio">
+          {dialogMessage ? (
+            <div className="panel" role="alertdialog" aria-label="Conferma eliminazione viaggio">
+              <p className="alert alert-success dialog-message" role="status">
+                {dialogMessage}
+              </p>
+            </div>
+          ) : (
+            <div
+              className="confirm-box"
+              role="alertdialog"
+              aria-label="Conferma eliminazione viaggio"
             >
-              ‹ Precedente
-            </button>
-            <span className="hint">
-              Pagina {page} di {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => goToPage(page + 1)}
-              disabled={page >= totalPages}
-              aria-label="Pagina successiva"
-            >
-              Successiva ›
-            </button>
-          </nav>
-        )}
+              <p>
+                Eliminare definitivamente il viaggio{" "}
+                <strong>«{confirmDelete.name || "(senza nome)"}»</strong>?
+              </p>
+              <div className="confirm-actions">
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => handleDelete(confirmDelete.id)}
+                  disabled={operating}
+                >
+                  {operating ? "Eliminazione…" : "Sì, elimina viaggio"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    setDialogMessage(null);
+                    setConfirmDelete(null);
+                  }}
+                  disabled={operating}
+                >
+                  Annulla
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
 
-        {actionMessage && <p className="alert alert-success">{actionMessage}</p>}
-        {actionError && <ErrorAlert message={actionError} />}
-      </section>
-
-      {history.length > 0 && (
-        <Accordion title="Storico operazioni">
-          <ul className="hint">
-            {history.map((op) => (
-              <li key={op.id}>
-                {op.type === "SPLIT"
-                  ? "Divisione"
-                  : op.type === "DELETE"
-                    ? "Eliminazione"
-                    : "Unione"}{" "}
-                · viaggi origine {op.sourceTripIds.join(", ")} → risultati{" "}
-                {op.resultingTripIds.length > 0 ? op.resultingTripIds.join(", ") : "—"} ·{" "}
-                {op.createdAt.replace("T", " ")}
-              </li>
-            ))}
-          </ul>
-        </Accordion>
+      {/* Merge confirmation (§13.4): recap of the trips selected on the cards. */}
+      {mergeDialogOpen && (
+        <MergeDialog
+          trips={selectedTrips}
+          title={mergeTitle}
+          onTitleChange={setMergeTitle}
+          operating={operating}
+          error={actionError}
+          message={dialogMessage}
+          onSubmit={handleMerge}
+          onCancel={closeMergeDialog}
+        />
       )}
     </div>
   );

@@ -40,6 +40,7 @@ export type TripOperationResult = components["schemas"]["TripOperationResult"];
 export type BoundingBox = components["schemas"]["BoundingBox"];
 export type MapMarker = components["schemas"]["MapMarker"];
 export type TripMapData = components["schemas"]["TripMapData"];
+export type TripsOverviewMap = components["schemas"]["TripsOverviewMap"];
 export type ExclusionZone = components["schemas"]["ExclusionZone"];
 export type Locality = components["schemas"]["Locality"];
 

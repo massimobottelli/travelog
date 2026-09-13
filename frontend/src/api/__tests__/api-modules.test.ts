@@ -8,6 +8,7 @@ import { getSettings, updateSettings, recalculate } from "../settings";
 import { listPhotos } from "../photos";
 import { getConfig, updateConfig } from "../config";
 import { deleteAllData } from "../data";
+import { recalculateTripsOverviewMap } from "../trips";
 
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
@@ -112,6 +113,27 @@ describe("settings API", () => {
     expect(result.status).toBe("ACCEPTED");
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/settings",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+});
+
+describe("trips overview API", () => {
+  it("recalculateTripsOverviewMap posts to /trips/map/recalculate", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        bounds: { minLat: 37, minLon: 7, maxLat: 46, maxLon: 13 },
+        markers: [],
+        countyColors: {},
+        computedAt: "2025-11-09T21:43:58",
+      }),
+    );
+
+    const overview = await recalculateTripsOverviewMap();
+
+    expect(overview.computedAt).toBe("2025-11-09T21:43:58");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/trips/map/recalculate",
       expect.objectContaining({ method: "POST" }),
     );
   });

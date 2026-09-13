@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { formatTimestamp } from "../ScansPage";
-import { formatTripPeriod } from "../../utils/format";
+import { formatTripPeriod, formatTripPeriodShort } from "../../utils/format";
 
 describe("formatTimestamp", () => {
   it("renders a UTC instant in the browser local time (offset removed)", () => {
@@ -37,5 +37,19 @@ describe("formatTripPeriod", () => {
 
   it("handles single-day trips", () => {
     expect(formatTripPeriod("2026-06-14", "2026-06-14")).toBe("14/06 - 14/06/2026");
+  });
+});
+
+describe("formatTripPeriodShort (trip card, UI §2.1)", () => {
+  it('renders short month names, e.g. "3 Lug - 31 Lug 2026"', () => {
+    expect(formatTripPeriodShort("2026-07-03", "2026-07-31")).toBe("3 Lug - 31 Lug 2026");
+  });
+
+  it("shows the start year only when the trip spans two different years", () => {
+    expect(formatTripPeriodShort("2025-12-30", "2026-01-02")).toBe("30 Dic 2025 - 2 Gen 2026");
+  });
+
+  it("handles single-day trips", () => {
+    expect(formatTripPeriodShort("2026-08-10", "2026-08-10")).toBe("10 Ago - 10 Ago 2026");
   });
 });

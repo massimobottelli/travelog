@@ -533,6 +533,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /trips/map:
+    get:
+      tags: [Trip Map]
+      operationId: getTripsOverviewMap
+      summary: Get overview map data for all active trips
+      description: |
+        Returns a single marker per unique locality (name + county + region)
+        across all active trips — presence localities within each trip's
+        interval (respecting the day/locality exclusions) plus the manual-day
+        localities, deduplicated. Suitable for the panoramic overview map
+        shown before a specific trip is selected.
+
+        The aggregation is served from a persistent read-through cache
+        (`POST /trips/map/recalculate` refreshes it): `computedAt` reports
+        when the served snapshot was computed, so the client can show the
+        data age and offer an explicit recalculation.
+
+        Coordinates are extracted from the geocoding cache locality hashes;
+        region-based colors are assigned deterministically. `firstPhotoAt` is
+        null for manual localities without photos.
+      responses:
+        "200":
+          description: Overview map data (cached; `computedAt` is its snapshot time)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripsOverviewMap"
+
+  /trips/map/recalculate:
+    post:
+      tags: [Trip Map]
+      operationId: recalculateTripsOverviewMap
+      summary: Explicitly recalculate the cached overview map
+      description: |
+        Recomputes the overview aggregation (one marker per unique locality
+        across all active trips), overwrites the persistent cache read by
+        `GET /trips/map` and returns the fresh data. The operation is
+        synchronous and explicit: no other API operation triggers it.
+      responses:
+        "200":
+          description: Freshly computed overview map data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripsOverviewMap"
+
   /trips/{tripId}/map:
     get:
       tags: [Trip Map]
@@ -1285,6 +1331,21 @@ components:
         createdAt:
           type: string
           format: date-time
+        photoCount:
+          type: integer
+          description: |
+            Total number of valid photos (with GPS and geocoding) belonging
+            to the trip. Computed from presences aggregated across all
+            localities in the trip interval. Used by the trip card UI to
+            show "N foto".
+        regions:
+          type: array
+          items:
+            type: string
+          description: |
+            Distinct administrative regions (counties and regions) visited
+            during the trip, used as tags on the trip card. Ordered
+            alphabetically.
 
     CreateTripRequest:
       type: object
@@ -1420,7 +1481,7 @@ components:
     MapMarker:
       type: object
       additionalProperties: false
-      required: [localityId, name, latitude, longitude, photoCount, firstPhotoAt, county, region, country, regionColor]
+      required: [localityId, name, latitude, longitude, photoCount, firstPhotoAt, county, region, country, countyColor]
       properties:
         localityId:
           type: integer
@@ -1445,14 +1506,17 @@ components:
           type: [string, null]
         country:
           type: [string, null]
-        regionColor:
+        countyColor:
           type: string
-          description: Hex color code assigned to this locality's region
+          description: |-
+            Hex color assigned deterministically to this locality's county
+            (province). Localities in the same county share the same color;
+            gray (#999999) when the county is unknown.
 
     TripMapData:
       type: object
       additionalProperties: false
-      required: [id, name, startDate, endDate, bounds, markers, regionColors]
+      required: [id, name, startDate, endDate, bounds, markers, countyColors]
       properties:
         id:
           type: integer
@@ -1471,11 +1535,36 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MapMarker"
-        regionColors:
+        countyColors:
           type: object
           additionalProperties:
             type: string
-          description: Map region name → hex_color for legend display
+          description: Map county (province) name → hex_color for legend display
+
+    TripsOverviewMap:
+      type: object
+      additionalProperties: false
+      required: [bounds, markers, countyColors, computedAt]
+      properties:
+        bounds:
+          $ref: "#/components/schemas/BoundingBox"
+        markers:
+          type: array
+          items:
+            $ref: "#/components/schemas/MapMarker"
+        countyColors:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map county (province) name → hex_color for legend display
+        computedAt:
+          type: string
+          format: date-time
+          description: |
+            When the served overview snapshot was computed (naive server local
+            time, YYYY-MM-DDTHH:mm:ss). The overview is a persistent cached
+            aggregation: compare this value with the current time to decide
+            whether an explicit `POST /trips/map/recalculate` is due.
 
     TripOperationType:
       type: string

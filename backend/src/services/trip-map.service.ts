@@ -1,8 +1,20 @@
 /**
  * Travelog MVP1 — Trip Map Service
  *
- * Assigns deterministic hex colors to regions for map marker visualization.
+ * Assigns deterministic hex colors to counties (provinces) for map marker
+ * visualization: localities in the same province share the same color.
+ *
+ * Also owns the read-through cache of the overview map aggregation (the
+ * photo-density heatmap data, migration 0017): the aggregation query is
+ * expensive (photos ⋈ geocoding_cache correlated subquery), so it is
+ * served from the persistent `trips_overview_map_cache` row and rebuilt
+ * only by the explicit recalculation.
  */
+
+import tripsRepository, {
+  type BoundingBoxDto,
+  type MapMarkerDto,
+} from "../repositories/trips.repository.js";
 
 /** Raw marker data before region color assignment. */
 interface RawMapMarker {
@@ -18,10 +30,10 @@ interface RawMapMarker {
 }
 
 /** Final marker shape returned by this service. */
-type MapMarkerWithColor = RawMapMarker & { regionColor: string };
+type MapMarkerWithColor = RawMapMarker & { countyColor: string };
 
-/** Material-like color palette — 48 distinct shades */
-const REGION_COLORS = [
+/** Material-like color palette — distinct shades, one per county */
+const COUNTY_COLORS = [
   "#4285F4", // blue
   "#EA4335", // red
   "#FBBC05", // yellow
@@ -55,33 +67,89 @@ function hashString(str: string): number {
 }
 
 /**
- * Assign a deterministic color to each locality's region.
- * Returns markers with `regionColor` filled and a regionColors map
- * for the legend display.
+ * Assign a deterministic color to each locality's county (province).
+ * Returns markers with `countyColor` filled and a countyColors map
+ * for the legend display. Gray when the county is unknown.
  */
-export function assignRegionColors(markers: RawMapMarker[]): {
+export function assignCountyColors(markers: RawMapMarker[]): {
   markersWithColor: MapMarkerWithColor[];
-  regionColors: Record<string, string>;
+  countyColors: Record<string, string>;
 } {
-  const regionToColor = new Map<string, string>();
+  const countyToColor = new Map<string, string>();
   const results: MapMarkerWithColor[] = [];
 
   for (const m of markers) {
-    if (!m.region) {
-      results.push({ ...m, regionColor: "#999999" }); // gray when no region
+    if (!m.county) {
+      results.push({ ...m, countyColor: "#999999" }); // gray when no county
       continue;
     }
-    if (!regionToColor.has(m.region)) {
-      const idx = regionToColor.size % REGION_COLORS.length;
-      regionToColor.set(m.region, REGION_COLORS[idx]);
+    if (!countyToColor.has(m.county)) {
+      const idx = countyToColor.size % COUNTY_COLORS.length;
+      countyToColor.set(m.county, COUNTY_COLORS[idx]);
     }
-    results.push({ ...m, regionColor: regionToColor.get(m.region)! });
+    results.push({ ...m, countyColor: countyToColor.get(m.county)! });
   }
 
   return {
     markersWithColor: results,
-    regionColors: Object.fromEntries(regionToColor),
+    countyColors: Object.fromEntries(countyToColor),
   };
 }
 
-export default { assignRegionColors };
+/** API response of the two overview endpoints (panoramic heatmap view). */
+export interface TripsOverviewMapResponse {
+  bounds: BoundingBoxDto;
+  markers: MapMarkerWithColor[];
+  countyColors: Record<string, string>;
+  /** Naive local timestamp (YYYY-MM-DDTHH:mm:ss) of the served snapshot. */
+  computedAt: string;
+}
+
+function buildOverviewResponse(
+  data: { bounds: BoundingBoxDto; markers: MapMarkerDto[] },
+  computedAt: string,
+): TripsOverviewMapResponse {
+  const { markersWithColor, countyColors } = assignCountyColors(data.markers);
+  return { bounds: data.bounds, markers: markersWithColor, countyColors, computedAt };
+}
+
+/**
+ * Overview map for the panoramic view (photo-density heatmap), served
+ * through the persistent `trips_overview_map_cache` (migration 0017):
+ * the aggregation query joins photos with the geocoding cache for every
+ * presence row and takes seconds on a real archive, so it is NOT rerun on
+ * every request. Read-through behaviour: a cache hit returns the stored
+ * snapshot as-is; a miss (first-ever request, or a missing/malformed row)
+ * computes, stores and returns it. The snapshot is never invalidated by
+ * other operations — its age is reported via `computedAt` and resolved by
+ * the explicit recalculateOverviewMap() (user decision: recalculation is
+ * a manual operation, same pattern as the trip recalculation §12).
+ */
+export async function getOverviewMap(): Promise<TripsOverviewMapResponse> {
+  const cached = await tripsRepository.getOverviewMapCache();
+  if (cached) {
+    console.log(`[overview-map] cache hit (computed at ${cached.computedAt})`);
+    return buildOverviewResponse(cached, cached.computedAt);
+  }
+  return recalculateOverviewMap("cache miss");
+}
+
+/**
+ * Explicit recalculation of the overview cache (POST /trips/map/recalculate):
+ * recomputes the aggregation, overwrites the singleton row and returns the
+ * fresh overview. Synchronous — the UI renders the result immediately.
+ */
+export async function recalculateOverviewMap(
+  reason: string = "manual recalculation",
+): Promise<TripsOverviewMapResponse> {
+  const startedAt = Date.now();
+  const data = await tripsRepository.getTripsOverviewMapData();
+  const computedAt = await tripsRepository.saveOverviewMapCache(data);
+  console.log(
+    `[overview-map] recomputed (${reason}) in ${Date.now() - startedAt}ms: ` +
+      `${data.markers.length} localities`,
+  );
+  return buildOverviewResponse(data, computedAt);
+}
+
+export default { assignCountyColors, getOverviewMap, recalculateOverviewMap };

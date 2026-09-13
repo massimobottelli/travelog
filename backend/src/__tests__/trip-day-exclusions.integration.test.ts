@@ -132,10 +132,7 @@ describe("day exclusions on auto-generated trips", () => {
     ]);
     expect(res2.status).toBe(200);
     detail = await getDetail(tripId);
-    expect(detail.days.map((d: { date: string }) => d.date)).toEqual([
-      "2025-08-10",
-      "2025-08-11",
-    ]);
+    expect(detail.days.map((d: { date: string }) => d.date)).toEqual(["2025-08-10", "2025-08-11"]);
   });
 
   it("deletes a whole photo day (localityKey null) and persists the exclusion", async () => {

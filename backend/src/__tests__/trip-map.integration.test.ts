@@ -30,6 +30,20 @@ async function insertLocality(hash: string, name: string): Promise<number> {
   return Number(res.rows[0].id);
 }
 
+async function insertLocalityWithCounty(
+  hash: string,
+  name: string,
+  county: string,
+  region: string,
+): Promise<number> {
+  const res = await pool.query(
+    `INSERT INTO localities (locality_hash, country_code, name, admin_level, county, region, country)
+     VALUES ($1, 'IT', $2, 8, $3, $4, 'Italy') RETURNING id`,
+    [hash, name, county, region],
+  );
+  return Number(res.rows[0].id);
+}
+
 async function insertCache(lat: number, lon: number, hash: string, localityId: number) {
   await pool.query(
     `INSERT INTO geocoding_cache (original_latitude, original_longitude, locality_hash, locality_id, country_code, name, admin_level, geo_applied)
@@ -66,10 +80,10 @@ async function cleanup() {
     "TRUNCATE trips, trip_history, manual_trip_days, manual_trip_day_localities, trip_day_exclusions RESTART IDENTITY",
   );
   await pool.query(
-    "DELETE FROM geocoding_cache WHERE locality_hash LIKE 'map-test-%' OR locality_hash IN ('38.03:12.58', '38.04:12.59', '45.46:9.19', '40.01:12.01', '45.01:9.01', '45.02:9.02')",
+    "DELETE FROM geocoding_cache WHERE locality_hash LIKE 'map-test-%' OR locality_hash IN ('38.03:12.58', '38.04:12.59', '45.46:9.19', '40.01:12.01', '45.01:9.01', '45.02:9.02', '44.70:8.03', '44.90:8.20', '44.69:7.85')",
   );
   await pool.query(
-    "DELETE FROM localities WHERE locality_hash LIKE 'map-test-%' OR locality_hash IN ('38.03:12.58', '38.04:12.59', '45.46:9.19', '40.01:12.01', '45.01:9.01', '45.02:9.02')",
+    "DELETE FROM localities WHERE locality_hash LIKE 'map-test-%' OR locality_hash IN ('38.03:12.58', '38.04:12.59', '45.46:9.19', '40.01:12.01', '45.01:9.01', '45.02:9.02', '44.70:8.03', '44.90:8.20', '44.69:7.85')",
   );
 }
 // ── Tests ────────────────────────────────────────────────────
@@ -153,8 +167,39 @@ describe("GET /trips/:id/map — one waymark per detail locality", () => {
     expect(body.markers[0].photoCount).toBe(1);
     expect(body.markers[1].photoCount).toBe(0);
   });
-});
 
+  it("assigns one color per county (province), not per region", async () => {
+    // Alba and Bra are both in the province of Cuneo; Asti is a different one.
+    // The locality hash must be a coordinate pair (the map query extracts the
+    // marker coordinates from it).
+    const alba = await insertLocalityWithCounty("44.70:8.03", "Alba", "Cuneo", "Piemonte");
+    const asti = await insertLocalityWithCounty("44.90:8.20", "Asti", "Asti", "Piemonte");
+    const bra = await insertLocalityWithCounty("44.69:7.85", "Bra", "Cuneo", "Piemonte");
+
+    const created = await request(server)
+      .post("/api/trips")
+      .send({
+        name: "Province",
+        days: [
+          { date: "2025-08-10", localityIds: [alba, asti] },
+          { date: "2025-08-11", localityIds: [bra] },
+        ],
+      });
+    expect(created.status).toBe(201);
+
+    const body = await getMap(created.body.id as number);
+    const byName = new Map(
+      (body.markers as Array<{ name: string; countyColor: string }>).map((m) => [m.name, m]),
+    );
+
+    // Same province → same color; different province → different color.
+    expect(byName.get("Alba")?.countyColor).toBe(byName.get("Bra")?.countyColor);
+    expect(byName.get("Asti")?.countyColor).not.toBe(byName.get("Alba")?.countyColor);
+    // The legend is keyed by county, not by region.
+    expect(Object.keys(body.countyColors).sort()).toEqual(["Asti", "Cuneo"]);
+    expect(body.countyColors.Cuneo).toBe(byName.get("Alba")?.countyColor);
+  });
+});
 
 beforeEach(async () => {
   await cleanup();

@@ -1,0 +1,57 @@
+services:
+  # ---------------------------------------------------------------------------
+  # 1. BACKEND - Node Web Service
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: travelog-app-backend
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install && npm run build && cp backend/src/openapi.json backend/dist/utils/openapi.json || true && npm run db:migrate --workspace=@travelog/backend
+    startCommand: npm start --workspace=@travelog/backend
+    autoDeploy: false
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: travelog-db
+          property: connectionString
+          value: postgresql://travelog:wYPyHrYHRZhhZrWXnQLYpgvw1qrc8qGH@dpg-dacjo4navr4c73fg1at0-a/travelog_6wn3
+      - key: CORS_ORIGIN
+        value: https://travelog-app-frontend.onrender.com
+      - key: FRONTEND_URL
+        value: https://travelog-app-frontend.onrender.com
+      - key: GEOCOAPIFY_API_KEY
+        value: 9f1b3729ec244a4e962131929daee414 
+        sync: false # Render chiederà di inserire questa chiave al primo deploy
+      - key: NODE_VERSION
+        value: "22.0.0"
+      - key: STATIC_FILES_PATH
+        value: /opt/render/project/src/frontend/deploy
+
+  # ---------------------------------------------------------------------------
+  # 2. FRONTEND - Static Site
+  # ---------------------------------------------------------------------------
+  - type: static
+    name: travelog-app-frontend
+    region: frankfurt
+    buildCommand: npm install && npm run build --workspace=@travelog/frontend
+    staticPublishPath: frontend/dist
+    autoDeploy: false
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://travelog-qe13.onrender.com
+    routes:
+      # Regola di Rewrite SPA per evitare l'errore 404 al Refresh delle pagine
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+databases:
+  # ---------------------------------------------------------------------------
+  # 3. DATABASE - PostgreSQL 18
+  # ---------------------------------------------------------------------------
+  - name: travelog-db
+    databaseName: travelog_6wn3
+    user: travelog
+    region: frankfurt
+    plan: free

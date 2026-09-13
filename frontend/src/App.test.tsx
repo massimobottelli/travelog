@@ -39,6 +39,15 @@ function mockAllEndpoints(): void {
     if (url.includes("/api/exclusion-zones")) {
       return Promise.resolve(jsonResponse({ items: [] }));
     }
+    if (url.includes("/api/trips/map")) {
+      return Promise.resolve(
+        jsonResponse({
+          bounds: { minLat: 37, minLon: 6, maxLat: 47.1, maxLon: 19 },
+          markers: [],
+          countyColors: {},
+        }),
+      );
+    }
     if (url.includes("/api/trips")) {
       return Promise.resolve(jsonResponse({ items: [], page: 1, pageSize: 20, total: 0 }));
     }
@@ -57,21 +66,26 @@ afterEach(() => {
 });
 
 describe("App", () => {
-  it("renders the application shell with the horizontal navigation", async () => {
+  it("renders the white top bar with the brand, the page actions and the settings gear", async () => {
     mockAllEndpoints();
 
-    render(<App />);
+    const { container } = render(<App />);
 
-    expect(screen.getByText("Travelog")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Scansioni" })).not.toBeNull();
-    // The technical photos page is hidden from the navigation
-    expect(screen.queryByRole("button", { name: "Foto" })).toBeNull();
+    // The old navigation tabs are gone.
+    expect(container.querySelectorAll(".nav-button")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Travelog" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Impostazioni" })).not.toBeNull();
 
-    // Trips page is the default page
+    // Trips dashboard is the default page
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Viaggi" })).not.toBeNull();
+      expect(screen.getByRole("heading", { name: "I Miei Viaggi" })).not.toBeNull();
     });
+
+    // The search field and the primary action are rendered inside the top
+    // bar (§1.1), not in the page.
+    const header = container.querySelector(".app-header")!;
+    expect(header.contains(screen.getByLabelText("Cerca viaggi"))).toBe(true);
+    expect(header.contains(screen.getByRole("button", { name: "Nuovo Viaggio" }))).toBe(true);
   });
 
   it("restores the running scan progress when returning to the scans page", async () => {
@@ -122,13 +136,27 @@ describe("App", () => {
           }),
         );
       }
+      if (url.includes("/api/trips/map")) {
+        return Promise.resolve(
+          jsonResponse({
+            bounds: { minLat: 37, minLon: 6, maxLat: 47.1, maxLon: 19 },
+            markers: [],
+            countyColors: {},
+          }),
+        );
+      }
       return Promise.resolve(jsonResponse({}, 200));
     });
 
     render(<App />);
 
-    // The default page is Trips: navigate to the Scans page
-    fireEvent.click(screen.getByRole("button", { name: "Scansioni" }));
+    // The default page is Trips: reach the Scans page from the global
+    // action menu in the top bar.
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Nuovo Viaggio" })).not.toBeNull();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Nuovo Viaggio" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Scansiona Foto" }));
 
     // The running scan's progress panel appears without any user click
     await waitFor(() => {

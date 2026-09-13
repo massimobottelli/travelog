@@ -393,3 +393,24 @@ export const exclusionZones = pgTable("exclusion_zones", {
     .notNull()
     .defaultNow(),
 });
+
+// ── 11. Trips Overview Map Cache (singleton row) ───────────────────
+// Persistent read-through cache of the overview map aggregation (one
+// marker per unique locality across all active trips — the heatmap
+// data). The aggregation query is expensive (photos ⋈ geocoding_cache
+// correlated subquery), so GET /trips/map serves this row when present
+// and POST /trips/map/recalculate (or the first-ever request) rebuilds
+// it — explicit user operation, never triggered by other API calls.
+// `payload` holds the pre-color DTOs { bounds, markers } (MapMarkerDto[]);
+// the county colors are deterministic and re-applied on every read.
+export const tripsOverviewMapCache = pgTable("trips_overview_map_cache", {
+  /** Singleton row: always 1. */
+  id: integer("id").primaryKey(),
+  payload: jsonb("payload").notNull(),
+  computedAt: timestamp("computed_at", {
+    mode: "date",
+    withTimezone: false,
+  })
+    .notNull()
+    .defaultNow(),
+});

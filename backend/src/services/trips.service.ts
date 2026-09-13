@@ -179,9 +179,7 @@ class TripsService {
       exclusions.filter((e) => e.localityKey === null).map((e) => e.dayDate),
     );
     const localityExcluded = new Set(
-      exclusions
-        .filter((e) => e.localityKey !== null)
-        .map((e) => `${e.dayDate}|${e.localityKey}`),
+      exclusions.filter((e) => e.localityKey !== null).map((e) => `${e.dayDate}|${e.localityKey}`),
     );
     // Excluded days disappear entirely; days whose locality cards are all
     // individually excluded disappear too (equivalent to a day deletion).

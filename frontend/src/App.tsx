@@ -1,54 +1,52 @@
 /**
  * Travelog MVP1 — Application shell
  *
- * URL-based navigation: the tab pages live at their own path and the
- * trip detail card is a standalone shareable page (`/trips/:id`).
- * The routing itself is a minimal pathname parser (see hooks/useRoute),
- * not a router library.
+ * URL-based navigation: the pages live at their own path and the trip
+ * detail card is a standalone shareable page (`/trips/:id`). The routing
+ * itself is a minimal pathname parser (see hooks/useRoute), not a router
+ * library.
+ *
+ * The top bar (new UI §1.1) is white and holds the brand, a slot filled by
+ * the current page (the trips search + global action menu) and the settings
+ * gear. There are no navigation tabs anymore.
  */
 
-import Navbar, { type Page } from "./components/Navbar";
+import { useState } from "react";
+import TopBar from "./components/TopBar";
+import { TopBarSlotProvider } from "./components/TopBarSlot";
 import ScansPage from "./pages/ScansPage";
 import PhotosPage from "./pages/PhotosPage";
 import TripsPage from "./pages/TripsPage";
 import TripDetailPage from "./pages/TripDetailPage";
 import SettingsPage from "./pages/SettingsPage";
-import { useRoute, navigate, type Route } from "./hooks/useRoute";
-
-const PAGE_PATHS: Record<Page, string> = {
-  trips: "/trips",
-  scans: "/scans",
-  photos: "/photos",
-  settings: "/settings",
-};
-
-/** Route → active navbar tab (the detail page highlights "Viaggi"). */
-function activePage(route: Route): Page {
-  switch (route.name) {
-    case "scans":
-      return "scans";
-    case "photos":
-      return "photos";
-    case "settings":
-      return "settings";
-    default:
-      return "trips";
-  }
-}
+import { useRoute, navigate } from "./hooks/useRoute";
 
 function App() {
-  const route = useRoute();
+  // navSeq identifies each navigation: the trips page is keyed on it so a
+  // brand click (logo + title) restarts the dashboard from its initial
+  // heatmap view even when `/trips` was already the current route.
+  const { route, navSeq } = useRoute();
+  // DOM node of the top bar slot: the rendered page portals its own header
+  // content (search, global actions) into it.
+  const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
+
   return (
-    <div className="app">
-      <Navbar page={activePage(route)} onNavigate={(page) => navigate(PAGE_PATHS[page])} />
-      <main className="app-main">
-        {route.name === "scans" && <ScansPage onNavigateTrips={() => navigate("/trips")} />}
-        {route.name === "photos" && <PhotosPage />}
-        {route.name === "trips" && <TripsPage />}
-        {route.name === "tripDetail" && <TripDetailPage tripId={route.tripId} />}
-        {route.name === "settings" && <SettingsPage />}
-      </main>
-    </div>
+    <TopBarSlotProvider node={topBarSlot}>
+      <div className="app">
+        <TopBar
+          slotRef={setTopBarSlot}
+          onHome={() => navigate("/trips")}
+          onOpenSettings={() => navigate("/settings")}
+        />
+        <main className="app-main">
+          {route.name === "scans" && <ScansPage onNavigateTrips={() => navigate("/trips")} />}
+          {route.name === "photos" && <PhotosPage />}
+          {route.name === "trips" && <TripsPage key={navSeq} />}
+          {route.name === "tripDetail" && <TripDetailPage tripId={route.tripId} />}
+          {route.name === "settings" && <SettingsPage />}
+        </main>
+      </div>
+    </TopBarSlotProvider>
   );
 }
 

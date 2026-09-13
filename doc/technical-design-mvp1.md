@@ -1631,6 +1631,36 @@ trip_day_exclusions (
 );
 ```
 
+### Cache della mappa panoramica (0017)
+
+L'aggregazione della heatmap panoramica (una riga per località unica su tutti
+i viaggi attivi, `GET /trips/map`) è costosa: la subquery correlata che deriva
+`first_photo_at` unisce `photos` e `geocoding_cache` per ogni presenza. È
+memorizzata in una **tabella singleton** (migration 0017) e servita
+read-through, così la dashboard non ricalcola l'aggregazione a ogni richiesta:
+
+```sql
+trips_overview_map_cache (
+    id          integer PRIMARY KEY,   -- singleton: sempre 1
+    payload     jsonb NOT NULL,        -- { bounds, markers } (DTO pre-colori)
+    computed_at timestamp NOT NULL DEFAULT now()  -- orario locale naive
+);
+```
+
+* **Lettura** (`GET /trips/map`): cache hit → lo snapshot è servito così com'è
+  e `computedAt` ne riporta l'età; cache miss (primo avvio o payload
+  malformato, trattato come miss) → calcolo, memorizzazione e risposta. I
+  colori di provincia sono deterministici e ri-applicati a ogni lettura (il
+  payload non li duplica).
+* **Ricalcolo** (`POST /trips/map/recalculate`): operazione **esplicita**
+  (comando "Ricalcola heatmap" del menu azioni, stesso pattern del ricalcolo
+  viaggi §12): ricalcola, sovrascrive la riga singleton e risponde in modo
+  sincrono con i dati freschi.
+* **Nessuna invalidazione automatica**: nessun'altra operazione (scan,
+  ricalcolo viaggi, split/merge, esclusioni, giorni manuali) tocca la cache.
+  La freschezza dei dati è responsabilità dell'utente, informata da
+  `computedAt` (decisione di prodotto: il ricalcolo è manuale).
+
 ## Regole di dominio
 
 * **Creazione**: `POST /trips` accetta `days: [{ date, localityIds? }]`; l'intervallo
@@ -1652,6 +1682,17 @@ trip_day_exclusions (
 * **Dettaglio (§16)**: i giorni manuali sono uniti ai giorni derivati da `presences`
   (flag `manual` sul giorno e sulla località); le località manuali espongono
   `photoCount: 0`.
+* **Statistiche per le trip card (redesign UI)**: `GET /trips` e `GET /trips/{id}`
+  arricchiscono ogni `Trip` con due campi derivati, **senza migrazione** (nessuna
+  nuova colonna):
+  * `photoCount`: somma di `presences.photo_count` per le presenze con
+    `photo_date` nell'intervallo `[start_date, end_date]` del viaggio;
+  * `regions`: elenco distinto e ordinato alfabeticamente di `county / region`
+    delle località visitate nell'intervallo (tag geografici della card).
+  Il calcolo avviene nel repository (`attachStats`) con una query di aggregazione
+  sulle `presences` dell'intervallo; i campi sono opzionali nel contratto OpenAPI
+  (`Trip.photoCount`, `Trip.regions`) e sono valori **derivati** (mai memorizzati,
+  come tutti i dati derivati — §13/§45).
 
 ## UI (workflow nel modal)
 
@@ -1762,6 +1803,118 @@ src/
 Le pagine rappresentano i principali contesti dell'applicazione.
 
 La UI non contiene business logic di dominio.
+
+### Nuova dashboard dei viaggi (redesign UI)
+
+La pagina **Viaggi** (`/trips`, `TripsPage`) è organizzata a due colonne; la
+vecchia tabella (`TripsTable`) è stata rimossa: la lista è ora composta dalle
+card.
+
+```text
+TripsPage                       (dati, operazioni, dialoghi)
+├── TripDaysModal / merge-bar / messaggi        (sopra le colonne)
+├── TripsDashboard              (layout, solo UI state)
+│   ├── colonna sinistra (~420px, scroll interno)
+│   │   ├── GlobalActionMenu ("+ Nuovo Viaggio", §1.1)
+│   │   ├── campo di ricerca (filtro server-side via GET /trips?search=)
+│   │   ├── TripCard (accordion) + TripContextMenu + link scheda
+│   │   └── TripTimeline (card espansa, §2.2, "Modifica viaggio" §51)
+│   ├── footer sidebar (paginazione)
+│   └── colonna destra (flex-grow)
+│       └── TripMap (fullHeight)
+├── Modal ─ TripDialog          (rinomina / date / dividi)
+├── Modal ─ MergeDialog         (unione, §13.4)
+└── Modal ─ conferma eliminazione
+```
+
+* **`TripCard`** — card viaggio espandibile (accordion): titolo, periodo e
+  durata calcolata (`formatTripPeriodShort`, es. `3 Lug - 31 Lug 2026 · 29 gg`),
+  tag geografici da `Trip.regions`, badge foto da `Trip.photoCount` e chevron
+  di espansione.
+* **`Modal`** — wrapper di presentazione riusabile (`createPortal` su
+  `document.body`, overlay oscurato, box centrato orizzontalmente e
+  verticalmente, larghezza 50% con limiti di sicurezza). **Tutti** i dialoghi
+  della pagina vivono dentro un `Modal` e condividono lo stesso aspetto: il
+  `TripDialog` (rinomina / date / dividi), la conferma di eliminazione, la
+  creazione manuale (`TripDaysModal`) e la conferma di unione (`MergeDialog`).
+* **`TripContextMenu`** — menu contestuale (icona ingranaggio) del singolo
+  viaggio con *Rinomina / Modifica date / Modifica viaggio / Dividi viaggio /
+  Elimina viaggio*. La voce *Modifica viaggio* compare solo sui viaggi
+  `active` e abilita la modifica inline di giorni/località nella card espansa
+  (§51). Le azioni sono delegate al parent, che riusa `TripDialog` e la
+  conferma di eliminazione esistenti.
+* **`MergeDialog`** — conferma dell'unione (§13.4) in una finestra centrata:
+  riepilogo dei viaggi selezionati (recap in `selectedTrips`) e campo opzionale
+  per il nome del viaggio unito. La *selezione* resta invece sulle card in
+  merge mode (`TripCard` checkbox, `onToggleSelected`): la barra `merge-bar`
+  tiene solo il suggerimento e il pulsante che apre il dialog. Un overlay
+  modale bloccherebbe i click sulla sidebar, per questo selezione e conferma
+  sono separate.
+* **Notifica di conferma in-dialog** — le operazioni eseguite dentro un
+  dialogo (rinomina, modifica date, dividi, eliminazione, creazione manuale,
+  unione) non scrivono la conferma nel messaggio di pagina: il messaggio
+  (`alert-success`) viene mostrato **al posto dei pulsanti** di conferma e il
+  dialogo resta aperto fino all'auto-dismiss (3s, `useAutoDismiss`), che azzera
+  il messaggio e chiude il dialogo.
+* **`GlobalActionMenu`** — dropdown primario "+ Nuovo Viaggio" (blu, come il
+  pulsante di conferma; UI
+  §1.1) con le azioni d'ingresso *Scansione* (→ `/scans`), *Crea Viaggio*
+  (modale `TripDaysModal`, §47bis), *Esporta* (`exportTripsCsv`) e *Unisci*
+  (attiva la merge mode sulle card, §13.4), più il comando esplicito
+  *Ricalcola* (§46).
+  Il componente non esegue chiamate API: ogni voce è delegata al parent, che
+  possiede le chiamate, la merge mode e la modale di creazione.
+* **`TripsDashboard`** — layout a due colonne, riceve dati e handler dal
+  parent e possiede solo UI state (`highlightedLocalityId` e
+  `editingTripId`, la card espansa in modalità di eliminazione località).
+  La selezione è controllata: il click sulla
+  card riporta l'id del viaggio (`onSelectTrip`); il parent carica `getTrip` +
+  `getTripMap` e passa i nuovi `mapData` alla mappa, che esegue il
+  *fly-to/zoom fit* sui pin del viaggio selezionato.
+* **Ricerca** — server-side: ogni digitazione è riportata al parent, che
+  ri-interroga `listTrips` con il termine di ricerca.
+* **Heatmap panoramica (nessun viaggio selezionato)** — con `selectedTripId`
+  nullo il pannello mappa mostra `HeatMap` (leaflet.heat): un punto di calore
+  per località unica di tutti i viaggi attivi, intensità normalizzata sul
+  numero di foto e fit frazionario stretto sui dati. I dati arrivano da
+  `GET /trips/map`, snapshot cachato (migration 0017): nessun indicatore è
+  mostrato sulla mappa (l'età del dato è leggibile da `computedAt` nell'API) e
+  il comando "Ricalcola heatmap" del menu azioni
+  (`POST /trips/map/recalculate`) è l'unico modo di ricalcolare; al
+  completamento compare una notifica di conferma. Il click su logo/titolo
+  riporta la heatmap (rimontaggio della pagina).
+* **`TripTimeline`** — cronologia dei giorni/località del viaggio (linea
+  verticale con un nodo per giorno, data, card località con badge foto,
+  marcatore "Nessuna foto" per i giorni vuoti). È **estratto** da
+  `TripDetailPanel` (§16) ed è riusato sia nella card espansa sia nella
+  pagina di dettaglio `/trips/:id`; il pannello di dettaglio conserva solo
+  l'intestazione, la mappa e il toggle "Modifica" (nella dashboard la
+  modalità si attiva invece dalla voce "Modifica viaggio", §51).
+* **Sincronizzazione timeline ↔ mappa (§3.1)** — `TripsDashboard` possiede
+  `activeLocalityId`: l'hover o il click su una località nella timeline
+  (`onLocalityHover` / `onLocalityClick`) apre il popup del pin
+  corrispondente e vi vola sopra; il click su un pin (`onMarkerClick`) evidenzia
+  la riga corrispondente nella timeline.
+* **Modifica giorni/località (§51)** — `TripTimeline` mostra i comandi
+  (cestino giorno/località, ricerca località con "+" e "Aggiungi
+  giorno"/"Fine") solo quando il parent abilita `editing` e fornisce
+  `onReplaceDays` (§47bis). Sulla **pagina di dettaglio** il toggle
+  "Modifica" attiva la modifica completa; nella **dashboard** la voce
+  "Modifica viaggio" del menu contestuale (solo viaggi `active`) espande la
+  card e attiva la stessa modifica inline; `TripsPage` fornisce
+  `onReplaceDays` (PUT `/trips/{tripId}/days` seguito dal refresh di
+  dettaglio, mappa e lista).
+* **Link scheda condivisibile** — ogni card espone un pulsante (icona link
+  esterno) che apre `/trips/:id` in una nuova scheda: la pagina di dettaglio
+  `TripDetailPage` (§16) resta raggiungibile e condivisibile.
+* **Paginazione** — il backend limita la pagina a 100 viaggi: i controlli
+  vivono nel footer della sidebar (`sidebarFooter` di `TripsDashboard`) e
+  scompaiono quando tutti i viaggi stanno in una pagina.
+* **Badge di provenienza** — le card conservano il badge `MANUALE`
+  (viaggi creati a mano) e `Archiviato`, come nella precedente lista.
+
+Le regole di dominio dei viaggi restano nel backend (§44, §45); i componenti
+frontend non contengono business logic.
 
 ---
 
