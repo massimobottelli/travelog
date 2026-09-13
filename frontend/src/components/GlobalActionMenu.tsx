@@ -2,8 +2,11 @@
  * Travelog — Global action menu (new UI, phase 6)
  *
  * The primary "+ Nuovo Viaggio" dropdown of the top bar (UI §1.1): it
- * groups the entry points of the trips dashboard — Scansione, Crea
- * Viaggio, Esporta, Unisci — plus the explicit Ricalcola command.
+ * groups the entry points of the trips dashboard — Scansiona Foto, Crea
+ * Viaggio, Esporta Lista, Unisci Viaggi — plus the two explicit refresh
+ * commands: "Aggiorna Lista Viaggi" (§12 recalculation, background) and
+ * "Ricalcola heatmap" (overview snapshot rebuild, migration 0017,
+ * synchronous).
  *
  * The component is presentational: every entry is delegated to the parent,
  * which owns the API calls, the merge mode and the manual-creation modal.
@@ -12,7 +15,15 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDownIcon, DownloadIcon, MergeIcon, PlusIcon, RefreshIcon, ScanIcon } from "./icons";
+import {
+  ChevronDownIcon,
+  DownloadIcon,
+  MapIcon,
+  MergeIcon,
+  PlusIcon,
+  RefreshIcon,
+  ScanIcon,
+} from "./icons";
 
 export interface GlobalActionMenuProps {
   /** Opens the scan page. */
@@ -23,12 +34,16 @@ export interface GlobalActionMenuProps {
   onExport: () => void;
   /** Toggles the merge selection mode. */
   onMerge: () => void;
-  /** Requests the explicit recalculation. */
+  /** Requests the explicit trip recalculation (background, §12). */
   onRecalculate: () => void;
+  /** Requests the explicit recalculation of the cached overview heatmap. */
+  onRecalculateOverview: () => void;
   /** CSV export in progress. */
   exporting?: boolean;
-  /** Recalculation request in progress. */
+  /** Trip recalculation request in progress. */
   recalculating?: boolean;
+  /** Overview heatmap recalculation in progress. */
+  recalculatingOverview?: boolean;
   /** Merge mode active: the entry becomes "Annulla unione". */
   mergeActive?: boolean;
   /** Fewer than two trips: merging is not available. */
@@ -41,8 +56,10 @@ export default function GlobalActionMenu({
   onExport,
   onMerge,
   onRecalculate,
+  onRecalculateOverview,
   exporting = false,
   recalculating = false,
+  recalculatingOverview = false,
   mergeActive = false,
   mergeDisabled = false,
 }: GlobalActionMenuProps) {
@@ -92,7 +109,7 @@ export default function GlobalActionMenu({
             className="global-action-item"
             onClick={select(onScan)}
           >
-            <ScanIcon size={16} /> Scansione
+            <ScanIcon size={16} /> Scansiona Foto
           </button>
           <button
             type="button"
@@ -109,7 +126,7 @@ export default function GlobalActionMenu({
             disabled={exporting}
             onClick={select(onExport)}
           >
-            <DownloadIcon size={16} /> {exporting ? "Esportazione…" : "Esporta"}
+            <DownloadIcon size={16} /> {exporting ? "Esportazione…" : "Esporta Lista"}
           </button>
           <button
             type="button"
@@ -118,7 +135,7 @@ export default function GlobalActionMenu({
             disabled={mergeDisabled}
             onClick={select(onMerge)}
           >
-            <MergeIcon size={16} /> {mergeActive ? "Annulla unione" : "Unisci"}
+            <MergeIcon size={16} /> {mergeActive ? "Annulla unione" : "Unisci Viaggi"}
           </button>
           <button
             type="button"
@@ -127,7 +144,18 @@ export default function GlobalActionMenu({
             disabled={recalculating}
             onClick={select(onRecalculate)}
           >
-            <RefreshIcon size={16} /> {recalculating ? "Ricalcolo richiesto…" : "Ricalcola"}
+            <RefreshIcon size={16} />
+            {recalculating ? "Aggiornamento richiesto…" : "Aggiorna Lista Viaggi"}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="global-action-item"
+            disabled={recalculatingOverview}
+            onClick={select(onRecalculateOverview)}
+          >
+            <MapIcon size={16} />{" "}
+            {recalculatingOverview ? "Ricalcolo heatmap…" : "Ricalcola heatmap"}
           </button>
         </div>
       )}

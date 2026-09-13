@@ -1,14 +1,14 @@
 /**
  * Type definitions for leaflet.heat plugin
- * 
+ *
  * Leaflet.heat is a tiny plugin for rendering heatmaps with Leaflet.
  * No official TypeScript definitions exist, so we declare the minimal
  * interface needed for our HeatMap component.
  */
 
-import * as L from 'leaflet';
+import * as L from "leaflet";
 
-declare module 'leaflet' {
+declare module "leaflet" {
   export interface HeatLatLngTuple extends Array<number> {
     0: number; // latitude
     1: number; // longitude
@@ -31,8 +31,5 @@ declare module 'leaflet' {
     redraw(): this;
   }
 
-  export function heatLayer(
-    latlngs: HeatLatLngTuple[],
-    options?: HeatMapOptions
-  ): HeatLayer;
+  export function heatLayer(latlngs: HeatLatLngTuple[], options?: HeatMapOptions): HeatLayer;
 }

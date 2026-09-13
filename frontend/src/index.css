@@ -1518,41 +1518,6 @@ button.icon-button:hover {
   text-align: center;
 }
 
-/* ── Overview heatmap toolbar (cached snapshot, migration 0017) ── */
-
-/* Floats over the heatmap, top-right: the Leaflet controls sit top-left.
-   z-index above the Leaflet control stack (1000). */
-.heatmap-toolbar {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1100;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-  padding: 0.3rem 0.6rem;
-  font-size: 0.8rem;
-}
-
-.heatmap-updated {
-  color: #374151;
-  white-space: nowrap;
-}
-
-.heatmap-toolbar-error {
-  color: #b91c1c;
-}
-
-/* Compact variant of the global button style inside the toolbar row. */
-.heatmap-toolbar button {
-  padding: 0.25rem 0.6rem;
-  font-size: 0.8rem;
-  align-self: auto;
-}
-
 /* Below the two-column breakpoint the map stacks under the sidebar. */
 @media (max-width: 900px) {
   .trips-dashboard {

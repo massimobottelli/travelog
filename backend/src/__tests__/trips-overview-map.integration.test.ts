@@ -74,10 +74,7 @@ async function cleanup() {
   // The overview snapshot must never leak between tests: every test then
   // starts with a cache miss and recomputes from the fixtures it created.
   await pool.query("TRUNCATE trips_overview_map_cache RESTART IDENTITY");
-  await pool.query(
-    "DELETE FROM geocoding_cache WHERE locality_hash = ANY($1::text[])",
-    [HASHES],
-  );
+  await pool.query("DELETE FROM geocoding_cache WHERE locality_hash = ANY($1::text[])", [HASHES]);
   await pool.query("DELETE FROM localities WHERE locality_hash = ANY($1::text[])", [HASHES]);
 }
 
@@ -89,18 +86,22 @@ describe("GET /trips/map — panoramic overview (one marker per locality)", () =
     const milano = await insertLocality("45.47:9.19", "Milano", "Milano", "Lombardia");
 
     // Trip 1 visits Roma + Milano; trip 2 visits Roma again.
-    const trip1 = await request(server).post("/api/trips").send({
-      name: "T1",
-      days: [
-        { date: "2025-08-10", localityIds: [roma] },
-        { date: "2025-08-11", localityIds: [milano] },
-      ],
-    });
+    const trip1 = await request(server)
+      .post("/api/trips")
+      .send({
+        name: "T1",
+        days: [
+          { date: "2025-08-10", localityIds: [roma] },
+          { date: "2025-08-11", localityIds: [milano] },
+        ],
+      });
     expect(trip1.status).toBe(201);
-    const trip2 = await request(server).post("/api/trips").send({
-      name: "T2",
-      days: [{ date: "2025-09-01", localityIds: [roma] }],
-    });
+    const trip2 = await request(server)
+      .post("/api/trips")
+      .send({
+        name: "T2",
+        days: [{ date: "2025-09-01", localityIds: [roma] }],
+      });
     expect(trip2.status).toBe(201);
 
     const body = await getOverview();
@@ -131,10 +132,12 @@ describe("GET /trips/map — panoramic overview (one marker per locality)", () =
     const alba = await insertLocality("44.71:8.03", "Alba", "Cuneo", "Piemonte");
     const asti = await insertLocality("44.91:8.20", "Asti", "Asti", "Piemonte");
 
-    const created = await request(server).post("/api/trips").send({
-      name: "Province",
-      days: [{ date: "2025-08-10", localityIds: [alba, asti] }],
-    });
+    const created = await request(server)
+      .post("/api/trips")
+      .send({
+        name: "Province",
+        days: [{ date: "2025-08-10", localityIds: [alba, asti] }],
+      });
     expect(created.status).toBe(201);
 
     const body = await getOverview();
@@ -154,10 +157,12 @@ describe("GET/POST /trips/map — persistent read-through cache (migration 0017)
     expect(first.computedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);
 
     // The data changes afterwards: a new trip visits Roma.
-    const created = await request(server).post("/api/trips").send({
-      name: "Dopo la snapshot",
-      days: [{ date: "2025-08-10", localityIds: [roma] }],
-    });
+    const created = await request(server)
+      .post("/api/trips")
+      .send({
+        name: "Dopo la snapshot",
+        days: [{ date: "2025-08-10", localityIds: [roma] }],
+      });
     expect(created.status).toBe(201);
 
     // The next GET serves the CACHED snapshot: still empty, same
@@ -171,9 +176,9 @@ describe("GET/POST /trips/map — persistent read-through cache (migration 0017)
     const recalculated = await request(server).post("/api/trips/map/recalculate");
     expect(recalculated.status).toBe(200);
     expect(recalculated.body.markers.map((m: { name: string }) => m.name)).toEqual(["Roma"]);
-    expect(
-      new Date(recalculated.body.computedAt as string).getTime(),
-    ).toBeGreaterThanOrEqual(new Date(first.computedAt).getTime());
+    expect(new Date(recalculated.body.computedAt as string).getTime()).toBeGreaterThanOrEqual(
+      new Date(first.computedAt).getTime(),
+    );
 
     // And the following GET serves the refreshed snapshot.
     const third = await getOverview();
@@ -183,10 +188,12 @@ describe("GET/POST /trips/map — persistent read-through cache (migration 0017)
 
   it("recalculates from an empty cache on the first request (read-through)", async () => {
     const alba = await insertLocality("44.71:8.03", "Alba", "Cuneo", "Piemonte");
-    const created = await request(server).post("/api/trips").send({
-      name: "Read-through",
-      days: [{ date: "2025-08-10", localityIds: [alba] }],
-    });
+    const created = await request(server)
+      .post("/api/trips")
+      .send({
+        name: "Read-through",
+        days: [{ date: "2025-08-10", localityIds: [alba] }],
+      });
     expect(created.status).toBe(201);
 
     // No snapshot exists (beforeEach truncates the cache): the plain GET

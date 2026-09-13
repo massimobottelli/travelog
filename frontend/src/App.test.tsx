@@ -156,7 +156,7 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "Nuovo Viaggio" })).not.toBeNull();
     });
     fireEvent.click(screen.getByRole("button", { name: "Nuovo Viaggio" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Scansione" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Scansiona Foto" }));
 
     // The running scan's progress panel appears without any user click
     await waitFor(() => {

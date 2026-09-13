@@ -28,13 +28,7 @@ import {
 } from "../api/trips";
 import { splitTrip, mergeTrips } from "../api/operations";
 import { recalculate } from "../api/settings";
-import type {
-  Trip,
-  TripDayInput,
-  TripDetail,
-  TripMapData,
-  TripsOverviewMap,
-} from "../api/client";
+import type { Trip, TripDayInput, TripDetail, TripMapData, TripsOverviewMap } from "../api/client";
 import TripDialog, { type TripDialogState } from "../components/TripDialog";
 import TripDaysModal, { type TripDaysPayload } from "../components/TripDaysModal";
 import TripsDashboard from "../components/TripsDashboard";
@@ -66,6 +60,9 @@ export default function TripsPage() {
   const [overviewMap, setOverviewMap] = useState<TripsOverviewMap | null>(null);
   const [overviewRecalculating, setOverviewRecalculating] = useState(false);
   const [overviewError, setOverviewError] = useState<string | null>(null);
+  // Success notification of the explicit overview recalculation (shown in
+  // the page messages area, auto-dismissed like the other notifications).
+  const [overviewMessage, setOverviewMessage] = useState<string | null>(null);
 
   const [dialog, setDialog] = useState<TripDialogState | null>(null);
   const [operating, setOperating] = useState(false);
@@ -101,6 +98,7 @@ export default function TripsPage() {
   const [exporting, setExporting] = useState(false);
 
   useAutoDismiss(recalcMessage, () => setRecalcMessage(null));
+  useAutoDismiss(overviewMessage, () => setOverviewMessage(null));
 
   // The dialog closes only after its success notification disappears: this
   // callback stays stable so re-renders (e.g. the list reload) do not restart
@@ -159,13 +157,16 @@ export default function TripsPage() {
   }, [loadOverview]);
 
   // Explicit recalculation of the cached overview (migration 0017): the
-  // fresh aggregation replaces the served snapshot in place. On failure
-  // the toolbar shows the error and keeps the cached heatmap visible.
+  // fresh aggregation replaces the served snapshot in place and a success
+  // notification confirms the completion. On failure the error is shown
+  // in the page messages area and the cached heatmap is kept as-is.
   const handleRecalculateOverview = useCallback(async (): Promise<void> => {
     setOverviewRecalculating(true);
     setOverviewError(null);
+    setOverviewMessage(null);
     try {
       setOverviewMap(await recalculateTripsOverviewMap());
+      setOverviewMessage("Heatmap aggiornata.");
     } catch (err: unknown) {
       setOverviewError(errorToMessage(err));
     } finally {
@@ -386,8 +387,10 @@ export default function TripsPage() {
           onExport={handleExportCsv}
           onMerge={toggleMergeMode}
           onRecalculate={handleRecalculate}
+          onRecalculateOverview={handleRecalculateOverview}
           exporting={exporting}
           recalculating={recalculating}
+          recalculatingOverview={overviewRecalculating}
           mergeActive={mergeMode}
           mergeDisabled={(trips?.length ?? 0) < 2}
         />
@@ -427,11 +430,23 @@ export default function TripsPage() {
         </div>
       )}
 
-      {(recalcMessage || recalcError || actionError) && (
+      {(recalcMessage ||
+        recalcError ||
+        actionError ||
+        overviewMessage ||
+        overviewError ||
+        overviewRecalculating) && (
         <div className="trips-messages">
           {recalcMessage && <p className="alert alert-success">{recalcMessage}</p>}
           {recalcError && <ErrorAlert message={recalcError} />}
           {actionError && <ErrorAlert message={actionError} />}
+          {overviewRecalculating && (
+            <p className="alert alert-warning" role="status">
+              Ricalcolo Heatmap in corso...
+            </p>
+          )}
+          {overviewMessage && <p className="alert alert-success">{overviewMessage}</p>}
+          {overviewError && <ErrorAlert message={overviewError} />}
         </div>
       )}
 
@@ -446,9 +461,6 @@ export default function TripsPage() {
         detailError={detailError}
         mapData={mapData}
         overviewMapData={overviewMap}
-        overviewRecalculating={overviewRecalculating}
-        overviewError={overviewError}
-        onRecalculateOverview={handleRecalculateOverview}
         onRename={(trip) => {
           setDialogMessage(null);
           setDialog({ type: "rename", tripId: trip.id, currentName: trip.name });

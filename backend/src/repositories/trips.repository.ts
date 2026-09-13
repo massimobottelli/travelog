@@ -808,9 +808,7 @@ class TripsRepository {
     );
     if (result.rows.length === 0) return null;
 
-    const payload = result.rows[0].payload as
-      | { bounds?: BoundingBoxDto; markers?: unknown }
-      | null;
+    const payload = result.rows[0].payload as { bounds?: BoundingBoxDto; markers?: unknown } | null;
     if (!payload || !payload.bounds || !Array.isArray(payload.markers)) return null;
 
     return {

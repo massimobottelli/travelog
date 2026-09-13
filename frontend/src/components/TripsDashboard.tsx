@@ -26,25 +26,13 @@
  */
 
 import { useEffect, useState, type ReactNode } from "react";
-import type {
-  Trip,
-  TripDayInput,
-  TripDetail,
-  TripMapData,
-  TripsOverviewMap,
-} from "../api/client";
+import type { Trip, TripDayInput, TripDetail, TripMapData, TripsOverviewMap } from "../api/client";
 import TripCard from "./TripCard";
 import TripMap from "./TripMap";
 import HeatMap from "./HeatMap";
 import TripTimeline from "./TripTimeline";
 import Loading from "./Loading";
 import ErrorAlert from "./ErrorAlert";
-import { formatTripDate } from "../utils/format";
-
-/** Naive snapshot timestamp ("2025-11-09T21:43:58") → "09/11/2025 21:43". */
-function formatOverviewComputedAt(computedAt: string): string {
-  return `${formatTripDate(computedAt.slice(0, 10))} ${computedAt.slice(11, 16)}`;
-}
 
 export interface TripsDashboardProps {
   trips: Trip[];
@@ -66,16 +54,11 @@ export interface TripsDashboardProps {
    * Panoramic overview of all active trips (`getTripsOverviewMap`), shown
    * as a photo-density heatmap while no trip has been selected yet. One
    * point per unique locality, intensity proportional to the photo count.
-   * The aggregation is a persistent cached snapshot: `computedAt` reports
-   * its age and `onRecalculateOverview` is the explicit refresh.
+   * The aggregation is a persistent cached snapshot (migration 0017): the
+   * explicit recalculation lives in the header action menu ("Ricalcola
+   * heatmap") and its result replaces this data in place.
    */
   overviewMapData?: TripsOverviewMap | null;
-  /** Toolbar of the cached overview: manual recalculation is in progress. */
-  overviewRecalculating?: boolean;
-  /** Failure of the explicit overview recalculation (toolbar message). */
-  overviewError?: string | null;
-  /** Requests the explicit recalculation of the cached overview (migration 0017). */
-  onRecalculateOverview?: () => void;
   onRename: (trip: Trip) => void;
   onEditDates: (trip: Trip) => void;
   onSplit: (trip: Trip) => void;
@@ -108,9 +91,6 @@ export default function TripsDashboard({
   detailError,
   mapData,
   overviewMapData,
-  overviewRecalculating = false,
-  overviewError = null,
-  onRecalculateOverview,
   onRename,
   onEditDates,
   onSplit,
@@ -220,38 +200,11 @@ export default function TripsDashboard({
             hoveredLocalityId={selectedTripId !== null ? highlightedLocalityId : null}
           />
         ) : overviewMapData ? (
-          <>
-            {/* Toolbar of the CACHED overview (migration 0017): the
-                recalculation is an explicit user operation and the
-                `computedAt` snapshot age is shown next to it. The toolbar
-                floats top-right — the Leaflet controls sit top-left. */}
-            {onRecalculateOverview && (
-              <div className="heatmap-toolbar">
-                {overviewError ? (
-                  <span className="heatmap-toolbar-error">{overviewError}</span>
-                ) : (
-                  overviewMapData.computedAt && (
-                    <span className="heatmap-updated">
-                      {`Calcolata il ${formatOverviewComputedAt(overviewMapData.computedAt)}`}
-                    </span>
-                  )
-                )}
-                <button
-                  type="button"
-                  className="heatmap-recalc"
-                  onClick={onRecalculateOverview}
-                  disabled={overviewRecalculating}
-                >
-                  {overviewRecalculating ? "Ricalcolo…" : "Ricalcola"}
-                </button>
-              </div>
-            )}
-            <HeatMap
-              data={overviewMapData}
-              fullHeight
-              emptyMessage="Nessuna località da visualizzare sulla mappa."
-            />
-          </>
+          <HeatMap
+            data={overviewMapData}
+            fullHeight
+            emptyMessage="Nessuna località da visualizzare sulla mappa."
+          />
         ) : (
           <p className="hint trips-map-hint">
             {selectedTripId === null

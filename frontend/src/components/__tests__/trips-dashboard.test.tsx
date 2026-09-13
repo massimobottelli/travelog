@@ -109,7 +109,7 @@ vi.mock("leaflet", () => {
       divIcon: (opts: unknown) => opts,
       polyline: () => chain(),
       latLngBounds: (latlngs: unknown) => ({ latlngs }),
-      control: { 
+      control: {
         layers: () => chain(),
         zoom: () => chain(),
       },
@@ -365,12 +365,22 @@ describe("TripsDashboard (new UI, phase 4)", () => {
     expect(heat.opts.maxZoom).toBe(8);
     expect(heat.opts.max).toBe(1);
 
-    // Zooming re-points maxZoom to the new zoom: the intensity factor
-    // stays at 1 and the heat points keep their normalized strength.
+    // The blob size starts at the user baseline (radius 12 / blur 10 on
+    // the fit zoom) and is RESCALED on zoom: leaflet.heat draws in fixed
+    // pixels, so a constant size merges distant localities into one blob
+    // when zoomed out.
+    expect(heat.opts.radius).toBe(12);
+    expect(heat.opts.blur).toBe(10);
+
+    // Zooming re-points maxZoom to the new zoom (intensity factor stays 1,
+    // heat points keep their normalized strength) and rescales the blob
+    // size: zoom 10 → radius round((10-2)*2) = 16, blur round(16*10/12) = 13.
     const map = h.state.maps[0];
     map.zoom = 10;
     map.handlers["zoomend"]();
     expect(heat.opts.maxZoom).toBe(10);
+    expect(heat.opts.radius).toBe(16);
+    expect(heat.opts.blur).toBe(13);
 
     // Tight fit: no integer-zoom rounding (zoomSnap: 0 on the map) and a
     // raised zoom cap, so the frame is the minimum necessary to contain
@@ -385,67 +395,6 @@ describe("TripsDashboard (new UI, phase 4)", () => {
     const mapPanel = container.querySelector('[aria-label="Mappa viaggi"]') as HTMLElement;
     expect(within(mapPanel).queryByText(/regione|Aosta|Trapani/)).toBeNull();
     expect(container.querySelector(".trip-map-container--full")).toBeTruthy();
-  });
-
-  it("shows the overview toolbar with the snapshot age and recalculates on demand", () => {
-    const onRecalculateOverview = vi.fn();
-    render(
-      <TripsDashboard {...baseProps({ overviewMapData: OVERVIEW_MAP, onRecalculateOverview })} />,
-    );
-
-    // The toolbar floats over the heatmap: the age of the cached snapshot
-    // (computedAt "2026-07-03T10:00:00") and the explicit recalculation
-    // command (the aggregation is NOT rerun automatically on every load).
-    expect(screen.getByText("Calcolata il 03/07/2026 10:00")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Ricalcola" }));
-    expect(onRecalculateOverview).toHaveBeenCalledTimes(1);
-  });
-
-  it("disables the overview recalculation while running and shows its error", () => {
-    const { rerender } = render(
-      <TripsDashboard
-        {...baseProps({
-          overviewMapData: OVERVIEW_MAP,
-          onRecalculateOverview: vi.fn(),
-          overviewRecalculating: true,
-        })}
-      />,
-    );
-
-    const button = screen.getByRole("button", { name: "Ricalcolo…" }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-
-    // On failure the toolbar reports the error and keeps the cached
-    // heatmap: the snapshot data is never dropped on a failed refresh.
-    rerender(
-      <TripsDashboard
-        {...baseProps({
-          overviewMapData: OVERVIEW_MAP,
-          onRecalculateOverview: vi.fn(),
-          overviewError: "Ricalcolo non riuscito",
-        })}
-      />,
-    );
-    expect(screen.getByText("Ricalcolo non riuscito")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Ricalcola" })).toBeTruthy();
-  });
-
-  it("does not show the overview toolbar over a selected trip map", () => {
-    render(
-      <TripsDashboard
-        {...baseProps({
-          selectedTripId: 1,
-          mapData: MAP_DATA,
-          overviewMapData: OVERVIEW_MAP,
-          onRecalculateOverview: vi.fn(),
-        })}
-      />,
-    );
-
-    // Per-trip maps are computed per selection (not cached): the toolbar
-    // with the snapshot age/recalculation belongs to the heatmap only.
-    expect(screen.queryByRole("button", { name: "Ricalcola" })).toBeNull();
-    expect(h.state.heatLayers).toHaveLength(0);
   });
 
   it("keeps the selected trip map visible after the trip is closed (mapData retained)", () => {

@@ -749,6 +749,62 @@ curl http://localhost:3000/api/trips/19/map
 
 ---
 
+## Mappa panoramica (heatmap, cache persistente)
+
+Con nessun viaggio selezionato la dashboard mostra la heatmap della densità
+fotografica: un punto di calore per località unica (nome + provincia + regione)
+su tutti i viaggi attivi, intensità proporzionale al numero di foto.
+L'aggregazione è **costosa** (subquery correlata `photos ⋈ geocoding_cache` per
+ogni presenza): è quindi memorizzata in una **cache persistente** (migration
+0017, tabella singleton `trips_overview_map_cache`) e **non** viene ricalcolata
+a ogni richiesta.
+
+### `GET /api/trips/map`
+
+Serve lo snapshot cachato dell'aggregazione (read-through: se la cache è vuota
+— primo avvio — calcola, memorizza e restituisce). Il campo `computedAt`
+(orario locale naive del server, `YYYY-MM-DDTHH:mm:ss`) riporta quando è stato
+calcolato lo snapshot servito. La UI non lo mostra sulla mappa: l'aggiornamento
+è gestito esplicitamente dal comando di ricalcolo, che alla fine mostra una
+notifica di conferma. Il campo resta nel contratto per diagnostica/debug.
+
+```json
+{
+  "bounds": { "minLat": 37, "minLon": 7, "maxLat": 46, "maxLon": 13 },
+  "markers": [
+    {
+      "localityId": 10,
+      "name": "Erice",
+      "latitude": 38.0396,
+      "longitude": 12.6199,
+      "photoCount": 7,
+      "firstPhotoAt": "2026-08-01T10:00:00",
+      "county": "Trapani",
+      "region": "Sicilia",
+      "country": "Italy",
+      "countyColor": "#EA4335"
+    }
+  ],
+  "countyColors": { "Trapani": "#EA4335" },
+  "computedAt": "2026-11-09T21:43:58"
+}
+```
+
+Nessun'altra operazione API invalida la cache: dopo una scansione, un ricalcolo
+viaggi, uno split/merge o la modifica di giorni/esclusioni lo snapshot resta
+servito com'è finché non viene richiesto esplicitamente il ricalcolo.
+
+### `POST /api/trips/map/recalculate`
+
+Ricalcolo **esplicito** della cache (comando "Ricalcola heatmap" del menu
+azioni dell'header): ricalcola l'aggregazione, sovrascrive lo snapshot e
+restituisce i dati freschi in modo **sincrono** (200). È l'unico modo di
+ricalcolare la mappa panoramica.
+
+**Errori:** `500` `INTERNAL_ERROR` per errori inattesi.
+
+---
+
 ## Operazioni su viaggi (audit trail)
 
 ### `GET /api/operations`
@@ -1063,6 +1119,8 @@ Gli errori non espongono mai stack trace, query SQL o dettagli del filesystem.
 | `PUT` | `/api/trips/{tripId}/days` | Sostituzione giorni viaggio | 200 |
 | `DELETE` | `/api/trips/{tripId}` | Cancella viaggio | 204 |
 | `GET` | `/api/trips/{tripId}/map` | Dati mappa viaggio | 200 |
+| `GET` | `/api/trips/map` | Mappa panoramica (heatmap, snapshot cachato) | 200 |
+| `POST` | `/api/trips/map/recalculate` | Ricalcolo esplicito cache mappa panoramica | 200 |
 | `POST` | `/api/trips/{tripId}/split` | Split viaggio | 200 |
 | `POST` | `/api/trips/merge` | Merge di 2+ viaggi | 200 |
 | `GET` | `/api/operations` | Audit trail operazioni viaggi | 200 |

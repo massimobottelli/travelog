@@ -46,12 +46,25 @@ const SATELLITE_ATTRIBUTION = "Tiles &copy; Esri";
 
 /** Heatmap gradient: green → yellow → orange → red (low → high density). */
 const HEAT_GRADIENT: Record<number, string> = {
-  0.2: "#4ade80",  // green (low density)
-  0.4: "#facc15",  // yellow
-  0.7: "#fb923c",  // orange
-  0.9: "#ef4444",  // red-orange
-  1.0: "#dc2626",  // red (high density)
+  0.1: "#4ade80", // green (low density)
+  0.2: "#facc15", // yellow
+  0.4: "#fb923c", // orange
+  0.7: "#ef4444", // red-orange
+  1.0: "#dc2626", // red (high density)
 };
+
+/**
+ * Heat blob size for a given zoom. leaflet.heat draws in FIXED pixels
+ * (radius + blur), so a constant size merges distant localities into one
+ * single blob when zoomed out: the size grows linearly with the zoom
+ * instead, anchored so the overview fit zoom (~8) uses the initial
+ * radius 12 / blur 10 (blur kept proportional, ~10/12 of the radius).
+ * Bounds: radius 6 (zoom ≤ 5, far overview) → 34 (zoom ≥ 19, max detail).
+ */
+function heatSizeForZoom(zoom: number): { radius: number; blur: number } {
+  const radius = Math.round(Math.max(10, Math.min(34, (zoom - 2) * 2)));
+  return { radius, blur: Math.round((radius * 10) / 26) };
+}
 
 export default function HeatMap({
   data,
@@ -152,9 +165,12 @@ export default function HeatMap({
     // in sync on zoomend/moveend): the plugin multiplies each point
     // intensity by 1/2^(maxZoom - zoom), so a fixed maxZoom would scale
     // the normalized 0..1 intensities down to ~0 at the overview fit zoom.
+    // The initial blob size is the user baseline (radius 12 / blur 10);
+    // the zoom sync rescales it as soon as the fit lands and on every
+    // zoom change (see heatSizeForZoom).
     const heatLayer = L.heatLayer(heatPoints, {
-      radius: 25,
-      blur: 20,
+      radius: 12,
+      blur: 10,
       maxZoom: map.getZoom(),
       max: 1,
       gradient: HEAT_GRADIENT,
@@ -166,7 +182,11 @@ export default function HeatMap({
     zoomSyncRef.current = (): void => {
       const current = mapRef.current;
       if (current && heatLayerRef.current) {
-        heatLayerRef.current.setOptions({ maxZoom: current.getZoom() });
+        // Re-point maxZoom (intensity factor stays 1) and rescale the blob
+        // size with the zoom: fixed pixels would otherwise merge distant
+        // localities into one single blob when zoomed out.
+        const zoom = current.getZoom();
+        heatLayerRef.current.setOptions({ maxZoom: zoom, ...heatSizeForZoom(zoom) });
       }
     };
 

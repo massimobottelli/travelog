@@ -268,7 +268,7 @@ describe("TripsPage", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Nuovo Viaggio" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Ricalcola" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Aggiorna Lista Viaggi" }));
 
     await waitFor(() => {
       expect(screen.getByText(/Ricalcolo richiesto/)).not.toBeNull();
@@ -338,15 +338,20 @@ describe("TripsPage", () => {
     expect(screen.getByText("Nessuna località da visualizzare sulla mappa.")).not.toBeNull();
   });
 
-  it("recalculates the overview heatmap through POST /api/trips/map/recalculate", async () => {
+  it("recalculates the overview heatmap from the header menu (POST /api/trips/map/recalculate)", async () => {
     // The overview is a persistent cached snapshot (migration 0017): the
-    // explicit recalculation replaces it with the fresh aggregation.
+    // explicit recalculation lives in the header action menu and replaces
+    // the served snapshot with the fresh aggregation.
     const postCalls: string[] = [];
+    let resolveRecalc: (response: Response) => void = () => undefined;
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === "/api/trips/map/recalculate" && init?.method === "POST") {
         postCalls.push(url);
-        return jsonResponse({ ...OVERVIEW_MAP, computedAt: "2025-11-09T22:15:00" });
+        // Deferred: the aggregation can take seconds on a real archive.
+        return new Promise<Response>((resolve) => {
+          resolveRecalc = resolve;
+        });
       }
       if (url === "/api/trips/map") return jsonResponse(OVERVIEW_MAP);
       if (/^\/api\/trips\/\d+\/map$/.test(url)) return jsonResponse(EMPTY_MAP);
@@ -361,13 +366,22 @@ describe("TripsPage", () => {
 
     render(<TripsPage />);
 
-    // The toolbar appears once the (empty) overview is served from the
-    // cache; clicking it issues exactly one explicit recalculation.
-    fireEvent.click(await screen.findByRole("button", { name: "Ricalcola" }));
+    // The command lives in the "Nuovo Viaggio" action menu of the top bar.
+    fireEvent.click(await screen.findByRole("button", { name: "Nuovo Viaggio" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Ricalcola heatmap" }));
+
+    // While the (potentially seconds-long) aggregation runs, an explicit
+    // "in corso" notification is shown, driven by the request state.
+    expect(await screen.findByText("Ricalcolo Heatmap in corso...")).not.toBeNull();
+
+    resolveRecalc(jsonResponse({ ...OVERVIEW_MAP, computedAt: "2025-11-09T22:15:00" }));
     await waitFor(() => {
-      expect(postCalls).toHaveLength(1);
+      expect(postCalls).toEqual(["/api/trips/map/recalculate"]);
+      expect(screen.getByText("Heatmap aggiornata.")).not.toBeNull();
     });
-    expect(screen.getByText("Calcolata il 09/11/2025 22:15")).not.toBeNull();
+    // The completion replaces the "in corso" line (the data replaces the
+    // snapshot in place; no indicator lives on the map).
+    expect(screen.queryByText("Ricalcolo Heatmap in corso...")).toBeNull();
   });
 
   it("merge mode: selecting two trips posts the merge request", async () => {
@@ -380,7 +394,7 @@ describe("TripsPage", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Nuovo Viaggio" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Unisci" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Unisci Viaggi" }));
     fireEvent.click(screen.getByLabelText("Seleziona Vacanza in Toscana"));
     fireEvent.click(screen.getByLabelText("Seleziona Weekend a Roma"));
     // The confirmation happens in a centered dialog showing the recap.

@@ -1631,6 +1631,36 @@ trip_day_exclusions (
 );
 ```
 
+### Cache della mappa panoramica (0017)
+
+L'aggregazione della heatmap panoramica (una riga per località unica su tutti
+i viaggi attivi, `GET /trips/map`) è costosa: la subquery correlata che deriva
+`first_photo_at` unisce `photos` e `geocoding_cache` per ogni presenza. È
+memorizzata in una **tabella singleton** (migration 0017) e servita
+read-through, così la dashboard non ricalcola l'aggregazione a ogni richiesta:
+
+```sql
+trips_overview_map_cache (
+    id          integer PRIMARY KEY,   -- singleton: sempre 1
+    payload     jsonb NOT NULL,        -- { bounds, markers } (DTO pre-colori)
+    computed_at timestamp NOT NULL DEFAULT now()  -- orario locale naive
+);
+```
+
+* **Lettura** (`GET /trips/map`): cache hit → lo snapshot è servito così com'è
+  e `computedAt` ne riporta l'età; cache miss (primo avvio o payload
+  malformato, trattato come miss) → calcolo, memorizzazione e risposta. I
+  colori di provincia sono deterministici e ri-applicati a ogni lettura (il
+  payload non li duplica).
+* **Ricalcolo** (`POST /trips/map/recalculate`): operazione **esplicita**
+  (comando "Ricalcola heatmap" del menu azioni, stesso pattern del ricalcolo
+  viaggi §12): ricalcola, sovrascrive la riga singleton e risponde in modo
+  sincrono con i dati freschi.
+* **Nessuna invalidazione automatica**: nessun'altra operazione (scan,
+  ricalcolo viaggi, split/merge, esclusioni, giorni manuali) tocca la cache.
+  La freschezza dei dati è responsabilità dell'utente, informata da
+  `computedAt` (decisione di prodotto: il ricalcolo è manuale).
+
 ## Regole di dominio
 
 * **Creazione**: `POST /trips` accetta `days: [{ date, localityIds? }]`; l'intervallo
@@ -1843,6 +1873,16 @@ TripsPage                       (dati, operazioni, dialoghi)
   *fly-to/zoom fit* sui pin del viaggio selezionato.
 * **Ricerca** — server-side: ogni digitazione è riportata al parent, che
   ri-interroga `listTrips` con il termine di ricerca.
+* **Heatmap panoramica (nessun viaggio selezionato)** — con `selectedTripId`
+  nullo il pannello mappa mostra `HeatMap` (leaflet.heat): un punto di calore
+  per località unica di tutti i viaggi attivi, intensità normalizzata sul
+  numero di foto e fit frazionario stretto sui dati. I dati arrivano da
+  `GET /trips/map`, snapshot cachato (migration 0017): nessun indicatore è
+  mostrato sulla mappa (l'età del dato è leggibile da `computedAt` nell'API) e
+  il comando "Ricalcola heatmap" del menu azioni
+  (`POST /trips/map/recalculate`) è l'unico modo di ricalcolare; al
+  completamento compare una notifica di conferma. Il click su logo/titolo
+  riporta la heatmap (rimontaggio della pagina).
 * **`TripTimeline`** — cronologia dei giorni/località del viaggio (linea
   verticale con un nodo per giorno, data, card località con badge foto,
   marcatore "Nessuna foto" per i giorni vuoti). È **estratto** da
