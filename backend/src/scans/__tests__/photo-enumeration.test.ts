@@ -4,8 +4,10 @@
  * Unit and integration tests for file enumeration logic.
  */
 
-import { describe, it, expect } from "vitest";
-import { existsSync } from "node:fs";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { isSupportedFormat, enumerateSupportedFiles } from "../photo-enumeration.js";
 
 describe("isSupportedFormat", () => {
@@ -68,4 +70,40 @@ describe("enumerateSupportedFiles", () => {
       expect([".jpg", ".jpeg", ".heic", ".heif"]).toContain(ext);
     }
   }, 30_000);
+
+  describe("with a temporary filesystem tree", () => {
+    let root: string;
+
+    beforeAll(() => {
+      root = mkdtempSync(path.join(tmpdir(), "travelog-enum-"));
+      // Real photo files
+      writeFileSync(path.join(root, "IMG_0001.JPEG"), "x");
+      writeFileSync(path.join(root, "IMG_0002.heic"), "x");
+      // Unsupported files that must be filtered out
+      writeFileSync(path.join(root, "IMG_0003.MOV"), "x");
+      // Synology metadata dir with generated thumbnails
+      mkdirSync(path.join(root, "@eaDir", "IMG_0001.JPEG.syndirectory"), { recursive: true });
+      writeFileSync(path.join(root, "@eaDir", "IMG_0001.JPEG.syndirectory", "SYNOPHOTO_THUMB_M.jpg"), "x");
+      mkdirSync(path.join(root, "@eaDir", "IMG_0002.heic.syndirectory"), { recursive: true });
+      writeFileSync(path.join(root, "@eaDir", "IMG_0002.heic.syndirectory", "SYNOPHOTO_THUMB_S.jpg"), "x");
+      // Hidden/AppleDouble entries
+      mkdirSync(path.join(root, ".hidden-dir"), { recursive: true });
+      writeFileSync(path.join(root, ".hidden-dir", "inside.jpg"), "x");
+      writeFileSync(path.join(root, "._IMG_0001.JPEG"), "x");
+      // Regular subdirectory that must be traversed
+      mkdirSync(path.join(root, "subdir"), { recursive: true });
+      writeFileSync(path.join(root, "subdir", "IMG_0004.jpg"), "x");
+    });
+
+    afterAll(() => {
+      rmSync(root, { recursive: true, force: true });
+    });
+
+    it("skips @eaDir, hidden directories and AppleDouble files", async () => {
+      const entries = await enumerateSupportedFiles(root);
+      const names = entries.map((e) => e.relativePath).sort();
+
+      expect(names).toEqual(["IMG_0001.JPEG", "IMG_0002.heic", "subdir/IMG_0004.jpg"]);
+    });
+  });
 });

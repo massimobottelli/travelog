@@ -69,6 +69,13 @@ async function traverseDirectory(
   for (const entry of entries) {
     const fullPath = path.join(currentDir, entry.name);
 
+    // Skip Synology metadata directories and hidden/AppleDouble entries:
+    // @eaDir contains generated thumbnails (.jpg) that are not real photos,
+    // and files/dirs starting with "." are metadata ("._*", ".hidden-dir").
+    if (entry.name === "@eaDir" || entry.name.startsWith(".")) {
+      continue;
+    }
+
     if (entry.isDirectory()) {
       // Recurse into subdirectories
       await traverseDirectory(fullPath, root, accumulator);
