@@ -66,6 +66,31 @@ function heatSizeForZoom(zoom: number): { radius: number; blur: number } {
   return { radius, blur: Math.round((radius * 10) / 26) };
 }
 
+/**
+ * Heat points normalized to the given viewport bounds: the locality with
+ * the most photos among the VISIBLE ones reaches full intensity (1.0 →
+ * red), the others scale proportionally. This makes the colors relative
+ * to the zoomed area (e.g. zooming on Veneto shows its densest locality
+ * in red even if it is pale at Europe-wide zoom). If no marker falls in
+ * the bounds (transient states while zooming), the global dataset is used
+ * as fallback pool so points never disappear.
+ */
+function heatPointsForBounds(
+  markers: MapMarker[],
+  bounds: L.LatLngBounds,
+): L.HeatLatLngTuple[] {
+  const visible = markers.filter((m) =>
+    bounds.pad(0.1).contains([m.latitude, m.longitude]),
+  );
+  const pool = visible.length > 0 ? visible : markers;
+  const maxPhotoCount = Math.max(...pool.map((m) => m.photoCount), 1);
+  return visible.map((m) => [
+    m.latitude,
+    m.longitude,
+    m.photoCount / maxPhotoCount,
+  ]);
+}
+
 export default function HeatMap({
   data,
   fullHeight = false,
@@ -77,6 +102,9 @@ export default function HeatMap({
   // Zoom-sync callback: re-pointed by the heat-layer effect to the current
   // layer, invoked by the zoomend/moveend handlers registered below.
   const zoomSyncRef = useRef<() => void>(() => undefined);
+  // Raw markers kept reachable from the zoom/pan sync callback, which
+  // recomputes heat intensities relative to the visible viewport.
+  const markersRef = useRef<MapMarker[]>([]);
   const [mapReady, setMapReady] = useState(false);
 
   // Create the map once when the container is mounted
@@ -150,31 +178,27 @@ export default function HeatMap({
 
     if (data.markers.length === 0) return;
 
-    // Convert markers to heat points: [lat, lng, intensity]
-    // Intensity is normalized to 0..1: the locality with the most photos
-    // reaches full intensity (1.0 → red), the others scale proportionally
-    // to their photo count.
-    const maxPhotoCount = Math.max(...data.markers.map((m) => m.photoCount), 1);
-    const heatPoints: L.HeatLatLngTuple[] = data.markers.map((m) => [
-      m.latitude,
-      m.longitude,
-      m.photoCount / maxPhotoCount,
-    ]);
+    markersRef.current = data.markers;
 
-    // Create heatmap layer. `maxZoom` is set to the CURRENT zoom (and kept
-    // in sync on zoomend/moveend): the plugin multiplies each point
-    // intensity by 1/2^(maxZoom - zoom), so a fixed maxZoom would scale
-    // the normalized 0..1 intensities down to ~0 at the overview fit zoom.
-    // The initial blob size is the user baseline (radius 12 / blur 10);
-    // the zoom sync rescales it as soon as the fit lands and on every
-    // zoom change (see heatSizeForZoom).
-    const heatLayer = L.heatLayer(heatPoints, {
-      radius: 12,
-      blur: 10,
-      maxZoom: map.getZoom(),
-      max: 1,
-      gradient: HEAT_GRADIENT,
-    });
+    // Create heatmap layer. Intensities are normalized relative to the
+    // current viewport (see heatPointsForBounds) and recomputed on every
+    // zoom/pan. `maxZoom` is set to the CURRENT zoom (and kept in sync on
+    // zoomend/moveend): the plugin multiplies each point intensity by
+    // 1/2^(maxZoom - zoom), so a fixed maxZoom would scale the normalized
+    // 0..1 intensities down to ~0 at the overview fit zoom. The initial
+    // blob size is the user baseline (radius 12 / blur 10); the zoom sync
+    // rescales it as soon as the fit lands and on every zoom change (see
+    // heatSizeForZoom).
+    const heatLayer = L.heatLayer(
+      heatPointsForBounds(data.markers, map.getBounds()),
+      {
+        radius: 12,
+        blur: 10,
+        maxZoom: map.getZoom(),
+        max: 1,
+        gradient: HEAT_GRADIENT,
+      },
+    );
 
     heatLayer.addTo(map);
     heatLayerRef.current = heatLayer;
@@ -182,10 +206,14 @@ export default function HeatMap({
     zoomSyncRef.current = (): void => {
       const current = mapRef.current;
       if (current && heatLayerRef.current) {
-        // Re-point maxZoom (intensity factor stays 1) and rescale the blob
-        // size with the zoom: fixed pixels would otherwise merge distant
-        // localities into one single blob when zoomed out.
         const zoom = current.getZoom();
+        // Recompute intensities relative to the visible viewport (zoom +
+        // pan) and re-point maxZoom (intensity factor stays 1), rescaling
+        // the blob size with the zoom: fixed pixels would otherwise merge
+        // distant localities into one single blob when zoomed out.
+        heatLayerRef.current.setLatLngs(
+          heatPointsForBounds(markersRef.current, current.getBounds()),
+        );
         heatLayerRef.current.setOptions({ maxZoom: zoom, ...heatSizeForZoom(zoom) });
       }
     };
