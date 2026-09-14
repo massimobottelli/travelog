@@ -1865,8 +1865,18 @@ TripsPage                       (dati, operazioni, dialoghi)
   Il componente non esegue chiamate API: ogni voce è delegata al parent, che
   possiede le chiamate, la merge mode e la modale di creazione.
 * **`TripsDashboard`** — layout a due colonne, riceve dati e handler dal
-  parent e possiede solo UI state (`highlightedLocalityId` e
-  `editingTripId`, la card espansa in modalità di eliminazione località).
+  parent e possiede solo UI state (`highlightedLocalityId`,
+  `editingTripId`, la card espansa in modalità di eliminazione località,
+  e `closedYears`, gli anni chiusi dell'accordion per anno).
+* **Raggruppamento per anno** — la lista della sidebar è raggruppata per
+  anno della data inizio del viaggio (`Trip.startDate`, derived at render
+  time, nessun campo aggiuntivo). Ogni anno ha un header accordion con
+  chevron e conteggio viaggi ("N viaggio/viaggi"); tutti gli anni sono
+  aperti al primo render (set `closedYears` vuoto) e ogni anno può essere
+  chiuso/riaperto indipendentemente (più anni chiusi contemporaneamente).
+  L'ordine dei gruppi è quello della lista del backend (cronologico
+  inverso). Stato puramente UI: nessuna persistenza, nessun cambio di
+  contratto o schema.
   La selezione è controllata: il click sulla
   card riporta l'id del viaggio (`onSelectTrip`); il parent carica `getTrip` +
   `getTripMap` e passa i nuovi `mapData` alla mappa, che esegue il

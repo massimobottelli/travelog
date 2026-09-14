@@ -75,20 +75,11 @@ function heatSizeForZoom(zoom: number): { radius: number; blur: number } {
  * the bounds (transient states while zooming), the global dataset is used
  * as fallback pool so points never disappear.
  */
-function heatPointsForBounds(
-  markers: MapMarker[],
-  bounds: L.LatLngBounds,
-): L.HeatLatLngTuple[] {
-  const visible = markers.filter((m) =>
-    bounds.pad(0.1).contains([m.latitude, m.longitude]),
-  );
+function heatPointsForBounds(markers: MapMarker[], bounds: L.LatLngBounds): L.HeatLatLngTuple[] {
+  const visible = markers.filter((m) => bounds.pad(0.1).contains([m.latitude, m.longitude]));
   const pool = visible.length > 0 ? visible : markers;
   const maxPhotoCount = Math.max(...pool.map((m) => m.photoCount), 1);
-  return visible.map((m) => [
-    m.latitude,
-    m.longitude,
-    m.photoCount / maxPhotoCount,
-  ]);
+  return visible.map((m) => [m.latitude, m.longitude, m.photoCount / maxPhotoCount]);
 }
 
 export default function HeatMap({
@@ -189,16 +180,13 @@ export default function HeatMap({
     // blob size is the user baseline (radius 12 / blur 10); the zoom sync
     // rescales it as soon as the fit lands and on every zoom change (see
     // heatSizeForZoom).
-    const heatLayer = L.heatLayer(
-      heatPointsForBounds(data.markers, map.getBounds()),
-      {
-        radius: 12,
-        blur: 10,
-        maxZoom: map.getZoom(),
-        max: 1,
-        gradient: HEAT_GRADIENT,
-      },
-    );
+    const heatLayer = L.heatLayer(heatPointsForBounds(data.markers, map.getBounds()), {
+      radius: 12,
+      blur: 10,
+      maxZoom: map.getZoom(),
+      max: 1,
+      gradient: HEAT_GRADIENT,
+    });
 
     heatLayer.addTo(map);
     heatLayerRef.current = heatLayer;

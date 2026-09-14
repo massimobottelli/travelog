@@ -42,34 +42,42 @@ describe("enumerateSupportedFiles", () => {
   // otherwise they are skipped (the CI/dev machine may not have it mounted).
   const nasAvailable = existsSync(testPhotoRoot);
 
-  it.skipIf(!nasAvailable)("should find supported JPEG and HEIC files in the test directory", async () => {
-    // This uses a real directory with real photos — integration test
-    const entries = await enumerateSupportedFiles(testPhotoRoot);
+  it.skipIf(!nasAvailable)(
+    "should find supported JPEG and HEIC files in the test directory",
+    async () => {
+      // This uses a real directory with real photos — integration test
+      const entries = await enumerateSupportedFiles(testPhotoRoot);
 
-    expect(entries.length).toBeGreaterThan(0);
+      expect(entries.length).toBeGreaterThan(0);
 
-    // Verify all entries have correct structure
-    for (const e of entries) {
-      expect(e.absolutePath).toMatch(/^\/Volumes\//);
-      expect(e.fileName).toBeDefined();
-      expect(e.fileType.length).toBeGreaterThan(0);
-      expect(e.size).toBeGreaterThan(0);
-      expect(e.mtime).toBeGreaterThan(0);
+      // Verify all entries have correct structure
+      for (const e of entries) {
+        expect(e.absolutePath).toMatch(/^\/Volumes\//);
+        expect(e.fileName).toBeDefined();
+        expect(e.fileType.length).toBeGreaterThan(0);
+        expect(e.size).toBeGreaterThan(0);
+        expect(e.mtime).toBeGreaterThan(0);
 
-      // All extensions should be supported
-      expect(isSupportedFormat(e.fileName)).toBe(true);
-    }
-  }, 30_000);
+        // All extensions should be supported
+        expect(isSupportedFormat(e.fileName)).toBe(true);
+      }
+    },
+    30_000,
+  );
 
-  it.skipIf(!nasAvailable)("should filter out non-photo files (mov, png, etc.)", async () => {
-    const entries = await enumerateSupportedFiles(testPhotoRoot);
+  it.skipIf(!nasAvailable)(
+    "should filter out non-photo files (mov, png, etc.)",
+    async () => {
+      const entries = await enumerateSupportedFiles(testPhotoRoot);
 
-    // Check that no unsupported extensions made it through
-    for (const e of entries) {
-      const ext = e.fileType.toLowerCase();
-      expect([".jpg", ".jpeg", ".heic", ".heif"]).toContain(ext);
-    }
-  }, 30_000);
+      // Check that no unsupported extensions made it through
+      for (const e of entries) {
+        const ext = e.fileType.toLowerCase();
+        expect([".jpg", ".jpeg", ".heic", ".heif"]).toContain(ext);
+      }
+    },
+    30_000,
+  );
 
   describe("with a temporary filesystem tree", () => {
     let root: string;
@@ -83,9 +91,15 @@ describe("enumerateSupportedFiles", () => {
       writeFileSync(path.join(root, "IMG_0003.MOV"), "x");
       // Synology metadata dir with generated thumbnails
       mkdirSync(path.join(root, "@eaDir", "IMG_0001.JPEG.syndirectory"), { recursive: true });
-      writeFileSync(path.join(root, "@eaDir", "IMG_0001.JPEG.syndirectory", "SYNOPHOTO_THUMB_M.jpg"), "x");
+      writeFileSync(
+        path.join(root, "@eaDir", "IMG_0001.JPEG.syndirectory", "SYNOPHOTO_THUMB_M.jpg"),
+        "x",
+      );
       mkdirSync(path.join(root, "@eaDir", "IMG_0002.heic.syndirectory"), { recursive: true });
-      writeFileSync(path.join(root, "@eaDir", "IMG_0002.heic.syndirectory", "SYNOPHOTO_THUMB_S.jpg"), "x");
+      writeFileSync(
+        path.join(root, "@eaDir", "IMG_0002.heic.syndirectory", "SYNOPHOTO_THUMB_S.jpg"),
+        "x",
+      );
       // Hidden/AppleDouble entries
       mkdirSync(path.join(root, ".hidden-dir"), { recursive: true });
       writeFileSync(path.join(root, ".hidden-dir", "inside.jpg"), "x");

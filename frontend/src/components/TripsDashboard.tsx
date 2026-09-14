@@ -25,7 +25,7 @@
  * `onReplaceDays` callback of the page.
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Trip, TripDayInput, TripDetail, TripMapData, TripsOverviewMap } from "../api/client";
 import TripCard from "./TripCard";
 import TripMap from "./TripMap";
@@ -33,6 +33,7 @@ import HeatMap from "./HeatMap";
 import TripTimeline from "./TripTimeline";
 import Loading from "./Loading";
 import ErrorAlert from "./ErrorAlert";
+import { ChevronDownIcon, ChevronUpIcon } from "./icons";
 
 export interface TripsDashboardProps {
   trips: Trip[];
@@ -110,6 +111,43 @@ export default function TripsDashboard({
    * Only one card at a time can be edited.
    */
   const [editingTripId, setEditingTripId] = useState<number | null>(null);
+  /**
+   * Years collapsed in the sidebar accordion. The set starts empty so every
+   * year group is open at first render; years can be closed/reopened
+   * independently (multiple closed at once is allowed).
+   */
+  const [closedYears, setClosedYears] = useState<Set<string>>(new Set());
+
+  const toggleYear = (year: string) => {
+    setClosedYears((current) => {
+      const next = new Set(current);
+      if (next.has(year)) {
+        next.delete(year);
+      } else {
+        next.add(year);
+      }
+      return next;
+    });
+  };
+
+  /**
+   * Trips grouped by the year of their start date. The list arrives from
+   * the backend already sorted in reverse chronological order, so groups
+   * preserve that order (most recent year first) without re-sorting.
+   */
+  const yearGroups = useMemo(() => {
+    const groups: { year: string; trips: Trip[] }[] = [];
+    for (const trip of trips) {
+      const year = (trip.startDate ?? "").slice(0, 4);
+      const last = groups[groups.length - 1];
+      if (last && last.year === year) {
+        last.trips.push(trip);
+      } else {
+        groups.push({ year, trips: [trip] });
+      }
+    }
+    return groups;
+  }, [trips]);
 
   useEffect(() => {
     setHighlightedLocalityId(null);
@@ -123,6 +161,26 @@ export default function TripsDashboard({
       <aside className="trips-sidebar" aria-label="I Miei Viaggi">
         <div className="trips-sidebar-header">
           <h2 className="trips-sidebar-title">I Miei Viaggi</h2>
+          <div className="trips-sidebar-actions">
+            <button
+              type="button"
+              className="sidebar-action-button"
+              aria-label="Espandi tutti gli anni"
+              disabled={yearGroups.length === 0}
+              onClick={() => setClosedYears(new Set())}
+            >
+              Espandi tutto
+            </button>
+            <button
+              type="button"
+              className="sidebar-action-button"
+              aria-label="Comprimi tutti gli anni"
+              disabled={yearGroups.length === 0}
+              onClick={() => setClosedYears(new Set(yearGroups.map((group) => group.year)))}
+            >
+              Comprimi tutto
+            </button>
+          </div>
         </div>
 
         <div className="trips-sidebar-list">
@@ -132,58 +190,83 @@ export default function TripsDashboard({
             <p className="hint">Nessun viaggio trovato.</p>
           )}
 
-          {trips.map((trip) => {
-            const expanded = trip.id === selectedTripId;
-            // Inline day editing (§51): active trips only, exactly like the
-            // standalone detail page. It is entered from the "Modifica
-            // viaggio" entry of the trip context menu, which also expands
-            // the card when needed.
-            const editing = expanded && editingTripId === trip.id;
-            const editable = detail?.status === "active" && onReplaceDays !== undefined;
-            // The menu entry is per-trip and must not depend on the detail of
-            // the currently selected trip.
-            const canEditDays = trip.status === "active" && onReplaceDays !== undefined;
+          {yearGroups.map(({ year, trips: yearTrips }) => {
+            const open = !closedYears.has(year);
             return (
-              <TripCard
-                key={trip.id}
-                trip={trip}
-                expanded={expanded}
-                active={expanded}
-                onToggle={() => onSelectTrip(trip.id)}
-                onRename={() => onRename(trip)}
-                onEditDates={() => onEditDates(trip)}
-                onEditDays={
-                  canEditDays
-                    ? () => {
-                        if (!expanded) onSelectTrip(trip.id);
-                        setEditingTripId(trip.id);
-                      }
-                    : undefined
-                }
-                onSplit={() => onSplit(trip)}
-                onDelete={() => onDelete(trip)}
-                mergeMode={mergeMode}
-                selected={selectedIds.includes(trip.id)}
-                onToggleSelected={onToggleSelected ? () => onToggleSelected(trip.id) : undefined}
-                onOpenDetail={onOpenTripDetail}
-              >
-                {detailLoading && <Loading />}
-                {detailError && <ErrorAlert message={detailError} />}
-                {!detailLoading && !detailError && detail && (
-                  <TripTimeline
-                    days={detail.days}
-                    editing={editing}
-                    onReplaceDays={
-                      editable && onReplaceDays
-                        ? (days: TripDayInput[]) => onReplaceDays(trip.id, days)
-                        : undefined
-                    }
-                    onExitEditing={() => setEditingTripId(null)}
-                    activeLocalityId={highlightedLocalityId}
-                    onLocalityHover={setHighlightedLocalityId}
-                  />
-                )}
-              </TripCard>
+              <section key={year} className="trips-year-group" data-year={year}>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                  aria-expanded={open}
+                  aria-label={`Viaggi ${year}`}
+                  onClick={() => toggleYear(year)}
+                >
+                  <span>{year}</span>
+                  <span className="flex items-center gap-1.5" aria-hidden="true">
+                    <span className="text-white font-normal">
+                      {yearTrips.length} {yearTrips.length === 1 ? "viaggio" : "viaggi"}
+                    </span>
+                    {open ? <ChevronUpIcon size={16} /> : <ChevronDownIcon size={16} />}
+                  </span>
+                </button>
+                {open &&
+                  yearTrips.map((trip) => {
+                    const expanded = trip.id === selectedTripId;
+                    // Inline day editing (§51): active trips only, exactly like the
+                    // standalone detail page. It is entered from the "Modifica
+                    // viaggio" entry of the trip context menu, which also expands
+                    // the card when needed.
+                    const editing = expanded && editingTripId === trip.id;
+                    const editable = detail?.status === "active" && onReplaceDays !== undefined;
+                    // The menu entry is per-trip and must not depend on the detail of
+                    // the currently selected trip.
+                    const canEditDays = trip.status === "active" && onReplaceDays !== undefined;
+                    return (
+                      <TripCard
+                        key={trip.id}
+                        trip={trip}
+                        expanded={expanded}
+                        active={expanded}
+                        onToggle={() => onSelectTrip(trip.id)}
+                        onRename={() => onRename(trip)}
+                        onEditDates={() => onEditDates(trip)}
+                        onEditDays={
+                          canEditDays
+                            ? () => {
+                                if (!expanded) onSelectTrip(trip.id);
+                                setEditingTripId(trip.id);
+                              }
+                            : undefined
+                        }
+                        onSplit={() => onSplit(trip)}
+                        onDelete={() => onDelete(trip)}
+                        mergeMode={mergeMode}
+                        selected={selectedIds.includes(trip.id)}
+                        onToggleSelected={
+                          onToggleSelected ? () => onToggleSelected(trip.id) : undefined
+                        }
+                        onOpenDetail={onOpenTripDetail}
+                      >
+                        {detailLoading && <Loading />}
+                        {detailError && <ErrorAlert message={detailError} />}
+                        {!detailLoading && !detailError && detail && (
+                          <TripTimeline
+                            days={detail.days}
+                            editing={editing}
+                            onReplaceDays={
+                              editable && onReplaceDays
+                                ? (days: TripDayInput[]) => onReplaceDays(trip.id, days)
+                                : undefined
+                            }
+                            onExitEditing={() => setEditingTripId(null)}
+                            activeLocalityId={highlightedLocalityId}
+                            onLocalityHover={setHighlightedLocalityId}
+                          />
+                        )}
+                      </TripCard>
+                    );
+                  })}
+              </section>
             );
           })}
 

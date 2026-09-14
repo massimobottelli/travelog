@@ -1478,7 +1478,39 @@ button.icon-button:hover {
 }
 
 .trips-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.6rem 1.25rem;
+}
+
+/* Expand-all / collapse-all year commands, top-right of the title row. */
+.trips-sidebar-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.sidebar-action-button {
+  border: none;
+  background: none;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #52606d;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sidebar-action-button:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #1f2933;
+}
+
+.sidebar-action-button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* Section title of the left column, mockup style (uppercase, spaced). */
@@ -1489,6 +1521,12 @@ button.icon-button:hover {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #1f2933;
+}
+
+/* Year accordion groups: vertical rhythm identical to the trip cards
+   (.trip-card + .trip-card margin). */
+.trips-year-group {
+  margin: 0.75rem 0;
 }
 
 /* Independent vertical scroll for the trip card list (UI §2). */

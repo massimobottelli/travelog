@@ -35,6 +35,13 @@ vi.mock("leaflet", () => {
     zoom = 8;
     fitBounds = vi.fn();
     flyTo = vi.fn();
+    /* HeatMap filters its points against the current viewport (§overview):
+       it pads the bounds and tests each marker against them. */
+    getBounds = () => ({
+      pad: () => ({
+        contains: ([lat, lng]: [number, number]) => lat >= 0 && lat <= 90 && lng >= 0 && lng <= 180,
+      }),
+    });
     closePopup = vi.fn();
     remove = vi.fn();
     addLayer = vi.fn();
@@ -119,6 +126,10 @@ vi.mock("leaflet", () => {
           latlngs,
           opts,
           addTo: () => layer,
+          setLatLngs(next: unknown) {
+            layer.latlngs = next;
+            return layer;
+          },
           setOptions(next: Record<string, unknown>) {
             layer.opts = { ...layer.opts, ...next };
             return layer;
@@ -543,5 +554,80 @@ describe("TripsDashboard (new UI, phase 4)", () => {
       expect(onReplaceDays).toHaveBeenCalledTimes(1);
     });
     expect(onReplaceDays).toHaveBeenCalledWith(1, [{ date: "2026-07-03" }]);
+  });
+});
+
+describe("TripsDashboard — year grouping accordion", () => {
+  const MULTI_YEAR_TRIPS: Trip[] = [
+    makeTrip({ id: 4, name: "Viaggio 2026", startDate: "2026-07-03", endDate: "2026-07-31" }),
+    makeTrip({ id: 2, name: "2025 uno", startDate: "2025-03-01", endDate: "2025-03-05" }),
+    makeTrip({ id: 3, name: "2025 due", startDate: "2025-08-01", endDate: "2025-08-10" }),
+    makeTrip({ id: 1, name: "Vecchio 2024", startDate: "2024-07-03", endDate: "2024-07-10" }),
+  ];
+
+  /** Card of the trip with the given id (present only while its year is open). */
+  const card = (container: HTMLElement, tripId: number): Element | null =>
+    container.querySelector(`[data-trip-id="${tripId}"]`);
+
+  it("groups the trips by start-date year in reverse chronological order with a per-year count", () => {
+    const { container } = render(<TripsDashboard {...baseProps({ trips: MULTI_YEAR_TRIPS })} />);
+
+    const headers = screen.getAllByRole("button", { name: /Viaggi \d{4}/ });
+    expect(headers.map((el) => el.textContent!.replace(/\s+/g, " ").trim())).toEqual([
+      "20261 viaggio",
+      "20252 viaggi",
+      "20241 viaggio",
+    ]);
+    // Cards of every year are visible while all groups are open.
+    expect(card(container, 1)).not.toBeNull();
+    expect(card(container, 2)).not.toBeNull();
+    expect(card(container, 3)).not.toBeNull();
+    expect(card(container, 4)).not.toBeNull();
+  });
+
+  it("closes only the clicked year and keeps the others open", () => {
+    const { container } = render(<TripsDashboard {...baseProps({ trips: MULTI_YEAR_TRIPS })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Viaggi 2025" }));
+
+    // Both 2025 cards are hidden; other years keep their cards.
+    expect(card(container, 2)).toBeNull();
+    expect(card(container, 3)).toBeNull();
+    expect(card(container, 1)).not.toBeNull();
+    expect(card(container, 4)).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Viaggi 2025" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+  });
+
+  it("allows closing multiple years at once and reopening them independently", () => {
+    const { container } = render(<TripsDashboard {...baseProps({ trips: MULTI_YEAR_TRIPS })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Viaggi 2026" }));
+    fireEvent.click(screen.getByRole("button", { name: "Viaggi 2024" }));
+    expect(card(container, 1)).toBeNull();
+    expect(card(container, 4)).toBeNull();
+    expect(card(container, 2)).not.toBeNull();
+
+    // Reopening 2024 does not reopen 2026.
+    fireEvent.click(screen.getByRole("button", { name: "Viaggi 2024" }));
+    expect(card(container, 1)).not.toBeNull();
+    expect(card(container, 4)).toBeNull();
+  });
+
+  it("expands and collapses all years from the sidebar header commands", () => {
+    const { container } = render(<TripsDashboard {...baseProps({ trips: MULTI_YEAR_TRIPS })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Comprimi tutti gli anni" }));
+    expect(card(container, 1)).toBeNull();
+    expect(card(container, 2)).toBeNull();
+    expect(card(container, 3)).toBeNull();
+    expect(card(container, 4)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Espandi tutti gli anni" }));
+    expect(card(container, 1)).not.toBeNull();
+    expect(card(container, 2)).not.toBeNull();
+    expect(card(container, 3)).not.toBeNull();
+    expect(card(container, 4)).not.toBeNull();
   });
 });
