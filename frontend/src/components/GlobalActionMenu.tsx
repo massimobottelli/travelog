@@ -1,7 +1,7 @@
 /**
  * Travelog — Global action menu (new UI, phase 6)
  *
- * The primary "+ Nuovo Viaggio" dropdown of the top bar (UI §1.1): it
+ * The primary "+ Azioni" dropdown of the top bar (UI §1.1): it
  * groups the entry points of the trips dashboard — Scansiona Foto, Crea
  * Viaggio, Esporta Lista, Unisci Viaggi — plus the two explicit refresh
  * commands: "Aggiorna Lista Viaggi" (§12 recalculation, background) and
@@ -99,7 +99,7 @@ export default function GlobalActionMenu({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <PlusIcon size={18} /> Nuovo Viaggio <ChevronDownIcon size={15} />
+        <PlusIcon size={18} /> Azioni <ChevronDownIcon size={15} />
       </button>
       {open && (
         <div className="global-action-dropdown" role="menu">

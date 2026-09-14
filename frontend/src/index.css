@@ -1497,7 +1497,7 @@ button.icon-button:hover {
   border-radius: 6px;
   padding: 0.25rem 0.5rem;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 400;
   color: #52606d;
   cursor: pointer;
   white-space: nowrap;
@@ -1616,7 +1616,7 @@ button.icon-button:hover {
   background: #f7faff;
 }
 
-/* ── Global action menu ("+ Nuovo Viaggio", new UI §1.1) ────── */
+/* ── Global action menu ("+ Azioni", new UI §1.1) ────── */
 
 .global-action-menu {
   position: relative;

@@ -508,7 +508,7 @@ describe("TripsDashboard (new UI, phase 4)", () => {
 
     // Both live in the application top bar, rendered by the page.
     expect(screen.queryByLabelText("Cerca viaggi")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Nuovo Viaggio" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Azioni" })).toBeNull();
   });
 
   it("keeps the expanded card read-only without onReplaceDays", () => {

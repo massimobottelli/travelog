@@ -1815,7 +1815,7 @@ TripsPage                       (dati, operazioni, dialoghi)
 ├── TripDaysModal / merge-bar / messaggi        (sopra le colonne)
 ├── TripsDashboard              (layout, solo UI state)
 │   ├── colonna sinistra (~420px, scroll interno)
-│   │   ├── GlobalActionMenu ("+ Nuovo Viaggio", §1.1)
+│   │   ├── GlobalActionMenu ("+ Azioni", §1.1)
 │   │   ├── campo di ricerca (filtro server-side via GET /trips?search=)
 │   │   ├── TripCard (accordion) + TripContextMenu + link scheda
 │   │   └── TripTimeline (card espansa, §2.2, "Modifica viaggio" §51)
@@ -1856,7 +1856,7 @@ TripsPage                       (dati, operazioni, dialoghi)
   (`alert-success`) viene mostrato **al posto dei pulsanti** di conferma e il
   dialogo resta aperto fino all'auto-dismiss (3s, `useAutoDismiss`), che azzera
   il messaggio e chiude il dialogo.
-* **`GlobalActionMenu`** — dropdown primario "+ Nuovo Viaggio" (blu, come il
+* **`GlobalActionMenu`** — dropdown primario "+ Azioni" (blu, come il
   pulsante di conferma; UI
   §1.1) con le azioni d'ingresso *Scansione* (→ `/scans`), *Crea Viaggio*
   (modale `TripDaysModal`, §47bis), *Esporta* (`exportTripsCsv`) e *Unisci*

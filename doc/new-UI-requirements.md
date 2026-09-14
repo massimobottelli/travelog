@@ -11,7 +11,7 @@ Il layout è suddiviso in due macro-aree principali: **Header superiore** e **Da
 * **Elementi da sinistra a destra:**
 1. **Brand/Logo:** Logo di *Travelog* (icona + testo) cliccabile per resettare la vista sulla dashboard principale.
 2. **Search Bar:** Campo di testo centrale con icona lente d'ingrandimento e placeholder `"Cerca..."`. Supporta la ricerca dinamica per nome viaggio o anno.
-3. **Global Action Menu (Dropdown Primario):** Pulsante principale verde (`#10B981`) `+ Nuovo Viaggio`.
+3. **Global Action Menu (Dropdown Primario):** Pulsante principale verde (`#10B981`) `+ Azioni`.
 * Al click, apre un menu a tendina con le seguenti voci:
 * `Scansione` (reindirizza o apre modale per caricamento/scansione file).
 * `Crea Viaggio` (apre la modale di creazione manuale).
@@ -88,7 +88,7 @@ Quando una Card Viaggio viene espansa, mostra la sequenza cronologica delle tapp
 | --- | --- |
 | **Click su Card Viaggio** | La scheda si espande rivelando la Timeline; la Mappa effettua un *fly-to/zoom fit* automatico per inquadrare tutti i pin del viaggio selezionato. |
 | **Click su Menu Contestuale (⚙️)** | Apre il dropdown locale relativo al singolo viaggio con le opzioni: *Rinomina, Modifica date, Dividi viaggio, Elimina*. |
-| **Click su `+ Nuovo Viaggio**` | Apre il menu globale per scegliere l'azione d'ingresso (*Scansione, Crea Viaggio, Esporta, Unisci*). |
+| **Click su `+ Azioni**` | Apre il menu globale per scegliere l'azione d'ingresso (*Scansione, Crea Viaggio, Esporta, Unisci*). |
 | **Digitazione in `Cerca...**` | Filtra in tempo reale l'elenco delle Card a sinistra in base ai caratteri inseriti nel titolo o nell'anno. |
 
 

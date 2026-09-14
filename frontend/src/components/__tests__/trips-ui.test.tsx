@@ -267,7 +267,7 @@ describe("TripsPage", () => {
       expect(screen.getByText("Vacanza in Toscana")).not.toBeNull();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Nuovo Viaggio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Azioni" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Aggiorna Lista Viaggi" }));
 
     await waitFor(() => {
@@ -366,8 +366,8 @@ describe("TripsPage", () => {
 
     render(<TripsPage />);
 
-    // The command lives in the "Nuovo Viaggio" action menu of the top bar.
-    fireEvent.click(await screen.findByRole("button", { name: "Nuovo Viaggio" }));
+    // The command lives in the "Azioni" action menu of the top bar.
+    fireEvent.click(await screen.findByRole("button", { name: "Azioni" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Ricalcola heatmap" }));
 
     // While the (potentially seconds-long) aggregation runs, an explicit
@@ -393,7 +393,7 @@ describe("TripsPage", () => {
       expect(screen.getByText("Vacanza in Toscana")).not.toBeNull();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Nuovo Viaggio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Azioni" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Unisci Viaggi" }));
     fireEvent.click(screen.getByLabelText("Seleziona Vacanza in Toscana"));
     fireEvent.click(screen.getByLabelText("Seleziona Weekend a Roma"));

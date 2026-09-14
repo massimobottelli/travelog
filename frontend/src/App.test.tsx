@@ -85,7 +85,7 @@ describe("App", () => {
     // bar (§1.1), not in the page.
     const header = container.querySelector(".app-header")!;
     expect(header.contains(screen.getByLabelText("Cerca viaggi"))).toBe(true);
-    expect(header.contains(screen.getByRole("button", { name: "Nuovo Viaggio" }))).toBe(true);
+    expect(header.contains(screen.getByRole("button", { name: "Azioni" }))).toBe(true);
   });
 
   it("restores the running scan progress when returning to the scans page", async () => {
@@ -153,9 +153,9 @@ describe("App", () => {
     // The default page is Trips: reach the Scans page from the global
     // action menu in the top bar.
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Nuovo Viaggio" })).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Azioni" })).not.toBeNull();
     });
-    fireEvent.click(screen.getByRole("button", { name: "Nuovo Viaggio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Azioni" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Scansiona Foto" }));
 
     // The running scan's progress panel appears without any user click

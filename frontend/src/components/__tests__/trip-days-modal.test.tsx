@@ -79,10 +79,10 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     mockListTrips();
     render(<TripsPage />);
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Nuovo Viaggio" })).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Azioni" })).not.toBeNull();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Nuovo Viaggio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Azioni" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Crea Viaggio" }));
     await waitFor(() => {
       expect(screen.getByTestId("trip-days-modal")).not.toBeNull();

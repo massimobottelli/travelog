@@ -1,7 +1,7 @@
 /**
  * Travelog — GlobalActionMenu (new UI, phase 6) tests
  *
- * The primary "+ Nuovo Viaggio" dropdown (UI §1.1) and its six entries:
+ * The primary "+ Azioni" dropdown (UI §1.1) and its six entries:
  * Scansiona Foto, Crea Viaggio, Esporta Lista, Unisci Viaggi, Aggiorna
  * Lista Viaggi and Ricalcola heatmap. Every entry is delegated to the
  * parent through a callback; the dropdown owns only its open state and
@@ -23,7 +23,7 @@ function baseProps() {
   };
 }
 
-const trigger = () => screen.getByRole("button", { name: "Nuovo Viaggio" });
+const trigger = () => screen.getByRole("button", { name: "Azioni" });
 
 describe("GlobalActionMenu (new UI, phase 6)", () => {
   it("renders the primary button, closed by default", () => {
