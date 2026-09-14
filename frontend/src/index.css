@@ -1084,6 +1084,34 @@ button.icon-button:hover {
     display: none;
   }
 
+  /* Trip detail page keeps the side-by-side date column also on narrow
+     screens (user request): the date sits on the left like on desktop
+     and the locality cards use the full remaining width. */
+  .trip-diary .trip-timeline-day {
+    flex-direction: row;
+    gap: 0.9rem;
+  }
+
+  .trip-diary .trip-day-marker {
+    width: 7rem;
+    padding-top: 0.6rem;
+  }
+
+  .trip-diary .trip-timeline-day:not(:last-child) .trip-day-marker::after {
+    display: block;
+    left: calc(7rem - 8px);
+  }
+
+  .trip-diary .trip-day-dot {
+    display: block;
+  }
+
+  /* Trip detail page: the photo-count badges are not shown on narrow
+     screens (the locality name alone identifies the row). */
+  .trip-diary .photo-badge {
+    display: none;
+  }
+
   /* Locality cards span the full panel width. */
   .trip-localities {
     padding-left: 0;
@@ -1113,6 +1141,13 @@ button.icon-button:hover {
 
   button.brand {
     font-size: 1.15rem;
+  }
+
+  /* Settings gear at the far right of the first row: the header slot
+     (search + action menu) wraps to the full-width second row, so the
+     gear needs an auto margin to leave the brand's side. */
+  button.app-header-settings {
+    margin-left: auto;
   }
 
   .app-header-slot {
@@ -1307,8 +1342,56 @@ button.icon-button:hover {
 }
 
 .trip-detail-page-toolbar {
+  /* Back link — title — gear, all on one row; the 1fr side columns keep
+     the title centred regardless of the side widths. */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* iOS-style blue back link. */
+button.back-link {
+  justify-self: start;
+  padding: 0.25rem 0.5rem;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: #007aff;
+  font-size: 1.05rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Hover: white text on the blue pill (iOS navigation-bar affordance). */
+button.back-link:hover {
+  background: #007aff;
+  color: #ffffff;
+}
+
+/* Trip name centred in the toolbar row, with the map icon. */
+.trip-detail-page-title {
+  margin: 0;
   display: flex;
-  justify-content: flex-start;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  min-width: 0;
+  /* Long names truncate with ellipsis instead of pushing the row wider. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trip-detail-page-title svg {
+  color: #2b6cb0;
+  flex-shrink: 0;
+}
+
+/* Editing gear at the right end of the toolbar row. */
+.trip-detail-page-toolbar .trip-context-trigger {
+  justify-self: end;
 }
 
 /* ── Trip cards (new UI, phase 3) ───────────────────────────── */
@@ -1594,19 +1677,44 @@ button.icon-button:hover {
   text-align: center;
 }
 
-/* Below the two-column breakpoint the map stacks under the sidebar. */
+/* Below the two-column breakpoint the map stacks under the sidebar and
+   the page scrolls normally: the fixed-viewport flex layout is lifted so
+   the full trip list stays reachable by scrolling. */
 @media (max-width: 900px) {
+  .trips-page {
+    height: auto;
+  }
+
   .trips-dashboard {
     grid-template-columns: 1fr;
     height: auto;
   }
 
+  .trips-sidebar {
+    overflow: visible;
+  }
+
   .trips-sidebar-list {
     overflow-y: visible;
+    /* On mobile the trip list spans the full width with a reduced
+       side margin. */
+    padding: 0.2rem 0.5rem;
+  }
+
+  /* When stacked, the divider between the columns becomes horizontal. */
+  .trips-sidebar {
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
   }
 
   .trips-map-panel {
     height: 60vh;
+  }
+
+  /* On mobile the overview heatmap is not shown: the trip card list
+      expands to the full viewport width instead. */
+  .trips-map-panel--overview {
+    display: none;
   }
 }
 

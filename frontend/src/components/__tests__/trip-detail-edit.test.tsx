@@ -8,11 +8,12 @@
  * onReplaceDays callback (PUT /trips/{tripId}/days).
  */
 
+import { useState } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import TripDetailPanel from "../../components/TripDetailPanel";
 import { autocompleteLocalities, resolveLocality } from "../../api/exclusion-zones";
-import type { TripDetail } from "../../api/client";
+import type { TripDetail, TripDayInput } from "../../api/client";
 
 vi.mock("../../api/exclusion-zones", () => ({
   autocompleteLocalities: vi.fn(),
@@ -93,14 +94,46 @@ afterEach(() => {
 });
 
 describe("TripDetailPanel — inline day editing (manual trips)", () => {
-  /** Enter the edit mode (the "Modifica" toggle in the header). */
+  /**
+   * Harness owning the controlled editing state: on the real detail
+   * page the gear lives in the page toolbar and passes `editing` down
+   * to the panel. The harness exposes the same gear affordance.
+   */
+  function EditablePanel({
+    detail,
+    onReplaceDays,
+  }: {
+    detail: TripDetail;
+    onReplaceDays?: (days: TripDayInput[]) => Promise<void>;
+  }) {
+    const [editing, setEditing] = useState(false);
+    return (
+      <>
+        <button
+          type="button"
+          aria-label="Modifica viaggio"
+          onClick={() => setEditing(true)}
+        >
+          Modifica
+        </button>
+        <TripDetailPanel
+          detail={detail}
+          editing={editing}
+          onExitEditing={() => setEditing(false)}
+          onReplaceDays={onReplaceDays}
+        />
+      </>
+    );
+  }
+
+  /** Enter the edit mode (the gear affordance in the toolbar). */
   function startEditing(): void {
-    fireEvent.click(screen.getByRole("button", { name: "Modifica" }));
+    fireEvent.click(screen.getByRole("button", { name: "Modifica viaggio" }));
   }
 
   it("deletes a locality and persists the remaining days", async () => {
     const onReplaceDays = vi.fn().mockResolvedValue(undefined);
-    render(<TripDetailPanel detail={DETAIL} onReplaceDays={onReplaceDays} />);
+    render(<EditablePanel detail={DETAIL} onReplaceDays={onReplaceDays} />);
     startEditing();
 
     fireEvent.click(
@@ -118,7 +151,7 @@ describe("TripDetailPanel — inline day editing (manual trips)", () => {
 
   it("deletes a whole day and persists the remaining days", async () => {
     const onReplaceDays = vi.fn().mockResolvedValue(undefined);
-    render(<TripDetailPanel detail={DETAIL} onReplaceDays={onReplaceDays} />);
+    render(<EditablePanel detail={DETAIL} onReplaceDays={onReplaceDays} />);
     startEditing();
 
     fireEvent.click(screen.getByRole("button", { name: "Elimina il giorno 11/08/2025" }));
@@ -132,7 +165,7 @@ describe("TripDetailPanel — inline day editing (manual trips)", () => {
   it("disables the day trash when only one day is left", () => {
     const onReplaceDays = vi.fn();
     const single = { ...DETAIL, days: [DETAIL.days[0]] };
-    render(<TripDetailPanel detail={single} onReplaceDays={onReplaceDays} />);
+    render(<EditablePanel detail={single} onReplaceDays={onReplaceDays} />);
     startEditing();
 
     const trash = screen.getByRole("button", { name: "Elimina il giorno 10/08/2025" });
@@ -142,7 +175,7 @@ describe("TripDetailPanel — inline day editing (manual trips)", () => {
 
   it("'Aggiungi località' opens the search inside the day and adds the resolved locality", async () => {
     const onReplaceDays = vi.fn().mockResolvedValue(undefined);
-    render(<TripDetailPanel detail={DETAIL} onReplaceDays={onReplaceDays} />);
+    render(<EditablePanel detail={DETAIL} onReplaceDays={onReplaceDays} />);
     startEditing();
 
     // Open the search on the empty day.
@@ -173,7 +206,7 @@ describe("TripDetailPanel — inline day editing (manual trips)", () => {
 
   it("shows a failed save as an in-panel error", async () => {
     const onReplaceDays = vi.fn().mockRejectedValue(new Error("Boom"));
-    render(<TripDetailPanel detail={DETAIL} onReplaceDays={onReplaceDays} />);
+    render(<EditablePanel detail={DETAIL} onReplaceDays={onReplaceDays} />);
     startEditing();
 
     fireEvent.click(
@@ -185,7 +218,7 @@ describe("TripDetailPanel — inline day editing (manual trips)", () => {
   });
 
   it("renders read-only days without edit affordances when no callback is provided", () => {
-    render(<TripDetailPanel detail={DETAIL} />);
+    render(<EditablePanel detail={DETAIL} />);
     expect(screen.queryByRole("button", { name: /Aggiungi località al giorno/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Elimina il giorno/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Elimina la località/ })).toBeNull();

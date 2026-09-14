@@ -40,9 +40,12 @@ import ErrorAlert from "../components/ErrorAlert";
 import { SearchIcon } from "../components/icons";
 import { errorToMessage } from "../utils/error";
 import { useAutoDismiss } from "../hooks/useAutoDismiss";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { navigate } from "../hooks/useRoute";
 
 export default function TripsPage() {
+  const isMobile = useIsMobile();
+
   const [trips, setTrips] = useState<Trip[] | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -455,7 +458,14 @@ export default function TripsPage() {
         loading={loading}
         error={loadError}
         selectedTripId={selectedTripId}
-        onSelectTrip={(id) => setSelectedTripId((current) => (current === id ? null : id))}
+        onSelectTrip={(id) =>
+          isMobile
+            ? // On the stacked mobile layout the accordion is not used:
+              // tapping a card opens the shareable detail page in the
+              // same tab.
+              navigate(`/trips/${id}`)
+            : setSelectedTripId((current) => (current === id ? null : id))
+        }
         detail={detail}
         detailLoading={detailLoading}
         detailError={detailError}

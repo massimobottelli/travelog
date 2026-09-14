@@ -30,6 +30,7 @@ import type { Trip, TripDayInput, TripDetail, TripMapData, TripsOverviewMap } fr
 import TripCard from "./TripCard";
 import TripMap from "./TripMap";
 import HeatMap from "./HeatMap";
+import { useIsMobile } from "../hooks/useIsMobile";
 import TripTimeline from "./TripTimeline";
 import Loading from "./Loading";
 import ErrorAlert from "./ErrorAlert";
@@ -103,6 +104,10 @@ export default function TripsDashboard({
   onOpenTripDetail,
   sidebarFooter,
 }: TripsDashboardProps) {
+  // On the stacked mobile layout the overview heatmap is not rendered at
+  // all: a hidden (display:none) Leaflet canvas has zero size and the
+  // heat plugin's getImageData would throw at reset time.
+  const isMobile = useIsMobile();
   /* Hover-only visual highlight (no popup, no fly-to — only marker enlarge). */
   const [highlightedLocalityId, setHighlightedLocalityId] = useState<number | null>(null);
   /**
@@ -274,7 +279,16 @@ export default function TripsDashboard({
         </div>
       </aside>
 
-      <section className="trips-map-panel" aria-label="Mappa viaggi">
+      <section
+        className={
+          mapData
+            ? "trips-map-panel"
+            : // Overview (heatmap) / empty-hint panel: hidden on mobile,
+              // where the stacked layout gives the card list full width.
+              "trips-map-panel trips-map-panel--overview"
+        }
+        aria-label="Mappa viaggi"
+      >
         {mapData ? (
           <TripMap
             data={mapData}
@@ -282,7 +296,7 @@ export default function TripsDashboard({
             showTrack
             hoveredLocalityId={selectedTripId !== null ? highlightedLocalityId : null}
           />
-        ) : overviewMapData ? (
+        ) : !isMobile && overviewMapData ? (
           <HeatMap
             data={overviewMapData}
             fullHeight

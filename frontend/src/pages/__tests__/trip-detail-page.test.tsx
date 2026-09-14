@@ -107,7 +107,7 @@ describe("TripDetailPage — shareable trip detail card", () => {
     });
 
     // Enter the edit mode, delete the only locality of the first day.
-    fireEvent.click(screen.getByRole("button", { name: "Modifica" }));
+    fireEvent.click(screen.getByRole("button", { name: "Modifica viaggio" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Elimina la località Siena del giorno 10/08/2025" }),
     );
@@ -129,7 +129,7 @@ describe("TripDetailPage — shareable trip detail card", () => {
     await waitFor(() => {
       expect(screen.getByText(/Vacanza in Toscana/)).not.toBeNull();
     });
-    expect(screen.queryByRole("button", { name: "Modifica" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Modifica viaggio" })).toBeNull();
     expect(replaceTripDaysMock).not.toHaveBeenCalled();
   });
 });

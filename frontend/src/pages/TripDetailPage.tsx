@@ -13,6 +13,7 @@ import type { TripDetail, TripDayInput, TripMapData } from "../api/client";
 import TripDetailPanel from "../components/TripDetailPanel";
 import Loading from "../components/Loading";
 import ErrorAlert from "../components/ErrorAlert";
+import { PencilIcon, MapIcon } from "../components/icons";
 import { errorToMessage } from "../utils/error";
 import { navigate } from "../hooks/useRoute";
 
@@ -25,6 +26,10 @@ export default function TripDetailPage({ tripId }: TripDetailPageProps) {
   const [mapData, setMapData] = useState<TripMapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Inline day/locality editing (active trips): the gear lives in the
+  // page toolbar (back link — title — gear on one row), so the state is
+  // owned here and passed down to the panel as a controlled prop.
+  const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,21 +71,44 @@ export default function TripDetailPage({ tripId }: TripDetailPageProps) {
 
   return (
     <div className="trip-detail-page">
+      {/* One-row header, iOS style: blue back link on the left, the trip
+          name (map icon) centred, the editing gear on the right. */}
       <div className="trip-detail-page-toolbar">
         <button
           type="button"
-          className="secondary"
+          className="back-link"
           onClick={() => navigate("/trips")}
           aria-label="Torna all'elenco viaggi"
         >
-          ‹ Torna all'elenco viaggi
+          ‹ Back
         </button>
+        <h2 className="trip-detail-page-title">
+          <MapIcon size={20} />
+          {detail?.name || "(senza nome)"}
+        </h2>
+        {detail !== null && detail.status === "active" && !editing && (
+          <button
+            type="button"
+            className="icon-button trip-context-trigger"
+            aria-label="Modifica viaggio"
+            title="Modifica viaggio"
+            onClick={() => setEditing(true)}
+          >
+            <PencilIcon size={16} />
+          </button>
+        )}
       </div>
       {loading && <Loading />}
       {error && <ErrorAlert message={error} />}
       {!loading && !error && detail !== null && (
         <section className="panel">
-          <TripDetailPanel detail={detail} mapData={mapData} onReplaceDays={handleReplaceDays} />
+          <TripDetailPanel
+            detail={detail}
+            mapData={mapData}
+            editing={editing}
+            onExitEditing={() => setEditing(false)}
+            onReplaceDays={handleReplaceDays}
+          />
         </section>
       )}
     </div>
