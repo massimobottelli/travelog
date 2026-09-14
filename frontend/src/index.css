@@ -332,6 +332,44 @@ button:disabled {
   border: 1px solid #efe0b0;
 }
 
+/* ── Error boundary fallback ───────────────────────────── */
+
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2.5rem;
+  text-align: center;
+}
+
+.error-boundary h2 {
+  color: #b3261e;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.error-boundary p {
+  max-width: 28rem;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.error-boundary button {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.error-boundary button:hover {
+  background: #1d4ed8;
+}
+
 .loading {
   color: #64748b;
   padding: 0.5rem 0;

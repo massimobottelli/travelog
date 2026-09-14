@@ -8,6 +8,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { loadOpenApiSpec } from "../utils/openapi.js";
 import { ValidationError } from "../models/errors.js";
+import { env } from "../utils/env.js";
 
 // Map route patterns to operationId (without API prefix)
 const ROUTE_OPS: Record<string, Record<string, string>> = {
@@ -40,8 +41,8 @@ const ROUTE_OPS: Record<string, Record<string, string>> = {
 };
 
 function resolveOperationId(path: string, method: string): string | null {
-  // Strip API prefix if present (e.g., /api/trips -> /trips)
-  const apiPrefix = process.env.API_PREFIX ?? "/api";
+  // Strip API prefix if present (e.g. /api/trips -> /trips)
+  const apiPrefix = env.apiPrefix;
   const basePath = path.startsWith(apiPrefix) ? path.slice(apiPrefix.length) || "/" : path;
 
   // Try exact match
@@ -85,8 +86,16 @@ export function openApiValidator(_req: Request, _res: Response, next: NextFuncti
     requiredFields.length > 0 &&
     (_req.method === "POST" || _req.method === "PUT" || _req.method === "PATCH")
   ) {
+    // Guard: a body that is not a plain object (array, string, number,
+    // null, undefined) can never satisfy required fields. Without this
+    // check `body[f]` on a non-object body would silently pass.
+    const body = _req.body;
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      next(new ValidationError("Request body must be a JSON object", { fields: requiredFields }));
+      return;
+    }
     const missing = requiredFields.filter((f) => {
-      const value = _req.body ? _req.body[f] : undefined;
+      const value = (body as Record<string, unknown>)[f];
       return value === undefined || value === null;
     });
     if (missing.length > 0) {

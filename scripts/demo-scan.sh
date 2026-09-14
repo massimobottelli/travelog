@@ -2,8 +2,9 @@
 # Travelog MVP1 — Quick scan demo script
 # Usage: ./scripts/demo-scan.sh [photo_folder]
 
-GEOCOAPIFY_API_KEY="${GEOCOAPIFY_API_KEY:-9f1b3729ec244a4e962131929daee414}"
-GEOCOAPIFY_URL="https://api.geoapify.com/v1/geocode/reverse"
+# Requires GEOAPIFY_API_KEY in the environment (Geoapify API key)
+: "${GEOAPIFY_API_KEY:?GEOAPIFY_API_KEY non impostata: esportala prima di eseguire lo script}"
+GEOAPIFY_URL="https://api.geoapify.com/v1/geocode/reverse"
 
 print_header() {
   echo ""
@@ -41,7 +42,7 @@ except Exception:
 geocode() {
   local lat="$1" lon="$2"
   curl -s --max-time 15 \
-    "${GEOCOAPIFY_URL}?lat=${lat}&lon=${lon}&apiKey=${GEOCOAPIFY_API_KEY}&format=json" \
+    "${GEOAPIFY_URL}?lat=${lat}&lon=${lon}&apiKey=${GEOAPIFY_API_KEY}&format=json" \
     | jq -r '.results[0] // empty | "\(.city // .town // "")|\(.state // .region // "")|\(.county // "")|\(.country_code // "")|\(.postcode // "")"' 2>/dev/null || echo "ERROR"
 }
 

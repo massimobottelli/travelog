@@ -68,6 +68,33 @@ export class ApiError extends Error {
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
+/** Build the network-failure ApiError (backend unreachable). */
+function networkError(): ApiError {
+  return new ApiError(0, {
+    code: "NETWORK_ERROR",
+    message: "Impossibile contattare il server. Verifica che il backend sia in esecuzione.",
+    details: {},
+  });
+}
+
+/**
+ * Convert a non-2xx response to an ApiError following the API error
+ * contract. Falls back to a generic body when the response is not JSON.
+ */
+async function toApiError(response: Response): Promise<ApiError> {
+  let errorBody: ApiErrorBody = {
+    code: "INTERNAL_ERROR",
+    message: `Richiesta fallita con stato HTTP ${response.status}`,
+    details: {},
+  };
+  try {
+    errorBody = (await response.json()) as ApiErrorBody;
+  } catch {
+    // Response body was not JSON; keep the generic error body
+  }
+  return new ApiError(response.status, errorBody);
+}
+
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
@@ -88,25 +115,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       body: hasBody ? JSON.stringify(options.body) : undefined,
     });
   } catch {
-    throw new ApiError(0, {
-      code: "NETWORK_ERROR",
-      message: "Impossibile contattare il server. Verifica che il backend sia in esecuzione.",
-      details: {},
-    });
+    throw networkError();
   }
 
   if (!response.ok) {
-    let errorBody: ApiErrorBody = {
-      code: "INTERNAL_ERROR",
-      message: `Richiesta fallita con stato HTTP ${response.status}`,
-      details: {},
-    };
-    try {
-      errorBody = (await response.json()) as ApiErrorBody;
-    } catch {
-      // Response body was not JSON; keep the generic error body
-    }
-    throw new ApiError(response.status, errorBody);
+    throw await toApiError(response);
   }
 
   if (response.status === 204) {
@@ -126,25 +139,11 @@ export async function apiDownload(path: string, fallbackFilename: string): Promi
   try {
     response = await fetch(`${BASE_URL}${path}`, { method: "GET" });
   } catch {
-    throw new ApiError(0, {
-      code: "NETWORK_ERROR",
-      message: "Impossibile contattare il server. Verifica che il backend sia in esecuzione.",
-      details: {},
-    });
+    throw networkError();
   }
 
   if (!response.ok) {
-    let errorBody: ApiErrorBody = {
-      code: "INTERNAL_ERROR",
-      message: `Richiesta fallita con stato HTTP ${response.status}`,
-      details: {},
-    };
-    try {
-      errorBody = (await response.json()) as ApiErrorBody;
-    } catch {
-      // Response body was not JSON; keep the generic error body
-    }
-    throw new ApiError(response.status, errorBody);
+    throw await toApiError(response);
   }
 
   const disposition = response.headers.get("Content-Disposition") ?? "";

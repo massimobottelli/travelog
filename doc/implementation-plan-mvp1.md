@@ -1432,7 +1432,7 @@ usa lo stato `failed` con messaggio diagnostico invece di introdurne uno nuovo
 >   503 senza chiave, 404 place sconosciuto) + test UI aggiornati.
 >   Totale: **165 test backend, 62 test frontend**.
 > * Nessuna migration (nessun cambio schema) e nessuna nuova variabile env
->   (si riusa `GEOCOAPIFY_API_KEY`). `doc/technical-design-mvp1.md` §49.1
+>   (si riusa `GEOAPIFY_API_KEY`). `doc/technical-design-mvp1.md` §49.1
 >   aggiornato con la decisione architetturale.
 
 ---

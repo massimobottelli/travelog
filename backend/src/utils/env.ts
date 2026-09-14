@@ -35,7 +35,7 @@ export const env = {
     return process.env.EXIFTOOL_PATH ?? "exiftool";
   },
   get geoapifyApiKey() {
-    return process.env.GEOCOAPIFY_API_KEY;
+    return process.env.GEOAPIFY_API_KEY;
   },
   /** Functional defaults (used when the settings row is created). */
   get defaultMinConsecutiveDaysWithPhotos() {

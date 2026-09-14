@@ -43,28 +43,28 @@ afterAll(async () => {
 
 describe("GET /api/localities/autocomplete", () => {
   it("returns 400 without a query", async () => {
-    process.env.GEOCOAPIFY_API_KEY = process.env.GEOCOAPIFY_API_KEY ?? "test-key";
+    process.env.GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY ?? "test-key";
     const res = await request(server).get("/api/localities/autocomplete");
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("VALIDATION_ERROR");
   });
 
   it("returns 503 when the Geoapify API key is not configured", async () => {
-    const previous = process.env.GEOCOAPIFY_API_KEY;
-    delete process.env.GEOCOAPIFY_API_KEY;
+    const previous = process.env.GEOAPIFY_API_KEY;
+    delete process.env.GEOAPIFY_API_KEY;
     try {
       const res = await request(server).get("/api/localities/autocomplete?q=Verona");
       expect(res.status).toBe(503);
       expect(res.body.code).toBe("GEOAPIFY_NOT_CONFIGURED");
     } finally {
-      process.env.GEOCOAPIFY_API_KEY = previous;
+      process.env.GEOAPIFY_API_KEY = previous;
     }
   });
 
   it("proxies the search to Geoapify and returns suggestions", async () => {
     const fetchMock = vi.fn(async (_url: string | URL) => geoapifyResponse(VERONA_PROPS));
     vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
-    process.env.GEOCOAPIFY_API_KEY = "test-key";
+    process.env.GEOAPIFY_API_KEY = "test-key";
 
     const res = await request(server).get("/api/localities/autocomplete?q=Verona");
     expect(res.status).toBe(200);
@@ -82,7 +82,7 @@ describe("GET /api/localities/autocomplete", () => {
 
 describe("POST /api/localities/resolve", () => {
   it("requires placeId", async () => {
-    process.env.GEOCOAPIFY_API_KEY = "test-key";
+    process.env.GEOAPIFY_API_KEY = "test-key";
     const res = await request(server).post("/api/localities/resolve").send({});
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("VALIDATION_ERROR");
@@ -91,7 +91,7 @@ describe("POST /api/localities/resolve", () => {
   it("resolves a place into a persisted locality (idempotent)", async () => {
     const fetchMock = vi.fn(async (_url: string | URL) => geoapifyResponse(VERONA_PROPS));
     vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
-    process.env.GEOCOAPIFY_API_KEY = "test-key";
+    process.env.GEOAPIFY_API_KEY = "test-key";
 
     const first = await request(server).post("/api/localities/resolve").send({ placeId: PLACE_ID });
     expect(first.status).toBe(200);
@@ -126,7 +126,7 @@ describe("POST /api/localities/resolve", () => {
         async () => new Response(JSON.stringify({ features: [] }), { status: 200 }),
       ) as unknown as typeof fetch,
     );
-    process.env.GEOCOAPIFY_API_KEY = "test-key";
+    process.env.GEOAPIFY_API_KEY = "test-key";
 
     const res = await request(server).post("/api/localities/resolve").send({ placeId: "nope" });
     expect(res.status).toBe(404);

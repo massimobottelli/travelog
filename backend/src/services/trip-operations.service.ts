@@ -18,6 +18,7 @@ import { pool as dbPool } from "../db/client.js";
 import type { PoolClient } from "pg";
 import tripsRepository from "../repositories/trips.repository.js";
 import operationsRepository from "../repositories/operations.repository.js";
+import logger from "../config/logger.js";
 import type { TripDto } from "../repositories/trips.repository.js";
 import type { TripOperationDto as HistoryOperationDto } from "../repositories/operations.repository.js";
 
@@ -124,7 +125,10 @@ class TripOperationsService {
         resultTripIds: [first.id, second.id],
         details: { splitDate },
       });
-      console.log(`[trip] trip.split original=${tripId} results=${first.id},${second.id}`);
+      logger.info(
+        { originalTripId: tripId, firstTripId: first.id, secondTripId: second.id },
+        "trip.split",
+      );
       return { operation, trips: [first, second] };
     });
   }
@@ -198,7 +202,7 @@ class TripOperationsService {
           mergedIntervals: trips.map((t) => ({ startDate: t.startDate, endDate: t.endDate })),
         },
       });
-      console.log(`[trip] trip.merged sources=${uniqueIds.join(",")} result=${merged.id}`);
+      logger.info({ sourceTripIds: uniqueIds, mergedTripId: merged.id }, "trip.merged");
       return { operation, trips: [merged] };
     });
   }
@@ -230,7 +234,7 @@ class TripOperationsService {
         },
       });
       await tripsRepository.deleteTrip(tripId);
-      console.log(`[trip] trip.deleted id=${tripId} (${trip.startDate} → ${trip.endDate})`);
+      logger.info({ tripId, startDate: trip.startDate, endDate: trip.endDate }, "trip.deleted");
     });
   }
 

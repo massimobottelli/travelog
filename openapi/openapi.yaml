@@ -910,7 +910,7 @@ paths:
       description: |
         Proxies the Geoapify Geocoding Autocomplete API to search any place
         worldwide, not only localities already imported from photo geocoding.
-        Requires the GEOCOAPIFY_API_KEY environment variable to be configured.
+        Requires the GEOAPIFY_API_KEY environment variable to be configured.
         The results are suggestions: use POST /localities/resolve to persist
         the chosen place and obtain a Locality with an id usable for
         exclusion zones.

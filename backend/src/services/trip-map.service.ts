@@ -11,6 +11,7 @@
  * only by the explicit recalculation.
  */
 
+import logger from "../config/logger.js";
 import tripsRepository, {
   type BoundingBoxDto,
   type MapMarkerDto,
@@ -128,7 +129,7 @@ function buildOverviewResponse(
 export async function getOverviewMap(): Promise<TripsOverviewMapResponse> {
   const cached = await tripsRepository.getOverviewMapCache();
   if (cached) {
-    console.log(`[overview-map] cache hit (computed at ${cached.computedAt})`);
+    logger.info({ computedAt: cached.computedAt }, "overview_map.cache_hit");
     return buildOverviewResponse(cached, cached.computedAt);
   }
   return recalculateOverviewMap("cache miss");
@@ -145,9 +146,9 @@ export async function recalculateOverviewMap(
   const startedAt = Date.now();
   const data = await tripsRepository.getTripsOverviewMapData();
   const computedAt = await tripsRepository.saveOverviewMapCache(data);
-  console.log(
-    `[overview-map] recomputed (${reason}) in ${Date.now() - startedAt}ms: ` +
-      `${data.markers.length} localities`,
+  logger.info(
+    { reason, durationMs: Date.now() - startedAt, localities: data.markers.length },
+    "overview_map.recomputed",
   );
   return buildOverviewResponse(data, computedAt);
 }

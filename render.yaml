@@ -15,13 +15,11 @@ services:
         fromDatabase:
           name: travelog-db
           property: connectionString
-          value: postgresql://travelog:wYPyHrYHRZhhZrWXnQLYpgvw1qrc8qGH@dpg-dacjo4navr4c73fg1at0-a/travelog_6wn3
       - key: CORS_ORIGIN
         value: https://travelog-app-frontend.onrender.com
       - key: FRONTEND_URL
         value: https://travelog-app-frontend.onrender.com
-      - key: GEOCOAPIFY_API_KEY
-        value: 9f1b3729ec244a4e962131929daee414 
+      - key: GEOAPIFY_API_KEY
         sync: false # Render chiederà di inserire questa chiave al primo deploy
       - key: NODE_VERSION
         value: "22.0.0"

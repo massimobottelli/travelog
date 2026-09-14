@@ -22,6 +22,7 @@ import tripCalculationService from "../services/trip-calculation.service.js";
 import { upsertPresence } from "../repositories/presences.repository.js";
 import { NotFoundError, ConflictError, ValidationError } from "../models/errors.js";
 import { SCAN_LOCK_ID } from "../config/locks.js";
+import logger from "../config/logger.js";
 import configService from "./config.service.js";
 import { enumerateSupportedFiles, type ScanEntry } from "../scans/photo-enumeration.js";
 import { readExif } from "../scans/exiftool.js";
@@ -102,7 +103,7 @@ class ScansService {
       throw err;
     }
     this.runScan(scanRecord.id, folder).catch((err) => {
-      console.error("[scanner] Fatal:", err);
+      logger.error({ err, scanId: scanRecord.id }, "scan.fatal");
     });
     return scanRecord;
   }
@@ -133,7 +134,7 @@ class ScansService {
     const cnt = { fa: 0, np: 0, ep: 0, xp: 0, er: 0 };
     try {
       const entries = await enumerateSupportedFiles(targetDir);
-      console.log(`[scanner] Found ${entries.length} supported photos in ${targetDir}`);
+      logger.info({ filesTotal: entries.length, targetDir, scanId }, "scan.enumerated");
       // The total is known right after enumeration (includes subfolders):
       // persist it so the frontend can render a proportional progress bar.
       await scansRepository
@@ -153,7 +154,7 @@ class ScansService {
         } catch (err) {
           cnt.er++;
           const msg = err instanceof Error ? err.message : "Unknown";
-          console.error(`[scanner] Process fail ${entry.fileName}:`, msg);
+          logger.error({ scanId, file: entry.fileName, error: msg }, "scan.file.failed");
           await scanErrorsRepository
             .insertScanError({
               scanId,
@@ -175,24 +176,22 @@ class ScansService {
         }
       }
       if (cancelled) {
-        console.log(`[scanner] Scan ${scanId} cancelled by user after ${cnt.fa} file(s)`);
+        logger.warn({ scanId, filesAnalyzed: cnt.fa }, "scan.cancelled");
         await scansRepository.updateScan(scanId, {
           status: "stopped",
           endedAt: new Date(),
         });
       } else {
-        console.log(`[scanner] Scan ${scanId} completed`);
+        logger.info({ scanId, ...cnt }, "scan.completed");
         await this.finalizeSuccess(scanId, cnt);
         // Phase 5 (requirements §10.6): new photos may create new trips;
         // existing trips are never modified automatically (§11). A failure
         // here must not invalidate the completed scan.
         try {
           const result = await tripCalculationService.generateTrips();
-          console.log(
-            `[scanner] Trip generation after scan ${scanId}: ${result.tripsCreated} new trip(s)`,
-          );
+          logger.info({ scanId, tripsCreated: result.tripsCreated }, "scan.trip.generation.done");
         } catch (err) {
-          console.error(`[scanner] Trip generation after scan ${scanId} failed:`, err);
+          logger.error({ err, scanId }, "scan.trip.generation.failed");
         }
       }
       this.cancelledScans.delete(scanId);
@@ -230,7 +229,17 @@ class ScansService {
           message: "Failed to read EXIF",
         })
         .catch(() => {});
-      await this.saveExcluded(entry, "EXIF unreadable");
+      const saved = await this.saveExcluded(entry, "EXIF unreadable");
+      if (!saved) {
+        await scanErrorsRepository
+          .insertScanError({
+            scanId,
+            filePath: entry.absolutePath,
+            errorCode: "EXCLUSION_SAVE_ERROR",
+            message: "Failed to persist excluded photo after EXIF read failure",
+          })
+          .catch(() => undefined);
+      }
       return;
     }
     const input = photosRepository.buildPhotoInput(entry, exif);
@@ -269,15 +278,33 @@ class ScansService {
         })
         .catch((err) => {
           cnt.er++;
-          console.error(`[scanner] TX fail ${entry.fileName}:`, err);
+          logger.error({ err, scanId, file: entry.fileName }, "scan.file.tx_failed");
         });
     } else {
-      await this.saveExcluded(entry, input.exclusionReason ?? "Missing fields");
+      const saved = await this.saveExcluded(entry, input.exclusionReason ?? "Missing fields");
+      if (!saved) {
+        // Do not hide the failure (rules §23/§38): count it and persist a
+        // diagnostic record so the scan errors view shows it.
+        cnt.er++;
+        await scanErrorsRepository
+          .insertScanError({
+            scanId,
+            filePath: entry.absolutePath,
+            errorCode: "EXCLUSION_SAVE_ERROR",
+            message: `Failed to persist excluded photo: ${input.exclusionReason ?? "Missing fields"}`,
+          })
+          .catch(() => undefined);
+      }
       cnt.xp++;
     }
   }
 
-  private async saveExcluded(entry: ScanEntry, reason: string): Promise<void> {
+  /**
+   * Persist an excluded photo in its own transaction.
+   * Returns true on success; on failure the error is logged and reported
+   * to the caller instead of being silently swallowed.
+   */
+  private async saveExcluded(entry: ScanEntry, reason: string): Promise<boolean> {
     try {
       await dbPool.connect().then(async (cl) => {
         try {
@@ -300,7 +327,11 @@ class ScansService {
           cl.release();
         }
       });
-    } catch {}
+      return true;
+    } catch (err) {
+      logger.error({ err, file: entry.absolutePath }, "scan.excluded.save_failed");
+      return false;
+    }
   }
 
   private async finalizeSuccess(sid: number, cnt: Record<string, number>): Promise<void> {

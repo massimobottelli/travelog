@@ -7,6 +7,7 @@
 
 import geocodingRepository from "../repositories/geocoding.repository.js";
 import { normalizeCoordinates, makeLocalityHash } from "../utils/geocoding.js";
+import logger from "../config/logger.js";
 import type { Locality, ReverseGeocoder } from "../domain/reverse-geocoder.js";
 import {
   GeoapifyAutocomplete,
@@ -35,7 +36,7 @@ class GeocodingService {
           this.geocoder = new m.GeoapifyReverseGeocoder(geoapifyApiKey);
         })
         .catch(() => {
-          console.warn("[Geocoding] Geoapify module not loaded, geocoding disabled");
+          logger.warn("geocoding.module_load_failed");
         });
     }
   }
@@ -125,11 +126,11 @@ class GeocodingService {
 
   /** Autocomplete client (key read at call time so tests can configure it). */
   private getAutocomplete(): GeoapifyAutocomplete {
-    const apiKey = process.env.GEOCOAPIFY_API_KEY ?? null;
+    const apiKey = process.env.GEOAPIFY_API_KEY ?? null;
     if (!apiKey) {
       throw new AppError(
         "GEOAPIFY_NOT_CONFIGURED",
-        "Ricerca global non disponibile: chiave API Geoapify non configurata (GEOCOAPIFY_API_KEY)",
+        "Ricerca global non disponibile: chiave API Geoapify non configurata (GEOAPIFY_API_KEY)",
         503,
       );
     }
@@ -203,4 +204,4 @@ class GeocodingService {
   }
 }
 
-export default new GeocodingService(process.env.GEOCOAPIFY_API_KEY ?? null);
+export default new GeocodingService(process.env.GEOAPIFY_API_KEY ?? null);

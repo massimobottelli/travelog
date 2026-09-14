@@ -15,6 +15,7 @@ import type { PoolClient } from "pg";
 import { NotFoundError, ConflictError, ValidationError } from "../models/errors.js";
 import { addDays } from "../domain/trip-rules.js";
 import { buildTripsCsv } from "../utils/trips-export.js";
+import logger from "../config/logger.js";
 
 export interface TripQueryOptions {
   status?: "active" | "archived";
@@ -278,7 +279,7 @@ class TripsService {
         await tripsRepository.insertManualDays(trip.id, manualDays, client);
       }
       await client.query("COMMIT");
-      console.log(`[trip] trip.created manual id=${trip.id}`);
+      logger.info({ tripId: trip.id }, "trip.created_manual");
       return trip;
     } catch (err) {
       await client.query("ROLLBACK").catch(() => undefined);
@@ -369,8 +370,9 @@ class TripsService {
     } finally {
       client.release();
     }
-    console.log(
-      `[trip] trip.days.adjusted id=${trip.id} exclusions=${exclusions.length} manualDays=${manualRows.length}`,
+    logger.info(
+      { tripId: trip.id, exclusions: exclusions.length, manualDays: manualRows.length },
+      "trip.days_adjusted",
     );
     return this.getTrip(trip.id);
   }
@@ -441,7 +443,7 @@ class TripsService {
     } finally {
       client.release();
     }
-    console.log(`[trip] trip.days.replaced id=${tripId} days=${rows.length}`);
+    logger.info({ tripId, days: rows.length }, "trip.days_replaced");
     return this.getTrip(tripId);
   }
 

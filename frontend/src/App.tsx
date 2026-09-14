@@ -14,6 +14,7 @@
 import { useState } from "react";
 import TopBar from "./components/TopBar";
 import { TopBarSlotProvider } from "./components/TopBarSlot";
+import ErrorBoundary from "./components/ErrorBoundary";
 import ScansPage from "./pages/ScansPage";
 import PhotosPage from "./pages/PhotosPage";
 import TripsPage from "./pages/TripsPage";
@@ -39,11 +40,15 @@ function App() {
           onOpenSettings={() => navigate("/settings")}
         />
         <main className="app-main">
-          {route.name === "scans" && <ScansPage onNavigateTrips={() => navigate("/trips")} />}
-          {route.name === "photos" && <PhotosPage />}
-          {route.name === "trips" && <TripsPage key={navSeq} />}
-          {route.name === "tripDetail" && <TripDetailPage tripId={route.tripId} />}
-          {route.name === "settings" && <SettingsPage />}
+          {/* Each page is wrapped individually: a rendering error in one
+              page shows the fallback UI without taking down the shell. */}
+          <ErrorBoundary>
+            {route.name === "scans" && <ScansPage onNavigateTrips={() => navigate("/trips")} />}
+            {route.name === "photos" && <PhotosPage />}
+            {route.name === "trips" && <TripsPage key={navSeq} />}
+            {route.name === "tripDetail" && <TripDetailPage tripId={route.tripId} />}
+            {route.name === "settings" && <SettingsPage />}
+          </ErrorBoundary>
         </main>
       </div>
     </TopBarSlotProvider>

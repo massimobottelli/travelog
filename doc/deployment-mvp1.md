@@ -96,7 +96,7 @@ Variabili principali (vedi `.env.example` e technical design §8):
 | `HOST` / `PORT` | `0.0.0.0` / `3000`                                |
 | `CORS_ORIGIN`   | Origine frontend (dietro Nginx: stessa origin, CORS irrilevante) |
 | `EXIFTOOL_PATH` | `exiftool`                                        |
-| `GEOCOAPIFY_API_KEY` | chiave Geoapify (opzionale: senza chiave il geocoding viene saltato ma le scansioni completano) |
+| `GEOAPIFY_API_KEY` | chiave Geoapify (opzionale: senza chiave il geocoding viene saltato ma le scansioni completano) |
 
 ## 6. Build e migrations
 

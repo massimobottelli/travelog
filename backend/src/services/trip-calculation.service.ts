@@ -17,6 +17,7 @@ import presencesRepository, { type PresenceRow } from "../repositories/presences
 import tripsRepository from "../repositories/trips.repository.js";
 import exclusionZonesRepository from "../repositories/exclusion-zones.repository.js";
 import settingsService from "./settings.service.js";
+import logger from "../config/logger.js";
 import {
   groupDaysIntoTrips,
   clipIntervalsAgainstBlocked,
@@ -168,7 +169,10 @@ class TripCalculationService {
         endDate: trip.endDate,
       });
       tripsCreated += 1;
-      console.log(`[trip] trip.created id=${created.id} ${trip.startDate} → ${trip.endDate}`);
+      logger.info(
+        { tripId: created.id, startDate: trip.startDate, endDate: trip.endDate },
+        "trip.created",
+      );
     }
     return { tripsCreated };
   }

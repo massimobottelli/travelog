@@ -8,6 +8,7 @@
 
 import express from "express";
 import cors from "cors";
+import { env } from "./utils/env.js";
 import { loadOpenApiSpec } from "./utils/openapi.js";
 import { openApiValidator } from "./middleware/openapi.js";
 import { errorHandler } from "./middleware/error.js";
@@ -21,21 +22,22 @@ import settingsRoutes from "./routes/settings.routes.js";
 import exclusionZonesRoutes from "./routes/exclusion-zones.routes.js";
 import localitiesRoutes from "./routes/localities.routes.js";
 import operationsRoutes from "./routes/operations.routes.js";
+import logger from "./config/logger.js";
 
 export function createApp(): ReturnType<typeof express> {
-  const API_PREFIX = process.env.API_PREFIX ?? "/api";
+  const API_PREFIX = env.apiPrefix;
 
   const app = express();
 
   // ── Global middleware ────────────────────────────────────────
-  app.use(cors({ origin: process.env.CORS_ORIGIN ?? "http://localhost:5173" }));
+  app.use(cors({ origin: env.corsOrigin }));
   app.use(express.json());
 
   // ── Load OpenAPI spec (non-fatal if missing) ─────────────────
   try {
     loadOpenApiSpec();
   } catch (err) {
-    console.error("[WARN] Failed to load OpenAPI spec:", err);
+    logger.warn({ err }, "openapi.spec_load_failed");
   }
 
   // OpenAPI validation middleware

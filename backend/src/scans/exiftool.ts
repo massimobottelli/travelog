@@ -114,7 +114,10 @@ function parseExifOutput(obj: Record<string, unknown>): RawExifData {
 
 /**
  * DateTimeOriginal comes back as e.g. "2025:08:15 14:30:00"
- * We normalize to ISO-like date-time string for database storage.
+ * We normalize to the naive timestamp "YYYY-MM-DD HH:MM:SS" for database storage.
+ * The EXIF value has no timezone: it is treated as local wall-clock time
+ * and must NOT be converted (no Date()/toISOString(), which would shift
+ * it to UTC based on the server timezone — project rules §17).
  * Returns null if missing or malformed.
  */
 function parseDateTimeOriginal(value: unknown): string | null {
@@ -125,14 +128,16 @@ function parseDateTimeOriginal(value: unknown): string | null {
   if (!match) return null;
 
   const [, year, month, day, hour, minute, second] = match;
-  const formatted = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
 
-  // Basic validation
-  const date = new Date(formatted);
-  if (isNaN(date.getTime())) return null;
+  // Calendar validation without Date() to avoid any timezone involvement
+  const monthNum = Number(month);
+  const dayNum = Number(day);
+  if (monthNum < 1 || monthNum > 12 || dayNum < 1 || dayNum > 31) return null;
+  if (Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;
+  if ([4, 6, 9, 11].includes(monthNum) && dayNum > 30) return null;
+  if (monthNum === 2 && dayNum > 29) return null;
 
-  // Return naive timestamp without timezone
-  return date.toISOString().replace("Z", "").replace("T", " ");
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
 /**
@@ -146,57 +151,32 @@ function parseGps(obj: Record<string, unknown>): {
   latitude: number | null;
   longitude: number | null;
 } {
-  const lat = parseSingleCoordinate(obj.GPSLatitude, obj.GPSLatitudeRef);
-
-  const lon = parseSingleCoordinate(obj.GPSLongitude, obj.GPSLongitudeRef);
-
+  const lat = parseSingleCoordinateString(obj.GPSLatitude, obj.GPSLatitudeRef);
+  const lon = parseSingleCoordinateString(obj.GPSLongitude, obj.GPSLongitudeRef);
   return { latitude: lat, longitude: lon };
 }
 
 /**
  * Convert a GPS coordinate string "37 deg 52' 52.44\" N" to decimal degrees.
  * This is the format ExifTool returns by default in JSON output.
+ * The hemisphere suffix in the string already encodes the sign; the Ref
+ * field (N/S/E/W) is used only as a fallback when the suffix is absent.
  */
-function parseSingleCoordinateString(coordStr: string, ref: unknown): number | null {
-  // Format: "NN deg MM' SS.SS\" [NSEW]"
-  const match = coordStr.match(/^(\d+) deg (\d+)' ([\d.]+)"\s+(N|S|E|W)$/);
+function parseSingleCoordinateString(coordStr: unknown, ref: unknown): number | null {
+  if (typeof coordStr !== "string") return null;
+
+  // Format: "NN deg MM' SS.SS\" [NSEW]" (hemisphere suffix optional)
+  const match = coordStr.match(/^(\d+) deg (\d+)' ([\d.]+)"\s*(N|S|E|W)?$/);
   if (!match) return null;
 
   const [, deg, min, sec, hemisphere] = match;
   let decimal = Number(deg) + Number(min) / 60 + Number(sec) / 3600;
 
-  if (hemisphere === "S" || hemisphere === "W") {
-    decimal = -decimal;
-  }
-
-  return decimal;
-}
-
-/**
- * Convert a GPS coordinate array [deg, min, sec] + Ref to decimal degrees.
- * Kept for potential future raw-format usage.
- */
-function parseSingleCoordinate(coord: unknown, ref: unknown): number | null {
-  if (!Array.isArray(coord) || coord.length < 3) {
-    // Try string format instead
-    if (typeof coord === "string") {
-      return parseSingleCoordinateString(coord, ref);
-    }
-    return null;
-  }
-
-  const [deg, min, sec] = coord;
-  if (typeof deg !== "number" || typeof min !== "number" || typeof sec !== "number") {
-    return null;
-  }
-
-  let decimal = deg + min / 60 + sec / 3600;
-
-  if (typeof ref === "string") {
-    if (ref === "S" || ref === "W") {
-      decimal = -decimal;
-    }
-  }
+  const isNegative =
+    hemisphere === "S" ||
+    hemisphere === "W" ||
+    (hemisphere === undefined && (ref === "S" || ref === "W"));
+  if (isNegative) decimal = -decimal;
 
   return decimal;
 }

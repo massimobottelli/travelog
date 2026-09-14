@@ -5,6 +5,7 @@
 import type { Request, Response } from "express";
 import settingsService from "../services/settings.service.js";
 import tripCalculationService from "../services/trip-calculation.service.js";
+import logger from "../config/logger.js";
 
 class SettingsController {
   async getSettings(_req: Request, res: Response): Promise<void> {
@@ -28,8 +29,8 @@ class SettingsController {
     // in the background; the 202 response follows the OpenAPI contract.
     void tripCalculationService
       .recalculate()
-      .then((r) => console.log(`[recalculate] done: ${r.tripsCreated} new trip(s)`))
-      .catch((err) => console.error("[recalculate] failed:", err));
+      .then((r) => logger.info({ tripsCreated: r.tripsCreated }, "recalculate.done"))
+      .catch((err) => logger.error({ err }, "recalculate.failed"));
     res.status(202).json({ status: "ACCEPTED" });
   }
 }

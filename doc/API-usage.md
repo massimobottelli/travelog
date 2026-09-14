@@ -971,7 +971,7 @@ curl "http://localhost:3000/api/localities/search?q=milano&limit=2"
 ### `GET /api/localities/autocomplete`
 
 Ricerca globale di qualsiasi luogo del mondo tramite la Geoapify Address
-Autocomplete API (proxy). Richiede la variabile d'ambiente `GEOCOAPIFY_API_KEY`.
+Autocomplete API (proxy). Richiede la variabile d'ambiente `GEOAPIFY_API_KEY`.
 I risultati sono **suggerimenti**: per persistere il luogo scelto e ottenere
 una `Locality` con id usabile nelle zone di esclusione, va chiamato poi
 `POST /api/localities/resolve`.

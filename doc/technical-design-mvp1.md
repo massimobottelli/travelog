@@ -154,7 +154,7 @@ Durante ogni scansione, per le foto con coordinate GPS valide:
 3. Se la cache è miss, si chiama Geoapify che restituisce i dati amministrativi (città, provincia, regione, stato, paese).
 4. Il risultato viene salvato in `localities` + `geocoding_cache`.
 
-L'API è configurata tramite l'environment variable `GEOCOAPIFY_API_KEY`.
+L'API è configurata tramite l'environment variable `GEOAPIFY_API_KEY`.
 Se non configurata, il geocoding viene saltato ma la scansione prosegue (le foto vengono comunque salvate, solo senza informazioni geografiche).
 
 ### Provider alternativi
@@ -461,7 +461,7 @@ The MVP1 environment configuration is:
 | `NODE_ENV`            | Node.js runtime environment                              | `development`                                            |
 | `LOG_LEVEL`           | Application log level                                    | `info`                                                   |
 | `EXIFTOOL_PATH`       | Path/name of the `exiftool` executable                   | `exiftool`                                               |
-| `GEOCOAPIFY_API_KEY`  | Geoapify reverse-geocoding API key (optional)            | `your-api-key` (empty = geocoding skipped, scan continues) |
+| `GEOAPIFY_API_KEY`  | Geoapify reverse-geocoding API key (optional)            | `your-api-key` (empty = geocoding skipped, scan continues) |
 | `DEFAULT_MIN_CONSECUTIVE_DAYS_WITH_PHOTOS` | Default for the "Giorni consecutivi con foto" setting | `2` |
 | `DEFAULT_DAYS_WITHOUT_PHOTOS_THRESHOLD`    | Default for the "Giorni consecutivi senza foto" setting | `3` |
 
@@ -494,7 +494,7 @@ singleton table (`id=1`) and are editable from the Settings page.
 | `NODE_ENV`            | `development`       | Runtime environment                      |
 | `LOG_LEVEL`           | `info`              | Log level                                |
 | `EXIFTOOL_PATH`       | `exiftool`          | ExifTool executable path                 |
-| `GEOCOAPIFY_API_KEY`  | empty (geocoding skipped) | Geoapify API key                   |
+| `GEOAPIFY_API_KEY`  | empty (geocoding skipped) | Geoapify API key                   |
 
 **Database settings** (table `settings`, single row `id=1`, Settings page →
 "Salva impostazioni"; they affect only the generation of NEW trips):
@@ -1753,7 +1753,7 @@ ricerca **globale** basata sulla **Geoapify Address Autocomplete API**:
 
 * `GET /api/localities/autocomplete?q=&limit=` — proxy backend verso
   `https://api.geoapify.com/v1/geocode/autocomplete`. La chiave
-  `GEOCOAPIFY_API_KEY` resta sul server (nessuna chiamata diretta del
+  `GEOAPIFY_API_KEY` resta sul server (nessuna chiamata diretta del
   browser a Geoapify, nessuna libreria frontend aggiuntiva). Se la chiave
   non è configurata l'API risponde `503 GEOAPIFY_NOT_CONFIGURED`.
 * `POST /api/localities/resolve` (body `{ placeId }`) — scarica i dettagli
