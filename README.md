@@ -1,303 +1,182 @@
-# Travelog
+# Travelog 🧳📷
 
-Travelog is a self-hosted application for organizing a personal photo collection into trips.
+**Travelog** è un'applicazione web **self-hosted** che trasforma il tuo archivio fotografico in un catalogo automatico dei tuoi viaggi.
 
-It scans a photo archive stored on the filesystem, extracts metadata from photos, associates photos with geographic locations, and automatically identifies trips.
+Analizza le foto conservate su qualsiasi cartella del filesystem, legge data e coordinate GPS dagli EXIF, associa ogni scatto a una località e ricostruisce automaticamente i **viaggi**.
 
-The application is designed for personal use.
+> ⚠️ Travelog è pensato per un uso **personale** in una rete locale affidabile (single-user). Non implementa autenticazione e non deve essere esposto direttamente a Internet.
 
-## Features
+---
 
-* scanning a photo directory;
-* extracting photo metadata from JPEG and HEIC/HEIF files;
-* storing photo metadata in PostgreSQL;
-* reverse-geocoding photo coordinates via the external Geoapify API (with a persistent geocoding cache);
-* identifying visits and trips from photo dates and locations;
-* viewing trips and their daily/location details;
-* manually renaming trips;
-* manually changing trip dates;
-* splitting trips;
-* merging two or more trips;
-* keeping the history of trip operations;
-* configuring geographic exclusion zones;
-* configuring trip-detection thresholds;
-* explicitly recalculating data after configuration changes.
+## ✨ Cosa fa Travelog
 
-Photos themselves are not served or displayed by the application .
+- **Scansiona l'archivio fotografico** — analisi ricorsiva della cartella configurata (JPEG/JPG e HEIC/HEIF), incrementale e idempotente: le foto già importate vengono riconosciute e mai duplicate.
+- **Estrae i metadati** — data/ora originale dello scatto (`EXIF DateTimeOriginal`) e coordinate GPS, conservate nel database così come compaiono negli EXIF.
+- **Reverse geocoding** — trasforma le coordinate in una località amministrativa (comune/località, provincia, regione, stato), con cache persistente.
+- **Genera i viaggi automaticamente** — aggrega le presenze per giorno e località, esclude le zone configurate (es. la zona di casa) e individua i periodi di viaggio in base alle soglie impostabili.
+- **Visualizza i viaggi** — elenco raggruppato per anno con ricerca, scheda dettaglio con cronologia giorno-per-giorno delle località visitate e mappa panoramica.
+- **Modifica manualmente** — rinomina, modifica date, dividi e unisci viaggi, o crea viaggi manuali giorno per giorno.
+- **Impostazioni flessibili** — foto minime per viaggio, giorni consecutivi senza foto prima della chiusura, zone di esclusione con ricerca globale delle località. Le modifiche alle soglie **non** modificano mai i viaggi già creati.
 
-## Project documentation
+### Cosa **non** fa
 
-The documentation is divided into four complementary documents:
+- Non mostra, copia o sposta le fotografie: il NAS rimane **read-only** e le foto sono solo la fonte dei dati.
+- Non effettua scansioni automatiche periodiche: la scansione è sempre avviata manualmente.
+- Non modifica mai automaticamente un viaggio già creato (nuove scansioni, soglie o ricalcoli non alterano i viaggi consolidati).
 
-* [`doc/functional-requirements-mvp1.md`](doc/functional-requirements-mvp1.md) — functional requirements and behavior.
-* [`doc/technical-design-mvp1.md`](doc/technical-design-mvp1.md) — technical architecture and implementation decisions.
-* [`doc/implementation-plan-mvp1.md`](doc/implementation-plan-mvp1.md) — implementation phases and tasks.
-* [`.clinerules`](.clinerules) — rules and working conventions for AI-assisted development with Cline.
-* [`openapi/openapi.yaml`](openapi/openapi.yaml) — REST API contract.
+---
 
-The functional requirements are the source of truth for application behavior.
-
-The technical design defines how that behavior is implemented.
-
-The OpenAPI document defines the API contract between frontend and backend.
-
-## Architecture
-
-Travelog is composed of separate frontend and backend applications.
+## 🚀 Come funziona
 
 ```text
-┌───────────────────────┐
-│      React + Vite     │
-│        Frontend       │
-└───────────┬───────────┘
-            │ REST / OpenAPI
-            ▼
-┌───────────────────────┐
-│ Node.js + TypeScript  │
-│       Express         │
-│       Backend         │
-└───────┬─────────┬─────┘
-        │         │
-        │         └──────────────┐
-        ▼                        ▼
-┌───────────────┐       ┌──────────────────┐
-│ PostgreSQL    │       │ Photo archive    │
-│ (+ ExifTool,  │       │  / filesystem    │
-│ Geoapify API) │       │                  │
-└───────────────┘       └──────────────────┘
+NAS / cartella foto
+      │  scansione manuale (background job)
+      ▼
+Estrazione EXIF (ExifTool)
+      ▼
+Data originale + GPS
+      ▼
+Reverse geocoding (Geoapify, con cache persistente)
+      ▼
+Giorno + Località + numero foto
+      ▼
+Zone di esclusione → Viaggi generati automaticamente
+      ▼
+Elenco viaggi · Scheda dettaglio · Modifica manuale
 ```
 
-The backend also runs the background scanning process.
+Durante la scansione l'interfaccia mostra una **barra di avanzamento in tempo reale** (percentuale, file analizzati, errori). Un file problematico non interrompe mai la scansione: gli errori vengono registrati e riepilogati al termine.
 
-Scanning is asynchronous and can be monitored through the REST API using polling.
+---
 
-## Technology stack
+## 🏗️ Architettura in breve
 
-### Backend
+Frontend e backend sono applicazioni separate:
 
-* Node.js
-* TypeScript
-* Express
-* REST
-* OpenAPI 3.1
-* JSON Schema/OpenAPI validation
-* Drizzle ORM
-* PostgreSQL
-* `exiftool` as an external process
-* Geoapify reverse geocoding API (external HTTP service)
+- **Frontend**: React + TypeScript + Vite (build statico servito da Nginx)
+- **Backend**: Node.js + TypeScript + Express, con la scansione eseguita come background job nello stesso processo
+- **Database**: PostgreSQL (source of truth), accesso via Drizzle ORM
+- **Metadati**: `exiftool` come processo esterno
+- **Geocoding**: [Geoapify Reverse Geocoding API](https://apidocs.geoapify.com/docs/geocode/reverse) — l'architettura prevede un'interfaccia `ReverseGeocoder` sostituibile con altri provider
 
-### Frontend
+```text
+Browser → Nginx → /        → React static build
+               → /api/*    → Express (Node.js) → PostgreSQL
+                                            → NAS filesystem (read-only, via ExifTool)
+                                            → Geoapify API (solo durante le scansioni)
+```
 
-* React
-* Vite
-* TypeScript
-* browser `fetch`
-* generated TypeScript types from OpenAPI
+Il contratto REST API è definito in modo contract-first in [`openapi/openapi.yaml`](openapi/openapi.yaml).
 
-No additional client-side data-fetching/state-management framework is required .
+## 📦 Requisiti
 
-### Testing
+- Node.js 22 LTS (workspace dichiarato per `node >= 18`)
+- PostgreSQL
+- `exiftool` (Debian/Ubuntu: `libimage-exiftool-perl`)
+- Un archivio fotografico accessibile dal server (es. mount SMB/NFS del NAS in `/mnt/`)
+- Una [chiave API Geoapify](https://www.geoapify.com/) (il piano gratuito offre 3.000 richieste/giorno)
 
-* unit tests for domain and application logic;
-* integration tests for database and API behavior.
+## 🛠️ Installazione
 
-End-to-end browser testing is not required initially.
-
-### Infrastructure
-
-PostgreSQL/PostGIS runs directly on the development server.
-
-The photo archive is provided through a filesystem path.
-
-## Configuration
-
-Deployment/runtime configuration is provided through environment variables in
-a single `.env` file at the repository root (see [`.env.example`](.env.example)):
-database connection, HTTP server settings, ExifTool path and the optional
-Geoapify API key.
-
-Functional application settings (photo archive root, trip-detection
-thresholds, exclusion zones) are **not** environment variables: they are
-persisted in the PostgreSQL `settings` table and managed from the app
-Settings page.
-
-See [`doc/deployment-mvp1.md`](doc/deployment-mvp1.md) for the full Debian
-deployment procedure.
-
-## Build and deployment
-
-### Prerequisites
-
-* Node.js 22 LTS (the workspaces declare `node >= 18` as minimum engine)
-* PostgreSQL with the PostGIS extension
-* `exiftool` (Debian/Ubuntu package: `libimage-exiftool-perl`)
-
-On Debian/Ubuntu the provisioning script automates the system setup:
+Su Debian/Ubuntu lo script di provisioning automatizza i prerequisiti di sistema:
 
 ```bash
 scripts/setup-linux.sh
 ```
 
-### Installing dependencies
-
-The repository is an npm workspace containing `backend` and `frontend`:
+### Sviluppo
 
 ```bash
 npm ci
-```
-
-### Building
-
-A single command builds both applications — the backend with `tsc` and the
-frontend with `tsc -b && vite build`:
-
-```bash
-npm run build
-```
-
-Output:
-
-* backend → `backend/dist/`
-* frontend → `frontend/dist/` (static files, served by Nginx in production)
-
-### Database migrations
-
-The database schema is managed through versioned Drizzle migrations stored in
-the repository. Apply them before starting the application:
-
-```bash
+cp .env.example .env   # configura DATABASE_URL e le altre variabili
 npm run db:migrate --workspace=@travelog/backend
-# equivalent to: cd backend && npm run db:migrate
-```
-
-To create a new migration after changing the Drizzle schema:
-
-```bash
-npm run db:generate --workspace=@travelog/backend
-```
-
-### Running in development
-
-```bash
-cp .env.example .env   # fill in DATABASE_URL and the other values
 npm run dev            # backend (tsx watch) + frontend (Vite dev server)
 ```
 
-The API is served under `/api`; the Vite dev server proxies REST calls to the
-backend during development.
+L'API è servita sotto `/api`; il dev server Vite esegue il proxy verso il backend.
 
-### Running in production (Debian)
-
-The target deployment is a Debian server with PostgreSQL/PostGIS, Nginx and
-systemd. The full step-by-step procedure — system prerequisites, PostgreSQL
-setup, NAS mount, `.env` configuration, migrations, systemd unit and Nginx
-reverse proxy — is documented in
-[`doc/deployment-mvp1.md`](doc/deployment-mvp1.md). Summary:
+### Produzione (Debian)
 
 ```bash
 cd /opt/travelog
 npm ci
-npm run build
+npm run build                          # backend → backend/dist, frontend → frontend/dist
 npm run db:migrate --workspace=@travelog/backend
 
-# systemd service (backend on localhost:3000)
+# Servizio systemd (backend su localhost:3000)
 sudo cp deploy/travelog.service /etc/systemd/system/travelog.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now travelog
 
-# Nginx: serves frontend/dist/ on / and reverse-proxies /api/
+# Nginx: frontend statico su / e reverse proxy di /api/
 sudo cp deploy/nginx-travelog.conf /etc/nginx/sites-available/travelog
 sudo ln -sf /etc/nginx/sites-available/travelog /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Nginx serves a single origin: the static React build on `/` and the REST API
-in reverse proxy under `/api/`, so no CORS configuration is needed.
-
-Logs are written to stdout/stderr and forwarded by systemd to journald:
+Nginx serve un'unica origin (frontend su `/`, API in reverse proxy su `/api/`), quindi non è necessaria alcuna configurazione CORS. I log vengono scritti su stdout/stderr e raccolti da journald:
 
 ```bash
 journalctl -u travelog -f
 ```
 
-After the first start, configure the photo archive root and the trip-detection
-thresholds from the app Settings page (these are functional settings stored in
-the database, not environment variables).
-
-A post-deployment smoke test is available:
+Una verifica post-deploy è disponibile con:
 
 ```bash
 scripts/smoke-test.sh http://localhost/api
 ```
 
-### Updating an existing installation
+### Aggiornamento di un'installazione esistente
 
 ```bash
 cd /opt/travelog
-scripts/update-prod.sh   # git pull, npm ci, build, migrations, service restart
+scripts/update-prod.sh   # git pull, npm ci, build, migrations, restart servizio
 ```
 
-Or manually: `git pull`, `npm ci`, `npm run build`,
-`npm run db:migrate --workspace=@travelog/backend`,
-`sudo systemctl restart travelog`.
+## ⚙️ Configurazione
 
-## Database
+La configurazione si divide in due livelli:
 
-Travelog uses PostgreSQL.
+| Livello | Dove | Esempi |
+| --- | --- | --- |
+| Infrastrutturale | file `.env` (vedi [`.env.example`](.env.example)) | `DATABASE_URL`, `PORT`, `EXIFTOOL_PATH`, `GEOAPIFY_API_KEY` |
+| Funzionale | database, modificabile dalla pagina **Impostazioni** dell'app | percorso dell'archivio foto, soglie di rilevamento viaggi, zone di esclusione |
 
-Database schema changes are managed through versioned Drizzle migrations stored in the repository.
+Il percorso dell'archivio fotografico e le soglie di rilevamento sono impostazioni funzionali persistite in PostgreSQL: si configurano dall'app, senza riavvii. La procedura completa di deployment su Debian è documentata in [`doc/deployment-mvp1.md`](doc/deployment-mvp1.md).
 
-The application domain model is persisted in PostgreSQL rather than being derived directly from filesystem state.
+---
 
-Reverse geocoding is performed through the external Geoapify API during photo
-scans, with results cached persistently in the `geocoding_cache` table.
-No offline geographic datasets are imported.
 
-## Photo scanning
+## 📚 Documentazione
 
-Scanning is performed asynchronously by a Node.js background process.
+| Documento | Contenuto |
+| --- | --- |
+| [`doc/functional-requirements-mvp1.md`](doc/functional-requirements-mvp1.md) | Requisiti funzionali e comportamento dell'app (source of truth funzionale) |
+| [`doc/technical-design-mvp1.md`](doc/technical-design-mvp1.md) | Architettura tecnica e decisioni implementative |
+| [`doc/implementation-plan-mvp1.md`](doc/implementation-plan-mvp1.md) | Fasi e attività di implementazione |
+| [`doc/deployment-mvp1.md`](doc/deployment-mvp1.md) | Procedura di deployment su Debian |
+| [`openapi/openapi.yaml`](openapi/openapi.yaml) | Contratto REST API (OpenAPI 3.1) |
+| [`.clinerules`](.clinerules) | Regole e convenzioni per lo sviluppo assistito da AI |
 
-The scanner is designed to be:
+## 🧪 Sviluppo e test
 
-* idempotent;
-* restartable;
-* safe to run repeatedly;
-* protected against concurrent scans.
+- **Unit test** per la logica di dominio (regole dei viaggi, soglie, split/merge, validazioni).
+- **Integration test** su un database PostgreSQL dedicato (`travelog_test`, mai il database di sviluppo), con migrations applicate prima dell'esecuzione.
 
-The scanner invokes `exiftool` as an external process to extract metadata.
+Lo schema del database è evoluto tramite **migration Drizzle versionate** nel repository — mai con `drizzle-kit push` in produzione. Per creare una nuova migration dopo una modifica allo schema:
 
-Support:
-
-* JPEG;
-* HEIC/HEIF.
-
-Photos with incomplete required EXIF metadata are recorded appropriately and do not cause the entire scan to fail.
-
-Individual file errors are isolated from the rest of the scan whenever possible.
-
-## API
-
-The backend exposes a REST API under:
-
-```text
-/api
+```bash
+npm run db:generate --workspace=@travelog/backend
 ```
 
-The API contract is defined exclusively by:
+## 🔒 Privacy e sicurezza
 
-```text
-openapi/openapi.yaml
-```
+- Le fotografie restano sul NAS: Travelog non le modifica, non le sposta e non le serve dal browser.
+- I dati restano nel tuo PostgreSQL; l'unico servizio esterno è Geoapify, invocato solo durante le scansioni con coordinate normalizzate (≈1 km) e cache persistente per ridurre al minimo le chiamate.
+- Nessuna autenticazione: l'app è progettata per una rete locale affidabile, non per l'esposizione diretta a Internet.
 
-The OpenAPI contract follows a contract-first approach.
+## 🗺️ Roadmap
 
-TypeScript types used by the frontend are generated from OpenAPI rather than manually duplicated.
+La visualizzazione delle fotografie sono pianificate per MVP2.
 
-API errors use a uniform structure defined by OpenAPI.
-
-## Authentication
-
-No authentication or authorization.
-
-The application is intended to run in a trusted environment.
 
