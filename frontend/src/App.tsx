@@ -20,6 +20,7 @@ import PhotosPage from "./pages/PhotosPage";
 import TripsPage from "./pages/TripsPage";
 import TripDetailPage from "./pages/TripDetailPage";
 import SettingsPage from "./pages/SettingsPage";
+import StatsPage from "./pages/StatsPage";
 import { useRoute, navigate } from "./hooks/useRoute";
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
               page shows the fallback UI without taking down the shell. */}
           <ErrorBoundary key={route.name === "tripDetail" ? `detail-${route.tripId}` : route.name}>
             {route.name === "scans" && <ScansPage onNavigateTrips={() => navigate("/trips")} />}
+            {route.name === "stats" && <StatsPage />}
             {route.name === "photos" && <PhotosPage />}
             {route.name === "trips" && <TripsPage key={navSeq} />}
             {route.name === "tripDetail" && <TripDetailPage tripId={route.tripId} />}

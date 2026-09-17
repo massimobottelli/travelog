@@ -22,6 +22,7 @@ describe("useRoute", () => {
     expect(parseRoute("/scans")).toEqual({ name: "scans" });
     expect(parseRoute("/photos")).toEqual({ name: "photos" });
     expect(parseRoute("/settings")).toEqual({ name: "settings" });
+    expect(parseRoute("/stats")).toEqual({ name: "stats" });
     expect(parseRoute("/")).toEqual({ name: "trips" });
   });
 

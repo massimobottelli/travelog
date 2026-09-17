@@ -15,6 +15,7 @@ import GlobalActionMenu from "../GlobalActionMenu";
 function baseProps() {
   return {
     onScan: vi.fn(),
+    onStats: vi.fn(),
     onCreateTrip: vi.fn(),
     onExport: vi.fn(),
     onMerge: vi.fn(),
@@ -34,7 +35,7 @@ describe("GlobalActionMenu (new UI, phase 6)", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("opens the dropdown with the six global entries", () => {
+  it("opens the dropdown with the seven global entries", () => {
     render(<GlobalActionMenu {...baseProps()} />);
     fireEvent.click(trigger());
 
@@ -51,6 +52,7 @@ describe("GlobalActionMenu (new UI, phase 6)", () => {
       "Unisci Viaggi",
       "Aggiorna Lista Viaggi",
       "Ricalcola heatmap",
+      "Statistiche",
     ]);
   });
 
@@ -76,6 +78,8 @@ describe("GlobalActionMenu (new UI, phase 6)", () => {
     expect(props.onRecalculate).toHaveBeenCalledTimes(1);
     pick("Ricalcola heatmap");
     expect(props.onRecalculateOverview).toHaveBeenCalledTimes(1);
+    pick("Statistiche");
+    expect(props.onStats).toHaveBeenCalledTimes(1);
   });
 
   it("closes on Escape and on outside click", () => {

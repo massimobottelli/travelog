@@ -997,6 +997,25 @@ La pipeline funzionale complessiva è:
 
 ---
 
+# 24bis. Statistiche aggregate (17 settembre 2026)
+
+La pagina **Azioni → Statistiche** mostra sempre l'intero storico, senza filtri:
+
+- barre verticali per anno con toggle **Viaggi / Giorni**, default Viaggi;
+- tabella heatmap con righe anni (più recente prima), colonne gennaio–dicembre
+  e totale giorni annuale; gradiente bianco → verde, scala comune 0–31 giorni.
+
+Si considerano solo i viaggi attivi, inclusi quelli manuali, non gli archiviati.
+Ogni viaggio conta nell'anno di partenza; la durata completa inclusiva
+(`fine − inizio + 1`) viene ripartita nei mesi e anni effettivi, anche senza foto.
+Gli anni intermedi senza viaggi e i mesi vuoti riportano zero; l'intervallo
+copre sempre fino all'anno corrente, che appare anche senza viaggi.
+Questa metrica temporale usa i periodi salvati: non sottrae giorni in base a
+foto, zone correnti o esclusioni manuali di giorni/località. Le esclusioni
+geografiche continuano ad agire sulla generazione, non ricalcolano i viaggi
+storici; i viaggi manuali rimangono intenzione esplicita dell'utente.
+La consultazione non modifica dati né avvia ricalcoli.
+
 # 25. Criterio generale di progettazione
 
 L'applicazione deve privilegiare:

@@ -4,7 +4,8 @@
  * The primary "+ Azioni" dropdown of the top bar (UI §1.1): it
  * groups the entry points of the trips dashboard — Scansiona Foto, Crea
  * Viaggio, Esporta Lista, Unisci Viaggi — plus the two explicit refresh
- * commands: "Aggiorna Lista Viaggi" (§12 recalculation, background) and
+ * commands and the read-only "Statistiche" page: "Aggiorna Lista Viaggi"
+ * (§12 recalculation, background) and
  * "Ricalcola heatmap" (overview snapshot rebuild, migration 0017,
  * synchronous).
  *
@@ -23,9 +24,12 @@ import {
   PlusIcon,
   RefreshIcon,
   ScanIcon,
+  StatsIcon,
 } from "./icons";
 
 export interface GlobalActionMenuProps {
+  /** Opens full-history travel statistics. */
+  onStats: () => void;
   /** Opens the scan page. */
   onScan: () => void;
   /** Opens the manual trip creation modal (`TripDaysModal`). */
@@ -51,6 +55,7 @@ export interface GlobalActionMenuProps {
 }
 
 export default function GlobalActionMenu({
+  onStats,
   onScan,
   onCreateTrip,
   onExport,
@@ -156,6 +161,9 @@ export default function GlobalActionMenu({
           >
             <MapIcon size={16} />{" "}
             {recalculatingOverview ? "Ricalcolo heatmap…" : "Ricalcola heatmap"}
+          </button>
+          <button type="button" role="menuitem" className="global-action-item" onClick={select(onStats)}>
+            <StatsIcon size={16} /> Statistiche
           </button>
         </div>
       )}

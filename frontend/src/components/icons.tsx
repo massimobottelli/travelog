@@ -12,6 +12,14 @@ function base(size: number | undefined): { width: number; height: number; viewBo
   return { width: size ?? 18, height: size ?? 18, viewBox: "0 0 24 24" };
 }
 
+export function StatsIcon({ size }: IconProps) {
+  return (
+    <svg {...base(size)} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M3 3v18h18M7 17v-5M12 17V6M17 17V9" />
+    </svg>
+  );
+}
+
 export function ScanIcon({ size }: IconProps) {
   return (
     <svg

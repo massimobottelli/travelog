@@ -409,6 +409,7 @@ export default function TripsPage() {
         </div>
         <GlobalActionMenu
           onScan={() => navigate("/scans")}
+          onStats={() => navigate("/stats")}
           onCreateTrip={openDaysModal}
           onExport={handleExportCsv}
           onMerge={toggleMergeMode}

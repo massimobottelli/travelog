@@ -15,7 +15,8 @@ export type Route =
   | { name: "tripDetail"; tripId: number }
   | { name: "scans" }
   | { name: "photos" }
-  | { name: "settings" };
+  | { name: "settings" }
+  | { name: "stats" };
 
 /** Parse a URL pathname into the application route (default: trips). */
 export function parseRoute(pathname: string): Route {
@@ -23,6 +24,8 @@ export function parseRoute(pathname: string): Route {
   const detail = path.match(/^\/trips\/(\d+)$/);
   if (detail) return { name: "tripDetail", tripId: Number(detail[1]) };
   switch (path) {
+    case "/stats":
+      return { name: "stats" };
     case "/scans":
       return { name: "scans" };
     case "/photos":

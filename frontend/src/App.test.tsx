@@ -18,6 +18,9 @@ function jsonResponse(body: unknown, status = 200): Response {
 function mockAllEndpoints(): void {
   fetchMock.mockImplementation((input: string | URL | Request) => {
     const url = String(input);
+    if (url.includes("/api/stats")) {
+      return Promise.resolve(jsonResponse({ years: [] }));
+    }
     if (url.includes("/api/settings")) {
       return Promise.resolve(
         jsonResponse({
@@ -68,6 +71,25 @@ afterEach(() => {
 });
 
 describe("App", () => {
+  it("opens statistics from Azioni and returns to trips", async () => {
+    mockAllEndpoints();
+    const originalPath = window.location.pathname;
+    window.history.replaceState({}, "", "/trips");
+    try {
+      render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: "Azioni" }));
+      fireEvent.click(screen.getByRole("menuitem", { name: "Statistiche" }));
+      await screen.findByText(/Nessun viaggio attivo/);
+      expect(window.location.pathname).toBe("/stats");
+      expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/api/stats"))).toBe(true);
+      fireEvent.click(screen.getByRole("button", { name: "Torna ai viaggi" }));
+      await screen.findByRole("heading", { name: "I Miei Viaggi" });
+      expect(window.location.pathname).toBe("/trips");
+    } finally {
+      window.history.replaceState({}, "", originalPath);
+    }
+  });
+
   it.each(["/settings", "/trips/2"])(
     "resets a rendering failure when navigating to %s",
     async (target) => {

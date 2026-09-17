@@ -4,6 +4,30 @@
  */
 
 export interface paths {
+    "/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Full-history travel statistics
+         * @description Read-only statistics of active trips, including manually created trips.
+         *     Each trip is counted in its start year. Inclusive calendar days are
+         *     allocated to their actual month/year, including days without photos.
+         *     Uses saved trip dates, without reapplying current exclusion zones or
+         *     day/locality exclusions. Archived trips are omitted. No period filters.
+         */
+        get: operations["getStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -613,6 +637,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        TravelStats: {
+            /** @description Ascending years from the first active trip start to the current calendar year (always included); empty if no active trips */
+            years: components["schemas"]["TravelStatsYear"][];
+        };
+        TravelStatsYear: {
+            year: number;
+            /** @description Trips starting in this year */
+            tripCount: number;
+            /** @description Sum of inclusive trip days falling in this year */
+            dayCount: number;
+            /** @description Day counts from January to December, including zeros */
+            months: number[];
+        };
         ApiError: {
             /**
              * @description Stable machine-readable error code in uppercase snake case. Missing resources use TRIP_NOT_FOUND, SCAN_NOT_FOUND, LOCALITY_NOT_FOUND or EXCLUSION_ZONE_NOT_FOUND as appropriate.
@@ -1082,6 +1119,35 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ascending years from the first active trip start through the current calendar year (always included, even without trips), including intervening empty years */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TravelStats"];
+                };
+            };
+            /** @description Unexpected internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;

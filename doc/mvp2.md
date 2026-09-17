@@ -73,7 +73,17 @@ Il requisito §10.6 impone che una nuova scansione crei un **nuovo viaggio** con
 `POST /settings/recalculate?dryRun=true` (o `GET /settings/recalculate/preview`): mostra quali **nuovi** viaggi verrebbero generati con le soglie nuove, senza toccare nulla. Riduce l'apprensione dell'utente prima di un ricalcolo; riutilizza identicamente il calcolo esistente.
 
 ### D3. Statistiche aggregate
-Pagina "Statistiche": giorni di viaggio/anno, paesi e regioni visitate, top località per foto, distribuzione mensile. Tutto derivato da `presences`/`trips` (dati già lì), endpoint aggregato a sola lettura. Naturalmente escluso tutto ciò che è in zona di esclusione.
+Implementata con ambito concordato il 17 settembre 2026: **Azioni → Statistiche**,
+intero storico senza filtri temporali. Barre verticali annuali con toggle
+**Viaggi / Giorni** (default Viaggi, selettore a pillola con polsino scorrevole);
+tabella heatmap anni × mesi con totale
+annuale e gradiente bianco → verde (scala comune 0–31 giorni).
+`GET /api/stats` è di sola lettura e deriva tutto dalle date dei viaggi attivi,
+inclusi i manuali: durata inclusiva completa anche senza foto; ogni viaggio
+conta nell'anno di partenza, i giorni nei mesi/anni effettivi. Gli archiviati non
+contano. Non si riapplicano zone correnti o esclusioni giorno/località ai periodi
+salvati: le zone agiscono sulla generazione dei viaggi, i manuali restano
+intenzione esplicita dell'utente. Paesi, regioni e classifiche foto fuori ambito.
 
 ### D4. Metadati arricchiti del viaggio
 Campo `notes`/`description` opzionale su `trips` (unico punto dove servirebbe una migrazione banale) — l'utente oggi può solo rinominare. Eventuale classificazione derivata "weekend/vacanza" dalla durata.

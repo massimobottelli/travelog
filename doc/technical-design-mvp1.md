@@ -1852,6 +1852,22 @@ Una giornata composta esclusivamente da fotografie in zone escluse non è una gi
 
 ---
 
+## 50bis. Statistiche temporali aggregate (17 settembre 2026)
+
+`GET /api/stats` restituisce `TravelStats` definito in OpenAPI: anni crescenti,
+numero viaggi, totale giorni e array di 12 conteggi mensili. Nessun filtro.
+Una singola query PostgreSQL via Drizzle nel repository interseca i viaggi
+attivi con mesi di calendario, usando date e timestamp senza timezone.
+Durata inclusiva completa, inclusi manuali e giorni senza foto; partenze contate
+una volta nell'anno iniziale, archiviati esclusi. Nessun join con presenze o
+zone: per questa metrica valgono i periodi salvati (FR §24bis). Il calendario
+copre sempre fino all'anno corrente (colonne a zero se senza viaggi) e oltre
+per viaggi futuri.
+Nessuna scrittura, cache persistente, migrazione o chiamata esterna.
+La pagina React `/stats`, raggiungibile da Azioni, usa l'API layer e i tipi
+generati. Barre CSS e tabella heatmap accessibile, scala bianco–verde 0–31,
+senza librerie aggiuntive. Caricamento, errore con retry e storico vuoto espliciti.
+
 # 51. Frontend architecture
 
 Il frontend React viene organizzato per responsabilità funzionali.

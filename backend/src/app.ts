@@ -22,6 +22,7 @@ import exclusionZonesRoutes from "./routes/exclusion-zones.routes.js";
 import localitiesRoutes from "./routes/localities.routes.js";
 import operationsRoutes from "./routes/operations.routes.js";
 import logger from "./config/logger.js";
+import statsRoutes from "./routes/stats.routes.js";
 
 export function createApp(): ReturnType<typeof express> {
   const API_PREFIX = env.apiPrefix;
@@ -36,6 +37,7 @@ export function createApp(): ReturnType<typeof express> {
   app.use(API_PREFIX, createOpenApiValidator());
 
   // ── Routes ───────────────────────────────────────────────────
+  app.use(`${API_PREFIX}/stats`, statsRoutes);
   app.use(`${API_PREFIX}/health`, healthRoutes);
   app.use(`${API_PREFIX}/config`, configRoutes);
   app.use(`${API_PREFIX}/data`, dataRoutes);

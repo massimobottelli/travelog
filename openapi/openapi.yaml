@@ -30,6 +30,31 @@ tags:
   - name: Data
 
 paths:
+  /stats:
+    get:
+      tags: [Trips]
+      operationId: getStats
+      summary: Full-history travel statistics
+      description: |
+        Read-only statistics of active trips, including manually created trips.
+        Each trip is counted in its start year. Inclusive calendar days are
+        allocated to their actual month/year, including days without photos.
+        Uses saved trip dates, without reapplying current exclusion zones or
+        day/locality exclusions. Archived trips are omitted. No period filters.
+      responses:
+        "200":
+          description: Ascending years from the first active trip start through the current calendar year (always included, even without trips), including intervening empty years
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TravelStats"
+        "500":
+          description: Unexpected internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
   /health:
     get:
       tags: [Health]
@@ -1046,6 +1071,41 @@ components:
         minimum: 1
 
   schemas:
+    TravelStats:
+      type: object
+      additionalProperties: false
+      required: [years]
+      properties:
+        years:
+          type: array
+          description: Ascending years from the first active trip start to the current calendar year (always included); empty if no active trips
+          items:
+            $ref: "#/components/schemas/TravelStatsYear"
+
+    TravelStatsYear:
+      type: object
+      additionalProperties: false
+      required: [year, tripCount, dayCount, months]
+      properties:
+        year:
+          type: integer
+        tripCount:
+          type: integer
+          minimum: 0
+          description: Trips starting in this year
+        dayCount:
+          type: integer
+          minimum: 0
+          description: Sum of inclusive trip days falling in this year
+        months:
+          type: array
+          description: Day counts from January to December, including zeros
+          minItems: 12
+          maxItems: 12
+          items:
+            type: integer
+            minimum: 0
+
     ApiError:
       type: object
       additionalProperties: false
