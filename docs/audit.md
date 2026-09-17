@@ -30,11 +30,12 @@ Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitigno
 
 ---
 
-## P1 — Confinamento filesystem della scansione  `PRIORITÀ: ALTA (sicurezza)`
+## P1 — Confinamento filesystem della scansione `PRIORITÀ: ALTA (sicurezza)`
 
 **Esito P1 — 2026-09-17.** Implementati guard lessicale e controllo realpath, validazione pre-lock, root del job fissata all'avvio e filtro symlink nell'enumerazione e prima dell'elaborazione. Aggiunti 10 test guard/filesystem e 2 test API su PostgreSQL reale, con spy call-through su ExifTool: il link esterno non viene letto; la foto interna viene registrata (esclusa per GPS assente nella fixture). Migrazioni applicate al database dedicato esistente `travelog_test`, senza ricrearlo. Suite backend 213/213 e frontend 153/153; type check, build di entrambe le applicazioni, Prettier sui file TypeScript P1 e diff check riusciti. Nessun cambio OpenAPI o schema DB. Limite: controllo e apertura ExifTool non sono atomici contro modifiche concorrenti del filesystem; vedi design §16.
 
 **Problema originale (risolto).**
+
 - `backend/src/services/scans.service.ts`: `targetDir = path.join(photoRoot, folder)` senza verifica di contenimento consentiva risoluzioni fuori root. Precisazione: `path.join` non scarta la root davanti a un secondo argomento assoluto; gli assoluti sono comunque vietati dal contratto (design §16 e §67 security boundaries).
 - `backend/src/scans/photo-enumeration.ts`: i symlink a file vengono seguiti (`fs.stat`) senza verificare che la destinazione resti nella root.
 - Una `folder` inesistente produce una scansione "completata" con 0 file (fuorviante): nessun errore esplicito.
@@ -42,6 +43,7 @@ Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitigno
 **File coinvolti.** nuovo `backend/src/scans/path-guard.ts` (funzione pura `resolveInsideRoot(photoRoot, folder): string`); `backend/src/services/scans.service.ts`; `backend/src/scans/photo-enumeration.ts`; test unit `backend/src/scans/__tests__/path-guard.test.ts` e integrazione in `backend/src/__tests__/hardening.integration.test.ts`.
 
 **Passi.**
+
 1. Implementare `resolveInsideRoot` con `path.resolve` + `path.relative`; rifiuta percorsi assoluti, `..` che escapano e risoluzioni fuori dalla root. Errore: `ValidationError` con `fields: ["folder"]` (nessun cambio di contratto API).
 2. Applicare il guard in `startScan`/`runScan` prima dell'enumerazione; verificare esistenza+directory di `targetDir` (`fs.stat`) → errore di validazione se manca.
 3. In `traverseDirectory`: per i file symlink risolvere il realpath e verificarne il contenimento nella root realpath-izzata; symlink in fuga → skip con `logger.warn({ filePath }, "scan.symlink.skipped")`.
@@ -53,11 +55,12 @@ Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitigno
 
 ---
 
-## P2 — Lifecycle delle scansioni  `PRIORITÀ: MEDIA-ALTA (affidabilità)`
+## P2 — Lifecycle delle scansioni `PRIORITÀ: MEDIA-ALTA (affidabilità)`
 
 **Esito P2 — 2026-09-17.** Completato: recupero delle scansioni atteso prima di `listen`, con log e prosecuzione dell'avvio se il recupero fallisce; pulizia di `cancelledScans` nel `finally` del job; handler process-level con log per `unhandledRejection` e log fatal seguito da uscita con codice 1 per `uncaughtException`. Aggiornati i test in `backend/src/index.test.ts` (ordine avvio, fallimento recupero, handler senza emettere errori globali nel runner) e aggiunto `backend/src/__tests__/scan-lifecycle.integration.test.ts` (recupero running/pending, preservazione completed, cancellazione ed errori di enumerazione/finalizzazione, pulizia flag e rilascio lock verificato da una sessione PostgreSQL distinta). Database dedicato `travelog_test` ricreato e migrato: integrazione lifecycle 4/4; suite completa backend 219/219, frontend 153/153. Type check e build backend/frontend riusciti; Prettier sui file TypeScript P2 e `git diff --check` OK. Nessuna modifica a OpenAPI, schema DB o agli altri task.
 
 **Problema originale (risolto).**
+
 - `backend/src/index.ts`: `failStaleRunningScans()` è fire-and-forget prima di `listen` → breve finestra in cui lo storico mostra `running` di un processo morto.
 - `backend/src/services/scans.service.ts`: `this.cancelledScans.delete(scanId)` non è garantito se `runScan` esce durante l'enumerazione (flag di cancellazione residuo).
 - Nessun handler per `unhandledRejection` / `uncaughtException`.
@@ -65,6 +68,7 @@ Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitigno
 **File coinvolti.** `backend/src/index.ts`, `backend/src/services/scans.service.ts`; test in `backend/src/__tests__/hardening.integration.test.ts` (o nuovo file lifecycle).
 
 **Passi.**
+
 1. `index.ts`: `await failStaleRunningScans()` (con log dell'errore e proseguimento dell'avvio in caso di fallimento DB) **prima** di `app.listen`.
 2. `scans.service.ts`: `try/finally` attorno all'intero `runScan` con `cancelledScans.delete(scanId)` nel `finally`.
 3. `index.ts`: handler `unhandledRejection` (log strutturato) e `uncaughtException` (log + `process.exit(1)`; il riavvio è di systemd, design §57).
@@ -76,17 +80,19 @@ Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitigno
 
 ---
 
-## P3 — Robustezza React  `PRIORITÀ: MEDIA`
+## P3 — Robustezza React `PRIORITÀ: MEDIA`
 
 **Esito P3 — 2026-09-17.** Completato: caricamento del dettaglio protetto da flag `active` con cleanup su cambio `tripId`/unmount, per dettaglio, mappa, errore e fine caricamento; reset di dettaglio, mappa e modalità modifica al cambio viaggio. ErrorBoundary con key derivata dalla rotta, incluso l'ID del viaggio, per ripristinare la pagina alla navigazione. Nessun catch duplicato in `handleReplaceDays`: `TripDetailPanel` delega a `TripTimeline.persistDays`, che già intercetta il rifiuto e mostra l'errore inline mantenendo il dettaglio. Aggiunti 8 test per risposte tardive, loading, reset editing, salvataggio rifiutato e recupero del boundary cambiando pagina/ID; prova negativa con cleanup e key disabilitati: 6 regressioni falliscono, poi correzioni ripristinate. Verifica finale: PostgreSQL `travelog_test` ricreato e migrato, backend 219/219, frontend 161/161; type check e build di entrambe le applicazioni, Prettier sui quattro file TS/TSX P3 e `git diff --check` OK. Nessuna nuova dipendenza, modifica backend, OpenAPI o schema DB; P4 e igiene non avviati.
 
 **Problema originale (risolto/verificato).**
+
 - `frontend/src/pages/TripDetailPage.tsx`: il caricamento non scarta le risposte del precedente `tripId` (cambio rapido viaggio → possibile render di dati obsoleti); `handleReplaceDays` propaga un eventuale rifiuto senza gestione esplicita.
 - `frontend/src/App.tsx`: l'ErrorBoundary resta in stato di errore anche quando l'utente cambia pagina.
 
 **File coinvolti.** `frontend/src/pages/TripDetailPage.tsx`, `frontend/src/App.tsx`; test `frontend/src/pages/__tests__/trip-detail-page.test.tsx`, `frontend/src/App.test.tsx`.
 
 **Passi.**
+
 1. `TripDetailPage`: effetto con flag `active` + cleanup su `[tripId]`, applicato a dettaglio, mappa, errore e `loading`; `setEditing(false)` al cambio viaggio; try/catch esplicito attorno a `handleReplaceDays` se `TripDetailPanel` non gestisce già il rifiuto (verificare in implementazione).
 2. `App.tsx`: key dell'ErrorBoundary derivata dalla rotta (es. `detail-${tripId}` per il dettaglio, altrimenti nome rotta) → il fallback si resetta alla navigazione, senza clic su "Riprova".
 3. Nessuna libreria nuova (solo React state, come da regole progetto).
@@ -97,11 +103,14 @@ Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitigno
 
 ---
 
-## P4 — Validazione completa delle richieste (AJV)  `PRIORITÀ: MEDIA — FASE SEPARATA`
+## P4 — Validazione completa delle richieste (AJV) `PRIORITÀ: MEDIA — FASE SEPARATA`
 
-**Problema.** `backend/src/middleware/openapi.ts` verifica solo la presenza di alcuni campi body: tipi, formati, enum e parametri query/path non sono validati. Analisi e criteri già presenti in `doc/ajv-validation-plan.md` (da seguire così com'è).
+**Esito P4 — 2026-09-17.** Completato secondo `doc/ajv-validation-plan.md` §3: `createOpenApiValidator()` compila a startup gli schemi di `openapi.yaml` con AJV 2020-12 + `ajv-formats` (un contratto mancante o non compilabile impedisce l'avvio); route e mapping operazione derivate dai `paths` (letterali prima dei template), eliminate `ROUTE_OPS`/`REQUIRED_BODY_FIELDS`; validati body, query e path di tutte le operazioni documentate con `400 VALIDATION_ERROR` e `details.errors` (path JSON `/query/page`, `/body/splitDate`, `/path/tripId`). Verifica preventiva §3.2: tutte le chiamate frontend rispettano gli schemi; `TripDaysModal` ora omette `localityIds` per i giorni senza località. Correzioni contrattuali autorizzate dall'utente: `DELETE /exclusion-zones/{id}` e `MergeTripsRequest.title` (`type: [string, "null"]`), tipi OpenAPI rigenerati. Test: 9 unitari su app Express minima + 4 di integrazione sull'app reale; regressione `page=abc` riprodotta (200) prima dell'implementazione e verificata a 400 dopo. Backend 229/229 su `travelog_test`, frontend 161/161; type check, build, Prettier e `git diff --check` OK. Nessuna nuova dipendenza (AJV era già presente).
+
+**Problema originale (risolto/verificato).** `backend/src/middleware/openapi.ts` verifica solo la presenza di alcuni campi body: tipi, formati, enum e parametri query/path non sono validati. Analisi e criteri già presenti in `doc/ajv-validation-plan.md` (da seguire così com'è).
 
 **Passi (secondo il piano esistente §3).**
+
 1. Compilare gli schemi di `openapi/openapi.yaml` con `ajv` (dipendenza già presente, oggi quasi inutilizzata) a startup/lazy; gestire i `$ref` interni.
 2. Derivare la mappa route→operationId dallo spec; eliminare `ROUTE_OPS` e `REQUIRED_BODY_FIELDS`.
 3. Errori `400 VALIDATION_ERROR` con path JSON in `details.errors`; nessun cambio a `openapi.yaml`.
@@ -112,7 +121,7 @@ Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitigno
 
 **Accettazione.** Tutti i criteri di `ajv-validation-plan.md` §4; suite backend e frontend verdi.
 
-**Nota.** È l'intervento più esteso: da eseguire come fase dedicata, dopo P1–P3. **D3 (decisione):** confermare se inserirlo in questa serie di task o in una sessione a parte.
+**Nota.** È l'intervento più esteso: da eseguire come fase dedicata, dopo P1–P3. **D3 (decisione): risolta** — eseguito in questa serie su richiesta esplicita dell'utente ("implementa P4").
 
 ---
 
@@ -131,6 +140,7 @@ Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitigno
 Ordine proposto: **P1 → P2 → P3** (modifiche contenute e indipendenti) → igiene I1–I2 → P4 (fase separata). Le decisioni D1–D5 si confermano al momento dell'avvio del task corrispondente.
 
 Protocollo per ogni task:
+
 1. leggere i file indicati e i requisiti a riferimento;
 2. implementare i passi nell'ordine;
 3. aggiungere/aggiornare i test elencati;
@@ -142,12 +152,12 @@ Protocollo per ogni task:
 
 ## Registro avanzamento
 
-| Task | Stato | Note |
-|---|---|---|
-| Atomicità foto/presenza | ✅ Completato | 201/201 test backend, verificato su `travelog_test` ricreato |
-| Chiarimento Geoapify/PostGIS su documenti | ✅ Completato | `.clinerules`, `clinerules`, `doc/functional-requirements-mvp1.md` §6.4 |
-| P1 Confinamento filesystem | ✅ Completato 2026-09-17 | Policy D2 applicata su richiesta di eseguire P1; backend 213/213, frontend 153/153; type check e build OK |
-| P2 Lifecycle scansioni | ✅ Completato 2026-09-17 | PostgreSQL test ricreato e migrato; backend 219/219, frontend 153/153; type check, build e verifiche diff OK |
-| P3 Robustezza React | ✅ Completato 2026-09-17 | Backend 219/219, frontend 161/161; regressioni verificate anche in negativo; type check, build, Prettier e diff check OK |
-| P4 Validazione AJV | ⬜ Da fare | Fase separata; dipende da D3 |
-| Igiene I1–I5 | ⬜ Da fare | I5 (codici 404) dipende da D1; I3 da D4; I4 da D5 |
+| Task                                      | Stato                    | Note                                                                                                                                        |
+| ----------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Atomicità foto/presenza                   | ✅ Completato            | 201/201 test backend, verificato su `travelog_test` ricreato                                                                                |
+| Chiarimento Geoapify/PostGIS su documenti | ✅ Completato            | `.clinerules`, `clinerules`, `doc/functional-requirements-mvp1.md` §6.4                                                                     |
+| P1 Confinamento filesystem                | ✅ Completato 2026-09-17 | Policy D2 applicata su richiesta di eseguire P1; backend 213/213, frontend 153/153; type check e build OK                                   |
+| P2 Lifecycle scansioni                    | ✅ Completato 2026-09-17 | PostgreSQL test ricreato e migrato; backend 219/219, frontend 153/153; type check, build e verifiche diff OK                                |
+| P3 Robustezza React                       | ✅ Completato 2026-09-17 | Backend 219/219, frontend 161/161; regressioni verificate anche in negativo; type check, build, Prettier e diff check OK                    |
+| P4 Validazione AJV                        | ✅ Completato 2026-09-17 | Backend 229/229, frontend 161/161; 13 test di validazione; correzioni contrattuali autorizzate; type check, build, Prettier e diff check OK |
+| Igiene I1–I5                              | ⬜ Da fare               | I5 (codici 404) dipende da D1; I3 da D4; I4 da D5                                                                                           |

@@ -9,8 +9,7 @@
 import express from "express";
 import cors from "cors";
 import { env } from "./utils/env.js";
-import { loadOpenApiSpec } from "./utils/openapi.js";
-import { openApiValidator } from "./middleware/openapi.js";
+import { createOpenApiValidator } from "./middleware/openapi.js";
 import { errorHandler } from "./middleware/error.js";
 import healthRoutes from "./routes/health.routes.js";
 import configRoutes from "./routes/config.routes.js";
@@ -33,15 +32,8 @@ export function createApp(): ReturnType<typeof express> {
   app.use(cors({ origin: env.corsOrigin }));
   app.use(express.json());
 
-  // ── Load OpenAPI spec (non-fatal if missing) ─────────────────
-  try {
-    loadOpenApiSpec();
-  } catch (err) {
-    logger.warn({ err }, "openapi.spec_load_failed");
-  }
-
-  // OpenAPI validation middleware
-  app.use(openApiValidator);
+  // Compile before listening; never fall back to unvalidated requests.
+  app.use(API_PREFIX, createOpenApiValidator());
 
   // ── Routes ───────────────────────────────────────────────────
   app.use(`${API_PREFIX}/health`, healthRoutes);

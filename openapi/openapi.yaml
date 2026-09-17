@@ -837,6 +837,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /exclusion-zones/{id}:
     delete:
       tags: [Exclusion Zones]
       operationId: deleteExclusionZone
@@ -1457,7 +1458,7 @@ components:
             format: int64
             minimum: 1
         title:
-          type: [string, null]
+          type: [string, "null"]
           minLength: 1
 
     BoundingBox:

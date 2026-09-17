@@ -515,6 +515,22 @@ export interface paths {
         put?: never;
         /** Create an exclusion zone */
         post: operations["createExclusionZone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exclusion-zones/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
         /** Delete an exclusion zone */
         delete: operations["deleteExclusionZone"];
         options?: never;

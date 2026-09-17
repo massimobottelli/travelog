@@ -1,110 +1,126 @@
-/**
- * Travelog MVP1 — OpenAPI Request Validation Middleware (Skeleton)
- *
- * Maps Express routes to OpenAPI operationIds for future full schema validation.
- * Phase 2 validates required fields against OpenAPI spec; full AJV-based validation in Phase 3.
- */
-
-import type { Request, Response, NextFunction } from "express";
+/** Travelog MVP1 — Request validation compiled from the OpenAPI contract. */
+import { Router } from "express";
+import { Ajv2020 } from "ajv/dist/2020.js";
+import formats from "ajv-formats";
+import type { AnySchema, ErrorObject } from "ajv";
 import { loadOpenApiSpec } from "../utils/openapi.js";
-import { ValidationError } from "../models/errors.js";
-import { env } from "../utils/env.js";
+import { AppError } from "../models/errors.js";
 
-// Map route patterns to operationId (without API prefix)
-const ROUTE_OPS: Record<string, Record<string, string>> = {
-  "/health": { get: "getHealth" },
-  "/config": { get: "getConfig", put: "updateConfig" },
-  "/data": { delete: "deleteAllData" },
-  "/scans": { post: "startScan", get: "listScans" },
-  "/scans/:scanId": { get: "getScan" },
-  "/scans/:scanId/errors": { get: "listScanErrors" },
-  "/scans/:scanId/cancel": { post: "cancelScan" },
-  "/photos": { get: "listPhotos" },
-  "/trips": { get: "listTrips", post: "createTrip" },
-  "/trips/export": { get: "exportTrips" },
-  "/trips/map": { get: "getTripsOverviewMap" },
-  "/trips/map/recalculate": { post: "recalculateTripsOverviewMap" },
-  "/trips/:tripId": { get: "getTrip", patch: "updateTrip", delete: "deleteTrip" },
-  "/trips/:tripId/days": { put: "replaceTripDays" },
-  "/trips/:tripId/split": { post: "splitTrip" },
-  "/trips/merge": { post: "mergeTrips" },
-  "/operations": { get: "listTripOperations" },
-  "/settings": { get: "getSettings", put: "updateSettings", post: "recalculate" },
-  "/exclusion-zones": {
-    get: "listExclusionZones",
-    post: "createExclusionZone",
-    delete: "deleteExclusionZone",
-  },
-  "/localities/search": { get: "searchLocalities" },
-  "/localities/autocomplete": { get: "autocompleteLocalities" },
-  "/localities/resolve": { post: "resolveLocality" },
-};
+type Schema = Record<string, unknown>;
+interface Parameter {
+  name: string;
+  in: "path" | "query";
+  required?: boolean;
+  schema: Schema;
+}
+interface Body {
+  required?: boolean;
+  content: Record<string, { schema: Schema }>;
+}
+interface Operation {
+  operationId: string;
+  parameters?: Schema[];
+  requestBody?: Schema;
+}
+const methods = ["get", "post", "put", "patch", "delete", "head", "options", "trace"] as const;
 
-function resolveOperationId(path: string, method: string): string | null {
-  // Strip API prefix if present (e.g. /api/trips -> /trips)
-  const apiPrefix = env.apiPrefix;
-  const basePath = path.startsWith(apiPrefix) ? path.slice(apiPrefix.length) || "/" : path;
-
-  // Try exact match
-  if (ROUTE_OPS[basePath]?.[method]) return ROUTE_OPS[basePath][method];
-
-  // Wildcard match
-  for (const [pattern, ops] of Object.entries(ROUTE_OPS)) {
-    const regex = new RegExp("^" + pattern.replace(/:[^/]+/g, "[^/]+") + "$");
-    if (regex.test(basePath) && ops[method]) return ops[method];
-  }
-  return null;
+function errorsAt(location: string, errors: ErrorObject[] | null | undefined) {
+  return (errors ?? []).map((error) => {
+    const missing = error.keyword === "required" ? String(error.params.missingProperty) : null;
+    const suffix = missing === null ? "" : `/${missing.replace(/~/g, "~0").replace(/\//g, "~1")}`;
+    return {
+      path: `/${location}${error.instancePath}${suffix}`,
+      message: error.message ?? "Invalid value",
+    };
+  });
 }
 
-// Minimal required field check based on OpenAPI spec
-const REQUIRED_BODY_FIELDS: Record<string, string[]> = {
-  startScan: ["folder"],
-  createTrip: [],
-  replaceTripDays: ["days"],
-  updateTrip: [],
-  splitTrip: ["splitDate"],
-  mergeTrips: ["tripIds"],
-  updateSettings: [],
-  recalculate: [],
-  recalculateTripsOverviewMap: [],
-  createExclusionZone: ["localityId"],
-  resolveLocality: ["placeId"],
-};
-
-export function openApiValidator(_req: Request, _res: Response, next: NextFunction): void {
-  const operationId = resolveOperationId(_req.path, _req.method.toLowerCase());
-  if (!operationId) {
-    next();
-    return;
+/** Compile before listening. Missing/invalid schemas never disable validation. */
+export function createOpenApiValidator(): Router {
+  const spec = loadOpenApiSpec();
+  const root = { components: spec.components };
+  function ajv(coerceTypes: boolean) {
+    // OpenAPI annotations and nullable are supported. Schema validation stays on.
+    const instance = new Ajv2020({ strict: false, allErrors: true, coerceTypes });
+    formats.default(instance);
+    return instance;
   }
-
-  // Validate required body fields for POST/PUT/PATCH operations.
-  // "Required" means present and not null: an empty string is a valid
-  // value (e.g. startScan with an empty folder scans the whole root).
-  const requiredFields = REQUIRED_BODY_FIELDS[operationId] ?? [];
-  if (
-    requiredFields.length > 0 &&
-    (_req.method === "POST" || _req.method === "PUT" || _req.method === "PATCH")
-  ) {
-    // Guard: a body that is not a plain object (array, string, number,
-    // null, undefined) can never satisfy required fields. Without this
-    // check `body[f]` on a non-object body would silently pass.
-    const body = _req.body;
-    if (typeof body !== "object" || body === null || Array.isArray(body)) {
-      next(new ValidationError("Request body must be a JSON object", { fields: requiredFields }));
-      return;
+  const bodies = ajv(false);
+  const parameters = ajv(true);
+  function resolve<T>(value: Schema): T {
+    if (typeof value.$ref !== "string") return value as T;
+    if (!value.$ref.startsWith("#/"))
+      throw new Error("Only internal OpenAPI references are supported");
+    let target: unknown = spec;
+    for (const part of value.$ref.slice(2).split("/")) {
+      target = (target as Schema)?.[part.replace(/~1/g, "/").replace(/~0/g, "~")];
     }
-    const missing = requiredFields.filter((f) => {
-      const value = (body as Record<string, unknown>)[f];
-      return value === undefined || value === null;
-    });
-    if (missing.length > 0) {
-      next(
-        new ValidationError(`Missing required fields: ${missing.join(", ")}`, { fields: missing }),
-      );
-      return;
+    if (!target) throw new Error("Unresolved OpenAPI reference");
+    return target as T;
+  }
+  function compile(instance: Ajv2020, schema: Schema) {
+    return instance.compile({ ...root, ...schema } as AnySchema);
+  }
+  const router = Router();
+  const paths = spec.paths as Record<string, Record<string, unknown>>;
+  // Literal paths take precedence over parameter templates, independent of YAML order.
+  const entries = Object.entries(paths).sort(
+    ([a], [b]) => (a.match(/\{/g)?.length ?? 0) - (b.match(/\{/g)?.length ?? 0),
+  );
+  for (const [path, item] of entries) {
+    const route = router.route(path.replace(/\{([^}]+)\}/g, ':"$1"'));
+    for (const method of methods) {
+      if (!item[method]) continue;
+      const operation = item[method] as Operation;
+      const merged = new Map<string, Parameter>();
+      for (const value of [
+        ...((item.parameters as Schema[]) ?? []),
+        ...(operation.parameters ?? []),
+      ]) {
+        const p = resolve<Parameter>(value);
+        if (p.in !== "path" && p.in !== "query")
+          throw new Error("Unsupported OpenAPI parameter location");
+        if (p.in === "path" && !path.includes(`{${p.name}}`))
+          throw new Error("Path parameter missing from template");
+        merged.set(`${p.in}:${p.name}`, p);
+      }
+      const validators = (["path", "query"] as const).map((location) => {
+        const params = [...merged.values()].filter((p) => p.in === location);
+        return {
+          location,
+          validate: compile(parameters, {
+            type: "object",
+            properties: Object.fromEntries(params.map((p) => [p.name, p.schema])),
+            required: params.filter((p) => p.required).map((p) => p.name),
+          }),
+        };
+      });
+      const body = operation.requestBody ? resolve<Body>(operation.requestBody) : undefined;
+      const schema = body?.content["application/json"]?.schema;
+      if (body && !schema) throw new Error("Unsupported OpenAPI request media type");
+      const validateBody = schema ? compile(bodies, schema) : undefined;
+      route[method]((req, _res, next) => {
+        const errors: { path: string; message: string }[] = [];
+        for (const { location, validate } of validators) {
+          // Express 5 query is a getter: validate copies, without defaults/mutations.
+          const input = { ...(location === "path" ? req.params : req.query) };
+          if (!validate(input)) errors.push(...errorsAt(location, validate.errors));
+        }
+        if (validateBody && (req.body !== undefined || body?.required)) {
+          if (!validateBody(req.body)) errors.push(...errorsAt("body", validateBody.errors));
+        }
+        if (errors.length) {
+          next(
+            new AppError("VALIDATION_ERROR", "Request does not match the API contract", 400, {
+              details: { errors },
+            }),
+          );
+          return;
+        }
+        // Exit validation router; do not also validate a matching template route.
+        next("router");
+      });
     }
   }
-
-  next();
+  return router;
 }

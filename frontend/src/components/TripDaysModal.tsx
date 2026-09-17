@@ -48,7 +48,7 @@ export interface ModalDay {
 
 export interface TripDaysPayload {
   name?: string;
-  days: Array<{ date: string; localityIds: number[] }>;
+  days: Array<{ date: string; localityIds?: number[] }>;
 }
 
 interface TripDaysModalProps {
@@ -216,7 +216,7 @@ export default function TripDaysModal({
       name: name.trim(),
       days: days.map((d) => ({
         date: d.date,
-        localityIds: d.localities.map((l) => l.id),
+        ...(d.localities.length > 0 ? { localityIds: d.localities.map((l) => l.id) } : {}),
       })),
     });
   }

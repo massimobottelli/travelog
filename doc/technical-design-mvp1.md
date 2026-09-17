@@ -626,6 +626,30 @@ Il contratto definisce:
 
 La validazione viene applicata lato backend prima dell'esecuzione della logica applicativa.
 
+Dall'audit P4 (2026-09-17) la validazione è completa e derivata dal contratto:
+
+* `backend/src/middleware/openapi.ts` compila, all'avvio dell'applicazione, gli
+  schemi di `openapi.yaml` con AJV (draft 2020-12, `ajv-formats`); un contratto
+  mancante o non compilabile impedisce l'avvio e non disattiva la validazione.
+* Le route e la corrispondenza con le operazioni sono derivate dai `paths`
+  dello spec (route letterali prima dei template con parametri); le tabelle
+  manuali `ROUTE_OPS` e `REQUIRED_BODY_FIELDS` sono state eliminate.
+* Sono validati il body JSON (`application/json`) e i parametri query e path di
+  ogni operazione documentata. I parametri accettano la conversione numerica
+  tipica delle query string; i body non vengono modificati né completati con
+  valori predefiniti.
+* Gli errori rispondono `400 VALIDATION_ERROR` con in `details.errors` i path
+  JSON (es. `/query/page`, `/body/splitDate`, `/path/tripId`) e i messaggi AJV.
+* Le richieste con proprietà extra sono rifiutate dove lo spec dichiara
+  `additionalProperties: false`; lo spec non è stato allargato in questa fase.
+* Verifica preventiva del piano AJV (§3.2): tutte le chiamate di
+  `frontend/src/api/*.ts` rispettano gli schemi; la creazione manuale dei
+  viaggi ora omette `localityIds` per i giorni senza località.
+* Correzioni contrattuali puntuali autorizzate in questa fase:
+  `DELETE /exclusion-zones/{id}` (l'`id` era già un parametro di percorso nel
+  backend e nel frontend) e `MergeTripsRequest.title` con
+  `type: [string, "null"]`; tipi OpenAPI rigenerati di conseguenza.
+
 ---
 
 # 11. API error handling

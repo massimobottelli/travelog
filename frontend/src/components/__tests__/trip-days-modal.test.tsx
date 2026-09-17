@@ -162,10 +162,7 @@ describe("TripDaysModal (creazione manuale viaggi)", () => {
     await waitFor(() => {
       expect(handleSubmit).toHaveBeenCalledWith({
         name: "Senza GPS",
-        days: [
-          { date: "2025-08-10", localityIds: [] },
-          { date: "2025-08-11", localityIds: [9] },
-        ],
+        days: [{ date: "2025-08-10" }, { date: "2025-08-11", localityIds: [9] }],
       });
     });
   });
