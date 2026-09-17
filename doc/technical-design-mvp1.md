@@ -1967,6 +1967,18 @@ Non viene introdotto un global state manager.
 
 Non viene introdotto TanStack Query in MVP1.
 
+Robustezza della navigazione (audit P3, 2026-09-17):
+
+* Il caricamento di `TripDetailPage` usa un flag `active` invalidato dal cleanup
+  dell'effetto: risposte di dettaglio/mappa, errori e completamenti di caricamento
+  relativi al precedente `tripId` non aggiornano lo stato corrente.
+* Il cambio viaggio azzera dettaglio e mappa e chiude la modalità modifica.
+  Il fallimento della sola mappa non impedisce la visualizzazione del dettaglio.
+* L'ErrorBoundary della pagina è identificato dalla rotta, incluso l'ID del
+  viaggio: navigando a un'altra pagina o viaggio il fallback viene resettato.
+* Gli errori del salvataggio giorni sono intercettati da `TripTimeline.persistDays`
+  e mostrati inline; la pagina non duplica né nasconde questa gestione.
+
 ---
 
 # 53. Polling frontend

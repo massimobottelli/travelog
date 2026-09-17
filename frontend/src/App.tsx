@@ -42,7 +42,7 @@ function App() {
         <main className="app-main">
           {/* Each page is wrapped individually: a rendering error in one
               page shows the fallback UI without taking down the shell. */}
-          <ErrorBoundary>
+          <ErrorBoundary key={route.name === "tripDetail" ? `detail-${route.tripId}` : route.name}>
             {route.name === "scans" && <ScansPage onNavigateTrips={() => navigate("/trips")} />}
             {route.name === "photos" && <PhotosPage />}
             {route.name === "trips" && <TripsPage key={navSeq} />}

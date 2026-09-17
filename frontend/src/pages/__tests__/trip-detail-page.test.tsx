@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import TripDetailPage from "../../pages/TripDetailPage";
 import { getTrip, getTripMap, replaceTripDays } from "../../api/trips";
 import type { TripDetail, TripMapData } from "../../api/client";
@@ -18,6 +18,22 @@ vi.mock("../../api/trips", () => ({
   getTripMap: vi.fn(),
   replaceTripDays: vi.fn(),
 }));
+
+vi.mock("../../components/TripMap", () => ({
+  default: ({ data }: { data: TripMapData }) => (
+    <div data-testid="trip-map">{JSON.stringify(data)}</div>
+  ),
+}));
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 const getTripMock = vi.mocked(getTrip);
 const getTripMapMock = vi.mocked(getTripMap);
@@ -121,6 +137,101 @@ describe("TripDetailPage — shareable trip detail card", () => {
     await waitFor(() => {
       expect(getTripMock).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it.each(["resolve", "reject"] as const)(
+    "ignores a stale detail %s while the next trip is loading",
+    async (outcome) => {
+      const old = deferred<TripDetail>();
+      const current = deferred<TripDetail>();
+      getTripMock.mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise);
+      const { rerender } = render(<TripDetailPage tripId={1} />);
+      rerender(<TripDetailPage tripId={2} />);
+      await act(async () => {
+        if (outcome === "resolve") old.resolve(DETAIL);
+        else old.reject(new Error("Old trip error"));
+      });
+      expect(screen.getByRole("status").textContent).toBe("Caricamento…");
+      expect(screen.queryByText(DETAIL.name!)).toBeNull();
+      expect(screen.queryByText("Old trip error")).toBeNull();
+      expect(getTripMapMock).not.toHaveBeenCalled();
+      await act(async () => {
+        current.resolve({ ...DETAIL, id: 2, name: "Viaggio nuovo" });
+      });
+      expect(screen.getByText("Viaggio nuovo")).not.toBeNull();
+      expect(screen.queryByRole("status")).toBeNull();
+    },
+  );
+
+  it("does not replace the current trip with a late detail response", async () => {
+    const old = deferred<TripDetail>();
+    getTripMock
+      .mockReturnValueOnce(old.promise)
+      .mockResolvedValueOnce({ ...DETAIL, id: 2, name: "Viaggio nuovo" });
+    const { rerender } = render(<TripDetailPage tripId={1} />);
+    rerender(<TripDetailPage tripId={2} />);
+    await screen.findByText("Siena");
+    await act(async () => {
+      old.resolve(DETAIL);
+    });
+    expect(screen.getByText("Viaggio nuovo")).not.toBeNull();
+    expect(screen.queryByText(DETAIL.name!)).toBeNull();
+    expect(getTripMapMock).toHaveBeenCalledTimes(1);
+    expect(getTripMapMock).toHaveBeenCalledWith(2);
+  });
+
+  it("ignores a stale map and its loading completion after switching trips", async () => {
+    const oldMap = deferred<TripMapData>();
+    const current = deferred<TripDetail>();
+    getTripMapMock.mockReturnValueOnce(oldMap.promise);
+    getTripMock.mockResolvedValueOnce(DETAIL).mockReturnValueOnce(current.promise);
+    const { rerender } = render(<TripDetailPage tripId={1} />);
+    await waitFor(() => expect(getTripMapMock).toHaveBeenCalledWith(1));
+    rerender(<TripDetailPage tripId={2} />);
+    expect(screen.queryByText(DETAIL.name!)).toBeNull();
+    await act(async () => {
+      oldMap.resolve({
+        id: 1,
+        name: "Old map",
+        startDate: DETAIL.startDate,
+        endDate: DETAIL.endDate,
+        bounds: { minLat: 0, maxLat: 1, minLon: 0, maxLon: 1 },
+        markers: [],
+        countyColors: {},
+      });
+    });
+    expect(screen.getByRole("status")).not.toBeNull();
+    expect(screen.queryByTestId("trip-map")).toBeNull();
+    await act(async () => {
+      current.resolve({ ...DETAIL, id: 2, name: "Viaggio nuovo" });
+    });
+    expect(screen.queryByTestId("trip-map")).toBeNull();
+    expect(screen.getByText("Viaggio nuovo")).not.toBeNull();
+  });
+
+  it("resets editing when the trip changes", async () => {
+    const { rerender } = render(<TripDetailPage tripId={1} />);
+    await screen.findByText("Siena");
+    fireEvent.click(screen.getByRole("button", { name: "Modifica viaggio" }));
+    expect(screen.getByRole("button", { name: "Termina la modifica dei giorni" })).not.toBeNull();
+    getTripMock.mockResolvedValueOnce({ ...DETAIL, id: 2, name: "Viaggio nuovo" });
+    rerender(<TripDetailPage tripId={2} />);
+    await screen.findByText("Siena");
+    expect(screen.getByRole("button", { name: "Modifica viaggio" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Termina la modifica dei giorni" })).toBeNull();
+  });
+
+  it("shows a rejected save in the timeline without losing the detail", async () => {
+    replaceTripDaysMock.mockRejectedValueOnce(new Error("Salvataggio fallito"));
+    render(<TripDetailPage tripId={1} />);
+    await screen.findByText("Siena");
+    fireEvent.click(screen.getByRole("button", { name: "Modifica viaggio" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Elimina la località Siena del giorno 10/08/2025" }),
+    );
+    expect(await screen.findByText("Salvataggio fallito")).not.toBeNull();
+    expect(screen.getByText("Siena")).not.toBeNull();
+    expect(getTripMock).toHaveBeenCalledTimes(1);
   });
 
   it("renders archived trips read-only (no edit mode)", async () => {

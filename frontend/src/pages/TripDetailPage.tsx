@@ -7,7 +7,7 @@
  * trips table, including the inline day editing on active trips.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { getTrip, getTripMap, replaceTripDays } from "../api/trips";
 import type { TripDetail, TripDayInput, TripMapData } from "../api/client";
 import TripDetailPanel from "../components/TripDetailPanel";
@@ -31,27 +31,38 @@ export default function TripDetailPage({ tripId }: TripDetailPageProps) {
   // owned here and passed down to the panel as a controlled prop.
   const [editing, setEditing] = useState(false);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    let active = true;
     setLoading(true);
     setError(null);
-    try {
-      const detailData = await getTrip(tripId);
-      setDetail(detailData);
-      // The map is secondary: a failure loading it must not prevent the
-      // trip detail from being shown (same behaviour as the accordion).
-      setMapData(await getTripMap(tripId).catch(() => null));
-    } catch (err: unknown) {
-      setDetail(null);
-      setMapData(null);
-      setError(errorToMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [tripId]);
+    setDetail(null);
+    setMapData(null);
+    setEditing(false);
 
-  useEffect(() => {
+    async function load(): Promise<void> {
+      try {
+        const detailData = await getTrip(tripId);
+        if (!active) return;
+        setDetail(detailData);
+        // The map is secondary: its failure must not hide the detail.
+        const mapDataLoaded = await getTripMap(tripId).catch(() => null);
+        if (active) setMapData(mapDataLoaded);
+      } catch (err: unknown) {
+        if (active) {
+          setDetail(null);
+          setMapData(null);
+          setError(errorToMessage(err));
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
     void load();
-  }, [load]);
+    return () => {
+      active = false;
+    };
+  }, [tripId]);
 
   // Day editing is available on every active trip (same rule as the
   // accordion in the trips table): persist the full day list, then

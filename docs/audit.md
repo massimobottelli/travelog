@@ -78,7 +78,9 @@ Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitigno
 
 ## P3 — Robustezza React  `PRIORITÀ: MEDIA`
 
-**Problema.**
+**Esito P3 — 2026-09-17.** Completato: caricamento del dettaglio protetto da flag `active` con cleanup su cambio `tripId`/unmount, per dettaglio, mappa, errore e fine caricamento; reset di dettaglio, mappa e modalità modifica al cambio viaggio. ErrorBoundary con key derivata dalla rotta, incluso l'ID del viaggio, per ripristinare la pagina alla navigazione. Nessun catch duplicato in `handleReplaceDays`: `TripDetailPanel` delega a `TripTimeline.persistDays`, che già intercetta il rifiuto e mostra l'errore inline mantenendo il dettaglio. Aggiunti 8 test per risposte tardive, loading, reset editing, salvataggio rifiutato e recupero del boundary cambiando pagina/ID; prova negativa con cleanup e key disabilitati: 6 regressioni falliscono, poi correzioni ripristinate. Verifica finale: PostgreSQL `travelog_test` ricreato e migrato, backend 219/219, frontend 161/161; type check e build di entrambe le applicazioni, Prettier sui quattro file TS/TSX P3 e `git diff --check` OK. Nessuna nuova dipendenza, modifica backend, OpenAPI o schema DB; P4 e igiene non avviati.
+
+**Problema originale (risolto/verificato).**
 - `frontend/src/pages/TripDetailPage.tsx`: il caricamento non scarta le risposte del precedente `tripId` (cambio rapido viaggio → possibile render di dati obsoleti); `handleReplaceDays` propaga un eventuale rifiuto senza gestione esplicita.
 - `frontend/src/App.tsx`: l'ErrorBoundary resta in stato di errore anche quando l'utente cambia pagina.
 
@@ -146,6 +148,6 @@ Protocollo per ogni task:
 | Chiarimento Geoapify/PostGIS su documenti | ✅ Completato | `.clinerules`, `clinerules`, `doc/functional-requirements-mvp1.md` §6.4 |
 | P1 Confinamento filesystem | ✅ Completato 2026-09-17 | Policy D2 applicata su richiesta di eseguire P1; backend 213/213, frontend 153/153; type check e build OK |
 | P2 Lifecycle scansioni | ✅ Completato 2026-09-17 | PostgreSQL test ricreato e migrato; backend 219/219, frontend 153/153; type check, build e verifiche diff OK |
-| P3 Robustezza React | ⬜ Da fare | — |
+| P3 Robustezza React | ✅ Completato 2026-09-17 | Backend 219/219, frontend 161/161; regressioni verificate anche in negativo; type check, build, Prettier e diff check OK |
 | P4 Validazione AJV | ⬜ Da fare | Fase separata; dipende da D3 |
 | Igiene I1–I5 | ⬜ Da fare | I5 (codici 404) dipende da D1; I3 da D4; I4 da D5 |

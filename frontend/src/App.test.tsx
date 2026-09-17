@@ -3,8 +3,10 @@
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import App from "./App";
+import * as tripDetailPage from "./pages/TripDetailPage";
+import { navigate } from "./hooks/useRoute";
 
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
@@ -66,6 +68,37 @@ afterEach(() => {
 });
 
 describe("App", () => {
+  it.each(["/settings", "/trips/2"])(
+    "resets a rendering failure when navigating to %s",
+    async (target) => {
+      mockAllEndpoints();
+      const originalPath = window.location.pathname;
+      const page = vi.spyOn(tripDetailPage, "default").mockImplementation(({ tripId }) => {
+        if (tripId === 1) throw new Error("Detail render failed");
+        return <h2>Trip {tripId}</h2>;
+      });
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      window.history.replaceState({}, "", "/trips/1");
+      try {
+        render(<App />);
+        expect(screen.getByText("Si è verificato un errore")).not.toBeNull();
+        if (target === "/settings") {
+          fireEvent.click(screen.getByRole("button", { name: "Impostazioni" }));
+          await screen.findByLabelText(/giorni consecutivi con foto/i);
+        } else {
+          act(() => navigate(target));
+          expect(screen.getByRole("heading", { name: "Trip 2" })).not.toBeNull();
+        }
+        expect(screen.queryByText("Si è verificato un errore")).toBeNull();
+        expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+      } finally {
+        page.mockRestore();
+        errorLog.mockRestore();
+        window.history.replaceState({}, "", originalPath);
+      }
+    },
+  );
+
   it("renders the white top bar with the brand, the page actions and the settings gear", async () => {
     mockAllEndpoints();
 
