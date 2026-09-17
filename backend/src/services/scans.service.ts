@@ -7,8 +7,8 @@
  */
 
 import { eq, desc, and } from "drizzle-orm";
-import { existsSync } from "node:fs";
-import path from "node:path";
+import { promises as fs } from "node:fs";
+import { isInsideRoot, validateScanDirectory } from "../scans/path-guard.js";
 import { db, pool as dbPool } from "../db/client.js";
 import { scans, scanStatusEnum } from "../db/schema.js";
 import scansRepository from "../repositories/scans.repository.js";
@@ -73,11 +73,8 @@ class ScansService {
         { fields: ["photoRoot"] },
       );
     }
-    if (!existsSync(configuredRoot)) {
-      throw new ValidationError(`La directory root delle foto non esiste: ${configuredRoot}`, {
-        fields: ["photoRoot"],
-      });
-    }
+    const targetDir = await validateScanDirectory(configuredRoot, folder);
+    const realRoot = await fs.realpath(configuredRoot);
     const acquired = await scansRepository.tryAcquireLock(this.lockID);
     if (!acquired) {
       throw new ConflictError("Another scan is already running", "SCAN_ALREADY_RUNNING");
@@ -102,7 +99,7 @@ class ScansService {
       await scansRepository.releaseLock(this.lockID).catch(() => undefined);
       throw err;
     }
-    this.runScan(scanRecord.id, folder).catch((err) => {
+    this.runScan(scanRecord.id, targetDir, realRoot).catch((err) => {
       logger.error({ err, scanId: scanRecord.id }, "scan.fatal");
     });
     return scanRecord;
@@ -123,17 +120,10 @@ class ScansService {
     return scan;
   }
 
-  private async runScan(scanId: number, folder: string): Promise<void> {
-    const { photoRoot } = await configService.getRuntimeConfig();
-    if (!photoRoot) {
-      await this.finalizeWithError(scanId, "Percorso foto non configurato");
-      await scansRepository.releaseLock(this.lockID).catch(() => undefined);
-      return;
-    }
-    const targetDir = path.join(photoRoot, folder);
+  private async runScan(scanId: number, targetDir: string, realRoot: string): Promise<void> {
     const cnt = { fa: 0, np: 0, ep: 0, xp: 0, er: 0 };
     try {
-      const entries = await enumerateSupportedFiles(targetDir);
+      const entries = await enumerateSupportedFiles(targetDir, realRoot);
       logger.info({ filesTotal: entries.length, targetDir, scanId }, "scan.enumerated");
       // The total is known right after enumeration (includes subfolders):
       // persist it so the frontend can render a proportional progress bar.
@@ -150,6 +140,11 @@ class ScansService {
         }
         cnt.fa++;
         try {
+          // Recheck immediately before EXIF: enumeration and processing are separated in time.
+          if (!isInsideRoot(realRoot, await fs.realpath(entry.absolutePath))) {
+            logger.warn({ scanId, filePath: entry.absolutePath }, "scan.symlink.skipped");
+            continue;
+          }
           await this.processPhoto(entry, scanId, cnt);
         } catch (err) {
           cnt.er++;
@@ -258,7 +253,7 @@ class ScansService {
         .then(async (cl) => {
           try {
             await cl.query("BEGIN");
-            await photosRepository.upsertPhoto(input);
+            await photosRepository.upsertPhoto(input, cl);
             // Phase 5 (technical design §37): the derived presence
             // day + locality is persisted inside the same per-photo
             // transaction as the photo.

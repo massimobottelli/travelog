@@ -302,6 +302,13 @@ Una foto scattata in campagna viene associata all'unità amministrativa che cont
 
 ## 6.4 Geocoding locale
 
+> **Chiarimento architetturale confermato dal proprietario — 17 settembre 2026:**
+> la preferenza iniziale riportata sotto è superata dal design definitivo MVP1:
+> Geoapify per il reverse geocoding, PostgreSQL senza PostGIS e nessun dataset
+> geografico offline. Le coordinate vengono inviate a Geoapify in caso di cache
+> miss; la chiave API rimane sul backend. Restano invariati la conservazione
+> delle coordinate originali e il requisito di cache persistente (§6.5).
+
 La preferenza architetturale è per un reverse geocoding **locale**, senza inviare le coordinate fotografiche a servizi esterni.
 
 La soluzione tecnologica individuata come candidata è:

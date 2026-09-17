@@ -1,0 +1,149 @@
+# Travelog — Audit e piano di correzione
+
+**Data:** 2026-09-17
+**Origine:** audit di sicurezza/performance/qualità su backend (Node/Express/TS) e frontend (React/Vite/TS)
+**Fonti:** `doc/functional-requirements-mvp1.md`, `doc/technical-design-mvp1.md`, `openapi/openapi.yaml`, codice e test esistenti.
+**Decisione architetturale confermata dal proprietario (2026-09-17):** reverse geocoding con Geoapify, PostgreSQL **senza** PostGIS, nessun dataset offline. Le vecchie indicazioni "geocoding locale/PostGIS" sono superate (chiarimento già annotato in `.clinerules`, `clinerules` e in `doc/functional-requirements-mvp1.md` §6.4).
+
+---
+
+## 0. Stato di partenza (già completato e verificato)
+
+La correzione seguente è **già applicata** nel working tree e non va rifatta:
+
+- ✅ **Atomicità foto/presenza (fatto).** `backend/src/repositories/photos.repository.ts` (`upsertPhoto` ora riceve il `PoolClient` transazionale, conflitto gestito con `ON CONFLICT`), `backend/src/services/scans.service.ts` (passaggio del client), test `backend/src/__tests__/photo-transaction.integration.test.ts` (2 test su PostgreSQL reale, con verifica negativa eseguita).
+- Verifica effettuata: suite backend **201/201** su `travelog_test` ricreato da zero, type check OK, Prettier OK, nessuna modifica frontend nel diff.
+
+Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitignore` (artefatto di build): vedere igiene I4.
+
+---
+
+## 1. Regole di esecuzione (valgono per tutti i task)
+
+1. Un task alla volta; ogni task termina con suite verde e diff rivisto.
+2. Database di test: `travelog_test` (PostgreSQL reale, no Docker, no PostGIS). Mai operare su `travelog_dev`. Prima delle suite: `dropdb --if-exists --force travelog_test && createdb travelog_test` + `npm --prefix backend run db:migrate` con `DATABASE_URL=postgresql://localhost:5432/travelog_test`.
+3. Comandi: `npm --prefix backend test` (vitest run, `fileParallelism: false`), `npm --prefix frontend test`, `npm run build` (root), Prettier (`npm run lint` / `format`), `tsc` per type checking.
+4. Nessuna nuova dipendenza (P4 usa solo `ajv`/`ajv-formats` già presenti). Nessun cambio di `openapi/openapi.yaml` salvo decisione esplicita (vedi D1).
+5. Logging: solo pino (`backend/src/config/logger.ts`), eventi stile `scan.*`, `geoapify.*`; mai segreti.
+6. Ogni task aggiorna i test pertinenti (unit per dominio, integrazione per SQL/API) e, se cambia il comportamento documentato, il design tecnico.
+7. Fine task: `git diff --check`, type check, suite backend + frontend verdi, nessun file non correlato toccato.
+
+---
+
+## P1 — Confinamento filesystem della scansione  `PRIORITÀ: ALTA (sicurezza)`
+
+**Esito P1 — 2026-09-17.** Implementati guard lessicale e controllo realpath, validazione pre-lock, root del job fissata all'avvio e filtro symlink nell'enumerazione e prima dell'elaborazione. Aggiunti 10 test guard/filesystem e 2 test API su PostgreSQL reale, con spy call-through su ExifTool: il link esterno non viene letto; la foto interna viene registrata (esclusa per GPS assente nella fixture). Migrazioni applicate al database dedicato esistente `travelog_test`, senza ricrearlo. Suite backend 213/213 e frontend 153/153; type check, build di entrambe le applicazioni, Prettier sui file TypeScript P1 e diff check riusciti. Nessun cambio OpenAPI o schema DB. Limite: controllo e apertura ExifTool non sono atomici contro modifiche concorrenti del filesystem; vedi design §16.
+
+**Problema originale (risolto).**
+- `backend/src/services/scans.service.ts`: `targetDir = path.join(photoRoot, folder)` senza verifica di contenimento consentiva risoluzioni fuori root. Precisazione: `path.join` non scarta la root davanti a un secondo argomento assoluto; gli assoluti sono comunque vietati dal contratto (design §16 e §67 security boundaries).
+- `backend/src/scans/photo-enumeration.ts`: i symlink a file vengono seguiti (`fs.stat`) senza verificare che la destinazione resti nella root.
+- Una `folder` inesistente produce una scansione "completata" con 0 file (fuorviante): nessun errore esplicito.
+
+**File coinvolti.** nuovo `backend/src/scans/path-guard.ts` (funzione pura `resolveInsideRoot(photoRoot, folder): string`); `backend/src/services/scans.service.ts`; `backend/src/scans/photo-enumeration.ts`; test unit `backend/src/scans/__tests__/path-guard.test.ts` e integrazione in `backend/src/__tests__/hardening.integration.test.ts`.
+
+**Passi.**
+1. Implementare `resolveInsideRoot` con `path.resolve` + `path.relative`; rifiuta percorsi assoluti, `..` che escapano e risoluzioni fuori dalla root. Errore: `ValidationError` con `fields: ["folder"]` (nessun cambio di contratto API).
+2. Applicare il guard in `startScan`/`runScan` prima dell'enumerazione; verificare esistenza+directory di `targetDir` (`fs.stat`) → errore di validazione se manca.
+3. In `traverseDirectory`: per i file symlink risolvere il realpath e verificarne il contenimento nella root realpath-izzata; symlink in fuga → skip con `logger.warn({ filePath }, "scan.symlink.skipped")`.
+4. Test unit: `../..`, percorso assoluto, root con `..` interni, path normalizzati; integrazione: `folder: "../fuori"` → 400 e nessun file importato; symlink esterno → saltato, scansione prosegue; foto interna → importata regolarmente.
+
+**Accettazione.** Nessuna lettura EXIF fuori dalla root (dimostrata da test su filesystem reale); messaggi senza interni di sistema; suite verde.
+
+**Policy D2 applicata.** Su richiesta di eseguire P1: saltare i symlink che escono dalla root e non seguire le directory symlinkate. Validazione prima dell'acquisizione del lock. Resta il limite sulle modifiche concorrenti del filesystem documentato nell'esito e nel design §16.
+
+---
+
+## P2 — Lifecycle delle scansioni  `PRIORITÀ: MEDIA-ALTA (affidabilità)`
+
+**Problema.**
+- `backend/src/index.ts`: `failStaleRunningScans()` è fire-and-forget prima di `listen` → breve finestra in cui lo storico mostra `running` di un processo morto.
+- `backend/src/services/scans.service.ts`: `this.cancelledScans.delete(scanId)` non è garantito se `runScan` esce durante l'enumerazione (flag di cancellazione residuo).
+- Nessun handler per `unhandledRejection` / `uncaughtException`.
+
+**File coinvolti.** `backend/src/index.ts`, `backend/src/services/scans.service.ts`; test in `backend/src/__tests__/hardening.integration.test.ts` (o nuovo file lifecycle).
+
+**Passi.**
+1. `index.ts`: `await failStaleRunningScans()` (con log dell'errore e proseguimento dell'avvio in caso di fallimento DB) **prima** di `app.listen`.
+2. `scans.service.ts`: `try/finally` attorno all'intero `runScan` con `cancelledScans.delete(scanId)` nel `finally`.
+3. `index.ts`: handler `unhandledRejection` (log strutturato) e `uncaughtException` (log + `process.exit(1)`; il riavvio è di systemd, design §57).
+4. Test integrazione: inserita manualmente una riga scan `running`, il recupero all'avvio la marca `failed` con messaggio diagnostico; il flag di cancellazione non residua dopo una scansione annullata.
+
+**Accettazione.** Nessuna richiesta servita prima del tentativo di recupero; nessun flag residuo; rifiuti non gestiti loggati in formato pino.
+
+**Rischi.** Basso. Indipendente da P1 (si può eseguire in qualunque ordine dopo P1).
+
+---
+
+## P3 — Robustezza React  `PRIORITÀ: MEDIA`
+
+**Problema.**
+- `frontend/src/pages/TripDetailPage.tsx`: il caricamento non scarta le risposte del precedente `tripId` (cambio rapido viaggio → possibile render di dati obsoleti); `handleReplaceDays` propaga un eventuale rifiuto senza gestione esplicita.
+- `frontend/src/App.tsx`: l'ErrorBoundary resta in stato di errore anche quando l'utente cambia pagina.
+
+**File coinvolti.** `frontend/src/pages/TripDetailPage.tsx`, `frontend/src/App.tsx`; test `frontend/src/pages/__tests__/trip-detail-page.test.tsx`, `frontend/src/App.test.tsx`.
+
+**Passi.**
+1. `TripDetailPage`: effetto con flag `active` + cleanup su `[tripId]`, applicato a dettaglio, mappa, errore e `loading`; `setEditing(false)` al cambio viaggio; try/catch esplicito attorno a `handleReplaceDays` se `TripDetailPanel` non gestisce già il rifiuto (verificare in implementazione).
+2. `App.tsx`: key dell'ErrorBoundary derivata dalla rotta (es. `detail-${tripId}` per il dettaglio, altrimenti nome rotta) → il fallback si resetta alla navigazione, senza clic su "Riprova".
+3. Nessuna libreria nuova (solo React state, come da regole progetto).
+
+**Accettazione.** Nessun render con dati di un altro viaggio (test con promessa lenta + switch rapido); boundary resettato al cambio pagina; intera suite frontend verde.
+
+**Rischi.** Basso; esclusivamente frontend.
+
+---
+
+## P4 — Validazione completa delle richieste (AJV)  `PRIORITÀ: MEDIA — FASE SEPARATA`
+
+**Problema.** `backend/src/middleware/openapi.ts` verifica solo la presenza di alcuni campi body: tipi, formati, enum e parametri query/path non sono validati. Analisi e criteri già presenti in `doc/ajv-validation-plan.md` (da seguire così com'è).
+
+**Passi (secondo il piano esistente §3).**
+1. Compilare gli schemi di `openapi/openapi.yaml` con `ajv` (dipendenza già presente, oggi quasi inutilizzata) a startup/lazy; gestire i `$ref` interni.
+2. Derivare la mappa route→operationId dallo spec; eliminare `ROUTE_OPS` e `REQUIRED_BODY_FIELDS`.
+3. Errori `400 VALIDATION_ERROR` con path JSON in `details.errors`; nessun cambio a `openapi.yaml`.
+4. Verifica preventiva (§3.2): ogni chiamata in `frontend/src/api/*.ts` deve passare la nuova validazione prima di abilitarla; allineare eventuali test con payload parziali.
+5. Aggiornare `doc/technical-design-mvp1.md` (sezione validazione).
+
+**Test.** Unit middleware + integrazione con payload oggi accettati ma invalidi (`page=abc`, `tripIds` non-array, `splitDate` malformato); checklist §4 del piano AJV come criteri di accettazione.
+
+**Accettazione.** Tutti i criteri di `ajv-validation-plan.md` §4; suite backend e frontend verdi.
+
+**Nota.** È l'intervento più esteso: da eseguire come fase dedicata, dopo P1–P3. **D3 (decisione):** confermare se inserirlo in questa serie di task o in una sessione a parte.
+
+---
+
+## Igiene (opzionale, interventi piccoli)
+
+- **I1 — Codice morto.** Rimuovere `EnumerationResult` (`backend/src/scans/photo-enumeration.ts`, nessun riferimento), `httpError`/`InternalError` (`backend/src/models/errors.ts`, inutilizzati), `createTestDb` (`backend/src/db/client.ts`, nessun riferimento).
+- **I2 — Logging.** Sostituire i `console.warn` in `backend/src/scans/exiftool.ts` (timeout) e `backend/src/infrastructure/geocoder/geoapify-reverse-geocoder.ts` (HTTP error, request failed) con il logger pino condiviso (eventi: `exiftool.timeout`, `geoapify.http_error`, `geoapify.request_failed`).
+- **I3 — File non referenziato.** `openapi/openapi.yaml.fixed` non è referenziato da codice/script/config: candidato all'eliminazione. **D4 (decisione):** confermare la cancellazione.
+- **I4 — Artefatto di build tracciato.** `backend/tsconfig.tsbuildinfo` è tracciato in Git pur essendo in `.gitignore`: `git rm --cached backend/tsconfig.tsbuildinfo`. **D5 (decisione):** confermare.
+- **I5 — Codici errore 404 (contrattuale).** Oggi `NotFoundError` produce codici minuscoli derivati (es. `trip_not_found`, con cast `as any` in `backend/src/models/errors.ts`), mentre l'esempio in `openapi.yaml` mostra `TRIP_NOT_FOUND`. Canonicalizzare = allineare spec + un test di integrazione (`api.integration.test.ts:221`). **È un cambio di contratto → D1 (decisione), richiede conferma esplicita.**
+
+---
+
+## Esecuzione
+
+Ordine proposto: **P1 → P2 → P3** (modifiche contenute e indipendenti) → igiene I1–I2 → P4 (fase separata). Le decisioni D1–D5 si confermano al momento dell'avvio del task corrispondente.
+
+Protocollo per ogni task:
+1. leggere i file indicati e i requisiti a riferimento;
+2. implementare i passi nell'ordine;
+3. aggiungere/aggiornare i test elencati;
+4. eseguire suite backend (PostgreSQL reale) + frontend + build + type check + Prettier + `git diff --check`;
+5. rivedere il diff (nessuna modifica non correlata) e aggiornare la documentazione se il comportamento cambia;
+6. segnare il task come completato in questo documento (data + esito verifiche).
+
+---
+
+## Registro avanzamento
+
+| Task | Stato | Note |
+|---|---|---|
+| Atomicità foto/presenza | ✅ Completato | 201/201 test backend, verificato su `travelog_test` ricreato |
+| Chiarimento Geoapify/PostGIS su documenti | ✅ Completato | `.clinerules`, `clinerules`, `doc/functional-requirements-mvp1.md` §6.4 |
+| P1 Confinamento filesystem | ✅ Completato 2026-09-17 | Policy D2 applicata su richiesta di eseguire P1; backend 213/213, frontend 153/153; type check e build OK |
+| P2 Lifecycle scansioni | ⬜ Da fare | — |
+| P3 Robustezza React | ⬜ Da fare | — |
+| P4 Validazione AJV | ⬜ Da fare | Fase separata; dipende da D3 |
+| Igiene I1–I5 | ⬜ Da fare | I5 (codici 404) dipende da D1; I3 da D4; I4 da D5 |

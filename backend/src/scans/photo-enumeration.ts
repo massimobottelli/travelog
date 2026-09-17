@@ -9,6 +9,8 @@
 import { promises as fs, Dirent } from "node:fs";
 import type { Stats } from "node:fs";
 import path from "node:path";
+import logger from "../config/logger.js";
+import { isInsideRoot, validateScanDirectory } from "./path-guard.js";
 
 const SUPPORTED_EXTENSIONS = new Set([".jpg", ".jpeg", ".heic", ".heif"]);
 
@@ -44,22 +46,36 @@ export function isSupportedFormat(fileName: string): boolean {
 /**
  * Recursively enumerate all files under `root`.
  * Returns only entries whose extension matches a supported photo format.
- * Skips directories, symlinks-to-files (handled correctly by lstat), etc.
+ * Skips directory symlinks and files resolving outside the configured photo root.
  */
-export async function enumerateSupportedFiles(root: string): Promise<ScanEntry[]> {
+export async function enumerateSupportedFiles(
+  root: string,
+  photoRoot = root,
+): Promise<ScanEntry[]> {
+  const realRoot = await fs.realpath(photoRoot);
+  const realTarget = await fs.realpath(root);
+  await validateScanDirectory(realRoot, path.relative(realRoot, realTarget));
   const results: ScanEntry[] = [];
-  await traverseDirectory(root, root, results);
+  await traverseDirectory(root, root, realRoot, results);
   return results;
 }
 
 async function traverseDirectory(
   currentDir: string,
   root: string,
+  realRoot: string,
   accumulator: ScanEntry[],
 ): Promise<void> {
   let entries: Dirent[];
 
   try {
+    if (
+      !isInsideRoot(realRoot, await fs.realpath(currentDir)) ||
+      (currentDir !== root && (await fs.lstat(currentDir)).isSymbolicLink())
+    ) {
+      logger.warn({ filePath: currentDir }, "scan.symlink.skipped");
+      return;
+    }
     entries = await fs.readdir(currentDir, { withFileTypes: true });
   } catch (err: unknown) {
     // Permission denied, non-existent dir, etc. — skip silently
@@ -78,7 +94,7 @@ async function traverseDirectory(
 
     if (entry.isDirectory()) {
       // Recurse into subdirectories
-      await traverseDirectory(fullPath, root, accumulator);
+      await traverseDirectory(fullPath, root, realRoot, accumulator);
     } else if (entry.isFile() || entry.isSymbolicLink()) {
       // Only consider regular files (and symbolic links that resolve to files)
       if (!isSupportedFormat(entry.name)) {
@@ -87,6 +103,10 @@ async function traverseDirectory(
 
       let stat: Stats;
       try {
+        if (!isInsideRoot(realRoot, await fs.realpath(fullPath))) {
+          logger.warn({ filePath: fullPath }, "scan.symlink.skipped");
+          continue;
+        }
         stat = await fs.stat(fullPath);
       } catch {
         // Broken symlink or race condition — skip

@@ -1,5 +1,15 @@
 # Travelog — Cline Rules
 
+## Architectural clarification — 2026-09-17
+
+Confirmed by the project owner: MVP1 uses Geoapify for reverse geocoding and
+PostgreSQL without PostGIS, as specified in the technical design. This clarification
+supersedes conflicting legacy statements below (including sections 3, 4, 10,
+19, 20, 32, 34, 35 and 36). No offline geographic datasets or spatial database
+queries are required. Integration tests use real PostgreSQL. Preserve original
+GPS coordinates and the persistent geocoding cache; keep the Geoapify API key
+server-side. Other architectural and security constraints remain unchanged.
+
 ## 1. Source of truth
 
 Before making any implementation decision, read the relevant project documentation.

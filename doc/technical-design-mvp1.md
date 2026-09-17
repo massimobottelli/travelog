@@ -769,6 +769,23 @@ TRAVELOG_PHOTO_ROOT
 
 Il backend deve impedire che le operazioni di scansione escano dalla directory configurata.
 
+Confinamento della scansione (audit P1, 2026-09-17):
+
+* `folder` deve essere relativo: percorsi assoluti, risoluzioni fuori root,
+  cartelle inesistenti o non-directory sono rifiutati con `400 VALIDATION_ERROR`
+  prima del lock e della creazione della scansione, senza esporre percorsi interni.
+* La root validata all'avvio rimane il confine del job anche se cambia la configurazione.
+* I link a file sono ammessi solo se il realpath resta nella root configurata;
+  i link esterni vengono saltati con evento strutturato `scan.symlink.skipped`.
+* Non si attraversano directory symlinkate, nemmeno nei componenti di `folder`.
+  La root configurata dall'operatore può essere essa stessa un alias.
+* I percorsi originali restano nell'identità dei file; il realpath serve alla
+  verifica del contenimento, ripetuta prima dell'elaborazione delle foto.
+
+Questi controlli presuppongono la struttura NAS stabile prevista dai requisiti:
+non costituiscono una garanzia atomica contro sostituzioni concorrenti dei file
+tra controllo del percorso e apertura da parte del processo ExifTool.
+
 La scansione opera esclusivamente in modalità read-only.
 
 Travelog:

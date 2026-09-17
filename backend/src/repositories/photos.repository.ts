@@ -5,7 +5,9 @@
  * Uses Drizzle ORM against PostgreSQL.
  */
 
-import { db, pool as dbPool } from "../db/client.js";
+import { db } from "../db/client.js";
+import { drizzle } from "drizzle-orm/node-postgres";
+import type { PoolClient } from "pg";
 import { photos, geocodingCache, localities, metadataStatusEnum } from "../db/schema.js";
 import { eq, and, desc, count, sql } from "drizzle-orm";
 import type { ScanEntry } from "../scans/photo-enumeration.js";
@@ -62,44 +64,41 @@ export async function findPhotoByFingerprint(
  * For new valid photos, this inserts the full metadata.
  * This is the write operation called inside each photo's transaction.
  */
-export async function upsertPhoto(input: UpsertPhotoInput): Promise<number> {
-  try {
-    const [result] = await db
-      .insert(photos)
-      .values({
-        filePath: input.filePath,
-        fileName: input.fileName,
-        fileType: input.fileType,
-        size: input.size,
-        mtime: input.mtime,
-        dateTimeOriginal: input.dateTimeOriginal,
-        originalLatitude: input.latitude,
-        originalLongitude: input.longitude,
-        metadataStatus: input.status as "valid" | "excluded",
-        exclusionReason: input.exclusionReason,
-      })
-      .returning();
-    return result.id;
-  } catch (err: unknown) {
-    // Unique constraint violation → photo already exists (idempotent scan)
-    if (err instanceof Error && err.message.includes("unique")) {
-      const [existing] = await db
-        .select()
-        .from(photos)
-        .where(
-          and(
-            eq(photos.filePath, input.filePath),
-            eq(photos.size, input.size),
-            eq(photos.mtime, input.mtime),
-          ),
-        )
-        .limit(1);
-      if (existing) {
-        return existing.id;
-      }
-    }
-    throw err;
-  }
+export async function upsertPhoto(input: UpsertPhotoInput, client: PoolClient): Promise<number> {
+  const transactionDb = drizzle(client);
+  const [result] = await transactionDb
+    .insert(photos)
+    .values({
+      filePath: input.filePath,
+      fileName: input.fileName,
+      fileType: input.fileType,
+      size: input.size,
+      mtime: input.mtime,
+      dateTimeOriginal: input.dateTimeOriginal,
+      originalLatitude: input.latitude,
+      originalLongitude: input.longitude,
+      metadataStatus: input.status,
+      exclusionReason: input.exclusionReason,
+    })
+    .onConflictDoNothing({ target: [photos.filePath, photos.size, photos.mtime] })
+    .returning({ id: photos.id });
+  if (result) return result.id;
+
+  // ON CONFLICT keeps the caller's transaction usable, unlike catching a
+  // unique-constraint exception (which leaves PostgreSQL in an aborted state).
+  const [existing] = await transactionDb
+    .select({ id: photos.id })
+    .from(photos)
+    .where(
+      and(
+        eq(photos.filePath, input.filePath),
+        eq(photos.size, input.size),
+        eq(photos.mtime, input.mtime),
+      ),
+    )
+    .limit(1);
+  if (!existing) throw new Error("Photo fingerprint conflict could not be resolved");
+  return existing.id;
 }
 
 /**

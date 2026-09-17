@@ -4,7 +4,9 @@
  * Covers integration-level scenarios from the Phase 9 backlog not
  * covered by the earlier suites.
  */
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect, afterAll, vi } from "vitest";
+import { mkdirSync, symlinkSync } from "node:fs";
+import * as exiftool from "../scans/exiftool.js";
 import request from "supertest";
 import { mkdtempSync, chmodSync, copyFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -94,6 +96,71 @@ function buildPhotoRoot(): string {
   copyFileSync(sourceJpeg, path.join(root, "movie.mov"));
   return root;
 }
+
+describe("P1 - filesystem confinement", () => {
+  it("rejects invalid folders before locking without creating scans or photos", async () => {
+    const base = mkdtempSync(path.join(tmpdir(), "travelog-p1-api-"));
+    const root = path.join(base, "photos");
+    mkdirSync(root);
+    mkdirSync(path.join(base, "outside"));
+    writeFileSync(path.join(root, "not-a-directory.jpg"), "fixture");
+    symlinkSync(path.join(base, "outside"), path.join(root, "linked"));
+    await configurePhotoRoot(root);
+    const before = await pool.query(
+      "SELECT (SELECT count(*) FROM scans) AS scans, (SELECT count(*) FROM photos) AS photos",
+    );
+    const acquired = await scansRepository.tryAcquireLock(SCAN_LOCK_ID);
+    expect(acquired).toBe(true);
+    try {
+      for (const folder of [
+        "../outside",
+        path.join(base, "outside"),
+        "missing",
+        "not-a-directory.jpg",
+        "linked",
+      ]) {
+        const response = await request(server).post("/api/scans").send({ folder });
+        expect(response.status).toBe(400);
+        expect(response.body.code).toBe("VALIDATION_ERROR");
+        expect(JSON.stringify(response.body)).not.toContain(base);
+      }
+      const after = await pool.query(
+        "SELECT (SELECT count(*) FROM scans) AS scans, (SELECT count(*) FROM photos) AS photos",
+      );
+      expect(after.rows).toEqual(before.rows);
+    } finally {
+      await scansRepository.releaseLock(SCAN_LOCK_ID);
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it("never passes external symlinks to ExifTool, but processes internal photos", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "travelog-p1-scan-"));
+    const source = buildSourceJpeg();
+    const inside = path.join(root, "p1-inside.jpg");
+    copyFileSync(source, inside);
+    symlinkSync(source, path.join(root, "p1-external.jpg"));
+    symlinkSync(path.dirname(source), path.join(root, "external-directory"));
+    const readExif = vi.spyOn(exiftool, "readExif"); // call through to real ExifTool
+    await configurePhotoRoot(root);
+    try {
+      const start = await request(server).post("/api/scans").send({ folder: "" });
+      expect(start.status).toBe(202);
+      const scan = await waitForTerminalScan(start.body.id as number);
+      expect(scan.status).toBe("completed");
+      expect(scan.filesTotal).toBe(1);
+      expect(scan.excludedPhotos).toBe(1); // generated fixture has no GPS
+      expect(readExif.mock.calls.map(([file]) => file)).toEqual([inside]);
+      const photos = await pool.query("SELECT file_name FROM photos WHERE file_name LIKE 'p1-%'");
+      expect(photos.rows).toEqual([{ file_name: "p1-inside.jpg" }]);
+    } finally {
+      readExif.mockRestore();
+      await pool.query("DELETE FROM photos WHERE file_name LIKE 'p1-%'");
+      rmSync(root, { recursive: true, force: true });
+      rmSync(sourceDir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("Phase 9 hardening - concurrent scans", () => {
   it("rejects a second scan while the advisory lock is held (409)", async () => {
