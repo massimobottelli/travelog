@@ -132,6 +132,16 @@ export default function TripContextMenu({
             role="menu"
             style={position ?? { top: -9999, left: -9999 }}
           >
+            {onEditDays && (
+              <button
+                type="button"
+                role="menuitem"
+                className="trip-context-item"
+                onClick={select(onEditDays)}
+              >
+                <PencilIcon size={15} /> Modifica viaggio
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"
@@ -148,16 +158,6 @@ export default function TripContextMenu({
             >
               <CalendarIcon size={15} /> Modifica date
             </button>
-            {onEditDays && (
-              <button
-                type="button"
-                role="menuitem"
-                className="trip-context-item"
-                onClick={select(onEditDays)}
-              >
-                <PencilIcon size={15} /> Modifica viaggio
-              </button>
-            )}
             <button
               type="button"
               role="menuitem"
