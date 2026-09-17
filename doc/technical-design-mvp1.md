@@ -1597,6 +1597,27 @@ Ricalcola
 
 Il ricalcolo utilizza le nuove impostazioni per i dati non ancora consolidati, senza modificare o cancellare i viaggi esistenti.
 
+### Ricalcolo su periodo (17 settembre 2026)
+
+`POST /settings` accetta un body opzionale `RecalculateRequest` con
+`startDate` e `endDate` (date ISO locali, estremi inclusivi). Body assente o
+`{}` mantiene il comportamento globale. AJV valida formato, proprietà e
+presenza congiunta delle date dal contratto OpenAPI; il controller verifica
+anche l'ordine temporale prima di avviare il lavoro (`400 VALIDATION_ERROR`).
+La risposta resta `202 { status: "ACCEPTED" }`, senza attendere il completamento.
+
+`recalculate(window?)` ricostruisce globalmente le presenze, come prima;
+`generateTrips(window?)` scarta le presenze fuori finestra prima di classificare
+i giorni. Le soglie non possono essere soddisfatte da foto fuori periodo.
+Il clipping usa sempre tutti i viaggi attivi. La generazione dopo scansione
+resta globale (nessun argomento). Nessuna migrazione o nuova dipendenza.
+
+Il menu apre `RecalculateModal`, riusando `Modal`, input data nativi e React
+state. La conferma di accettazione rimane nel modal per 3 secondi; un refresh
+best-effort della lista viene programmato dopo 2 secondi, con cleanup del timer
+allo smontaggio. Non equivale a una conferma di completamento e non aggiorna
+la cache heatmap. Le soglie continuano a essere gestite nelle Impostazioni.
+
 ---
 
 # 47. Modifica manuale dei viaggi

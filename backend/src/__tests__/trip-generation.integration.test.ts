@@ -172,6 +172,60 @@ describe("presences repository", () => {
   });
 });
 
+describe("period-scoped recalculation", () => {
+  it("creates only the September weekend with threshold 2, preserves existing trips and is idempotent", async () => {
+    const locality = await insertLocality("trip-test-window", "Roma");
+    await insertCache(41.9, 12.5, "trip-test-window", locality);
+    for (const day of ["2024-09-12", "2024-09-13", "2026-09-12", "2026-09-13"]) {
+      await insertPhotos(`trip-test/${day}`, 1, `${day} 23:59:59`, 41.9, 12.5);
+    }
+    await insertManualTrip("2025-08-01", "2025-08-05");
+    const existing = await listTrips();
+    await setSettings(3, 3);
+    expect(await tripCalculationService.recalculate()).toEqual({ tripsCreated: 0 });
+    await setSettings(2, 3);
+    const window = { startDate: "2026-09-12", endDate: "2026-09-13" };
+    expect(await tripCalculationService.recalculate(window)).toEqual({ tripsCreated: 1 });
+    const scoped = await listTrips();
+    expect(scoped).toHaveLength(2);
+    expect(scoped[0]).toEqual(existing[0]);
+    expect(scoped[1]).toMatchObject(window);
+    expect(await tripCalculationService.recalculate(window)).toEqual({ tripsCreated: 0 });
+    expect(await listTrips()).toEqual(scoped);
+    expect(await tripCalculationService.recalculate()).toEqual({ tripsCreated: 1 });
+    expect((await listTrips())[0]).toMatchObject({
+      startDate: "2024-09-12",
+      endDate: "2024-09-13",
+    });
+  });
+
+  it("ignores outside days when applying the threshold and protects overlapping trips", async () => {
+    const locality = await insertLocality("trip-test-boundary", "Roma");
+    await insertCache(41.9, 12.5, "trip-test-boundary", locality);
+    for (const day of ["2026-09-11", "2026-09-12", "2026-09-13", "2026-09-14"]) {
+      await insertPhotos(`trip-test/${day}`, 1, `${day} 00:00:00`, 41.9, 12.5);
+    }
+    await setSettings(3, 3);
+    const window = { startDate: "2026-09-12", endDate: "2026-09-13" };
+    expect(await tripCalculationService.recalculate(window)).toEqual({ tripsCreated: 0 });
+    await setSettings(2, 3);
+    await insertManualTrip("2026-09-13", "2026-09-15");
+    const existing = await listTrips();
+    expect(await tripCalculationService.recalculate(window)).toEqual({ tripsCreated: 0 });
+    expect(await listTrips()).toEqual(existing);
+    expect(
+      await tripCalculationService.recalculate({ startDate: "2020-01-01", endDate: "2020-01-01" }),
+    ).toEqual({ tripsCreated: 0 });
+    await setSettings(1, 3);
+    expect(await tripCalculationService.recalculate(window)).toEqual({ tripsCreated: 1 });
+    expect((await listTrips())[0]).toMatchObject({
+      startDate: "2026-09-12",
+      endDate: "2026-09-12",
+    });
+    expect((await listTrips())[1]).toEqual(existing[0]);
+  });
+});
+
 describe("trip generation", () => {
   it("generates a trip per the §10.5 worked example and is idempotent", async () => {
     const erice = await insertLocality("trip-test-erice", "Erice");

@@ -491,7 +491,14 @@ export interface paths {
         put: operations["updateSettings"];
         /**
          * Trigger trip recalculation
-         * @description Requests an explicit trip recalculation.
+         * @description Requests an explicit trip recalculation using the current global settings.
+         *     Without a body (or with an empty object), all photos participate.
+         *     With startDate and endDate, only photo days within the inclusive range
+         *     participate in trip generation. Both dates must be supplied together and
+         *     startDate must not be after endDate. Days outside the range do not
+         *     contribute to consecutive-day thresholds or extend new trips.
+         *     Existing trips remain protected against modifications and overlaps.
+         *     Derived presences are still rebuilt globally; the range limits generation only.
          *
          *     The operation returns immediately with ACCEPTED status.
          *     Actual recalculation proceeds asynchronously.
@@ -975,6 +982,18 @@ export interface components {
         UpdateSettingsRequest: {
             minimumConsecutiveDaysWithPhotos?: number;
             consecutiveDaysWithoutPhotosBeforeClosing?: number;
+        };
+        RecalculateRequest: {
+            /**
+             * Format: date
+             * @description Inclusive first photo day (naive local date).
+             */
+            startDate?: string;
+            /**
+             * Format: date
+             * @description Inclusive last photo day; must be on or after startDate.
+             */
+            endDate?: string;
         };
         Recalculation: {
             /** @enum {string} */
@@ -1896,7 +1915,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RecalculateRequest"];
+            };
+        };
         responses: {
             /** @description Recalculation accepted */
             202: {

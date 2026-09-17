@@ -69,6 +69,20 @@ describe("scans API", () => {
 });
 
 describe("settings API", () => {
+  it.each([undefined, { startDate: "2026-09-12", endDate: "2026-09-13" }])(
+    "sends the optional recalculation period without changing 202 semantics: %j",
+    async (period) => {
+      fetchMock.mockResolvedValueOnce(jsonResponse({ status: "ACCEPTED" }, 202));
+      expect(await recalculate(period)).toEqual({ status: "ACCEPTED" });
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/settings",
+        expect.objectContaining({
+          method: "POST",
+          body: period ? JSON.stringify(period) : undefined,
+        }),
+      );
+    },
+  );
   it("getSettings requests /settings", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({

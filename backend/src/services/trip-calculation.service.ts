@@ -25,20 +25,29 @@ import {
   classifyTravelDays,
   diffInDays,
   type DayFacts,
+  type TripInterval,
 } from "../domain/trip-rules.js";
 
 export interface TripGenerationResult {
   tripsCreated: number;
 }
 
+/**
+ * Inclusive photo-date window (naive local dates, YYYY-MM-DD) limiting
+ * which presences participate in trip generation. Presences outside the
+ * window are ignored; existing trips are clipped against as usual (§11).
+ */
+export type RecalculationWindow = TripInterval;
+
 class TripCalculationService {
   /**
    * Explicit recalculation: rebuild the derived presences from the
    * photos table, then generate trips with the current settings.
    */
-  async recalculate(): Promise<TripGenerationResult> {
+  async recalculate(window?: RecalculationWindow): Promise<TripGenerationResult> {
+    // Presences remain a globally rebuilt derived dataset; only generation is scoped.
     await presencesRepository.rebuildFromPhotos();
-    return this.generateTrips();
+    return this.generateTrips(window);
   }
 
   /**
@@ -46,7 +55,7 @@ class TripCalculationService {
    * existing trips. Safe to run repeatedly: idempotent w.r.t. trips
    * already created.
    */
-  async generateTrips(): Promise<TripGenerationResult> {
+  async generateTrips(window?: RecalculationWindow): Promise<TripGenerationResult> {
     const settings = await settingsService.getSettings();
     const zones = await exclusionZonesRepository.list();
 
@@ -119,6 +128,13 @@ class TripCalculationService {
 
     const factsByDate = new Map<string, DayFacts>();
     for (const presence of aggregated.values()) {
+      // Filter before classification: outside days must not satisfy the threshold.
+      if (
+        window &&
+        (presence.photoDate < window.startDate || presence.photoDate > window.endDate)
+      ) {
+        continue;
+      }
       let facts = factsByDate.get(presence.photoDate);
       if (!facts) {
         facts = {

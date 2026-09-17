@@ -25,6 +25,8 @@ export function updateSettings(updates: UpdateSettingsRequest): Promise<Settings
  * Trigger an explicit trip recalculation.
  * The operation returns immediately with ACCEPTED status.
  */
-export function recalculate(): Promise<Recalculation> {
-  return apiRequest<Recalculation>("/settings", { method: "POST" });
+export type RecalculateRequest = import("./types").components["schemas"]["RecalculateRequest"];
+
+export function recalculate(period?: RecalculateRequest): Promise<Recalculation> {
+  return apiRequest<Recalculation>("/settings", { method: "POST", body: period });
 }

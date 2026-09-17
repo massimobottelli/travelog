@@ -604,6 +604,30 @@ Il ricalcolo:
 
 Se nuovi dati non ancora consolidati permettono di generare nuovi viaggi, questi vengono creati secondo le nuove regole.
 
+## 12.1 Ricalcolo su periodo (17 settembre 2026)
+
+**Aggiorna Lista Viaggi** apre un modal con due opzioni:
+
+- **Su tutte le foto** (predefinita): comportamento globale esistente.
+- **Su un periodo**: data inizio e data fine obbligatorie, entrambe incluse;
+  la fine deve essere uguale o successiva all'inizio.
+
+Il periodo si riferisce alla data locale EXIF dello scatto, non alla scansione.
+Solo i giorni nel periodo contribuiscono alle soglie e alla generazione;
+nessun nuovo viaggio generato da questa operazione può estendersi fuori periodo.
+Restano invariati i viaggi esistenti e il divieto di sovrapposizione.
+Il ricalcolo usa le soglie globali salvate: il modal non le modifica e non
+memorizza impostazioni specifiche per periodo.
+
+Esempio: soglia abbassata da 3 a 2 giorni consecutivi con foto e periodo
+12–13/09/2026 permettono di creare quel weekend senza generare i weekend
+storici fuori periodo. Un successivo ricalcolo globale o una scansione usa
+ancora la soglia globale salvata: il periodo non è un'esclusione permanente.
+
+L'operazione resta asincrona: la conferma indica solo l'accettazione.
+La lista viene riletta dopo una breve attesa, senza garanzia che il lavoro
+sia già concluso; se necessario l'utente ricarica la pagina più tardi.
+
 ---
 
 # 13. Modifica manuale dei viaggi — MVP1

@@ -270,9 +270,26 @@ describe("TripsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Azioni" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Aggiorna Lista Viaggi" }));
 
+    expect(screen.getByRole("dialog", { name: "Aggiorna Lista Viaggi" })).not.toBeNull();
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) => url === "/api/settings" && init?.method === "POST",
+      ),
+    ).toBe(false);
+    fireEvent.click(screen.getByLabelText("Su un periodo"));
+    fireEvent.change(screen.getByLabelText("Data inizio"), { target: { value: "2026-09-12" } });
+    fireEvent.change(screen.getByLabelText("Data fine"), { target: { value: "2026-09-13" } });
+    fireEvent.click(screen.getByRole("button", { name: "Avvia ricalcolo" }));
     await waitFor(() => {
-      expect(screen.getByText(/Ricalcolo richiesto/)).not.toBeNull();
+      expect(screen.getByText(/Richiesta accettata/)).not.toBeNull();
     });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/settings",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ startDate: "2026-09-12", endDate: "2026-09-13" }),
+      }),
+    );
   });
 
   it("opens the trip detail with day/locality chronology and 'Nessuna foto' gaps (§16)", async () => {

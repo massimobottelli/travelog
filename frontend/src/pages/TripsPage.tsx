@@ -27,7 +27,8 @@ import {
   recalculateTripsOverviewMap,
 } from "../api/trips";
 import { splitTrip, mergeTrips } from "../api/operations";
-import { recalculate } from "../api/settings";
+import { recalculate, type RecalculateRequest } from "../api/settings";
+import RecalculateModal from "../components/RecalculateModal";
 import type { Trip, TripDayInput, TripDetail, TripMapData, TripsOverviewMap } from "../api/client";
 import TripDialog, { type TripDialogState } from "../components/TripDialog";
 import TripDaysModal, { type TripDaysPayload } from "../components/TripDaysModal";
@@ -95,6 +96,16 @@ export default function TripsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  const [recalcModalOpen, setRecalcModalOpen] = useState(false);
+  const [recalcModalError, setRecalcModalError] = useState<string | null>(null);
+  const [recalcModalMessage, setRecalcModalMessage] = useState<string | null>(null);
+  const [recalcRefreshPending, setRecalcRefreshPending] = useState(false);
+  const closeRecalcModal = useCallback(() => {
+    setRecalcModalOpen(false);
+    setRecalcModalMessage(null);
+  }, []);
+  useAutoDismiss(recalcModalMessage, closeRecalcModal, 3000);
+
   const [recalculating, setRecalculating] = useState(false);
   const [recalcMessage, setRecalcMessage] = useState<string | null>(null);
   const [recalcError, setRecalcError] = useState<string | null>(null);
@@ -142,6 +153,17 @@ export default function TripsPage() {
   useEffect(() => {
     void reload(search, page);
   }, [reload, search, page]);
+
+  // Best-effort refresh only: a 202 does not signal job completion.
+  useEffect(() => {
+    if (!recalcRefreshPending) return;
+    const RECALCULATION_REFRESH_DELAY_MS = 2000;
+    const timer = window.setTimeout(() => {
+      setRecalcRefreshPending(false);
+      void reload(search, page);
+    }, RECALCULATION_REFRESH_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [recalcRefreshPending, reload, search, page]);
 
   // Panoramic overview of all active trips: loaded once at startup and
   // refreshed only after operations that change the set of trips. It is
@@ -317,17 +339,18 @@ export default function TripsPage() {
     await Promise.all([reload(search, page), loadOverview()]);
   };
 
-  const handleRecalculate = async (): Promise<void> => {
+  const handleRecalculate = async (period?: RecalculateRequest): Promise<void> => {
     setRecalculating(true);
-    setRecalcError(null);
+    setRecalcModalError(null);
     try {
-      await recalculate();
-      setRecalcMessage(
-        "Ricalcolo richiesto: l'operazione è stata accettata e procederà in background. I viaggi già creati non vengono modificati.",
+      await recalculate(period);
+      setRecalcModalMessage(
+        "Richiesta accettata: il ricalcolo prosegue in background. La lista verrà riletta tra poco; se non è ancora aggiornata, ricarica la pagina più tardi.",
       );
+      setRecalcRefreshPending(true);
     } catch (err: unknown) {
-      setRecalcError(errorToMessage(err));
-      setRecalcMessage(null);
+      setRecalcModalError(errorToMessage(err));
+      setRecalcModalMessage(null);
     } finally {
       setRecalculating(false);
     }
@@ -389,7 +412,11 @@ export default function TripsPage() {
           onCreateTrip={openDaysModal}
           onExport={handleExportCsv}
           onMerge={toggleMergeMode}
-          onRecalculate={handleRecalculate}
+          onRecalculate={() => {
+            setRecalcModalError(null);
+            setRecalcModalMessage(null);
+            setRecalcModalOpen(true);
+          }}
           onRecalculateOverview={handleRecalculateOverview}
           exporting={exporting}
           recalculating={recalculating}
@@ -400,6 +427,15 @@ export default function TripsPage() {
       </TopBarSlot>
       {/* Manual trip creation: the modal opens right below the top of the
           view, before the dashboard. */}
+      {recalcModalOpen && (
+        <RecalculateModal
+          submitting={recalculating}
+          error={recalcModalError}
+          message={recalcModalMessage}
+          onSubmit={handleRecalculate}
+          onCancel={closeRecalcModal}
+        />
+      )}
       {daysModalOpen && (
         <TripDaysModal
           submitting={daysSubmitting}

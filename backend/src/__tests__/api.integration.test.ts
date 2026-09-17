@@ -6,7 +6,8 @@
  * photos listing (technical view), scan errors and settings contract.
  */
 
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect, afterAll, vi } from "vitest";
+import tripCalculationService from "../services/trip-calculation.service.js";
 import request from "supertest";
 import { createApp } from "../app.js";
 import { pool } from "../db/client.js";
@@ -429,9 +430,42 @@ describe("DELETE /api/data", () => {
 });
 
 describe("POST /api/settings (recalculate)", () => {
-  it("accepts the explicit recalculation request", async () => {
-    const res = await request(server).post("/api/settings");
-    expect(res.status).toBe(202);
-    expect(res.body.status).toBe("ACCEPTED");
+  it.each([undefined, {}, { startDate: "2026-09-12", endDate: "2026-09-13" }])(
+    "accepts recalculation and waits for the background task before test cleanup: %j",
+    async (body) => {
+      // Observe (without replacing) the real background service so teardown
+      // cannot close the PostgreSQL pool while the accepted job is running.
+      const spy = vi.spyOn(tripCalculationService, "recalculate");
+      try {
+        const req = request(server).post("/api/settings");
+        const res = await (body === undefined ? req : req.send(body));
+        expect(res.status).toBe(202);
+        expect(res.body).toEqual({ status: "ACCEPTED" });
+        expect(spy).toHaveBeenCalledExactlyOnceWith(body?.startDate ? body : undefined);
+        await spy.mock.results[0].value;
+      } finally {
+        spy.mockRestore();
+      }
+    },
+  );
+
+  it.each([
+    { startDate: "2026-09-12" },
+    { endDate: "2026-09-13" },
+    { startDate: "2026-09-14", endDate: "2026-09-12" },
+    { startDate: "2026-02-30", endDate: "2026-03-01" },
+    { startDate: "invalid", endDate: "2026-09-13" },
+    { startDate: "2026-09-12T00:00:00Z", endDate: "2026-09-13" },
+    { extra: true },
+  ])("rejects invalid periods before scheduling work: %j", async (body) => {
+    const spy = vi.spyOn(tripCalculationService, "recalculate");
+    try {
+      const res = await request(server).post("/api/settings").send(body);
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("VALIDATION_ERROR");
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
