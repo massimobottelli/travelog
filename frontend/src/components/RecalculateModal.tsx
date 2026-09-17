@@ -66,28 +66,32 @@ export default function RecalculateModal({
             />
             Su un periodo
           </label>
-          <label className="flex flex-col gap-1">
-            Data inizio
-            <input
-              type="date"
-              value={startDate}
-              disabled={!periodSelected}
-              required={periodSelected}
-              max={endDate || undefined}
-              onChange={(event) => setStartDate(event.target.value)}
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            Data fine
-            <input
-              type="date"
-              value={endDate}
-              disabled={!periodSelected}
-              required={periodSelected}
-              min={startDate || undefined}
-              onChange={(event) => setEndDate(event.target.value)}
-            />
-          </label>
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="recalc-start">Data inizio</label>
+              <input
+                id="recalc-start"
+                type="date"
+                value={startDate}
+                disabled={!periodSelected}
+                required={periodSelected}
+                max={endDate || undefined}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="recalc-end">Data fine</label>
+              <input
+                id="recalc-end"
+                type="date"
+                value={endDate}
+                disabled={!periodSelected}
+                required={periodSelected}
+                min={startDate || undefined}
+                onChange={(event) => setEndDate(event.target.value)}
+              />
+            </div>
+          </div>
         </fieldset>
         <p className="hint">
           Le date sono incluse. Solo le foto nel periodo contribuiscono alle soglie e ai nuovi
