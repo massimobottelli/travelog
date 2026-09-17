@@ -2074,6 +2074,20 @@ systemd è responsabile di:
 * gestione del processo;
 * integrazione con journald.
 
+Lifecycle delle scansioni (audit P2, 2026-09-17):
+
+* Prima di aprire la porta HTTP, il backend attende il recupero delle scansioni
+  rimaste `running` o `pending`, marcandole `failed` con timestamp di fine e
+  messaggio diagnostico di riavvio. Le foto già salvate sono preservate.
+* Se il recupero fallisce, registra `server.stale_scans_recovery_failed` e
+  prosegue l'avvio; in quel caso il recupero dello storico non è garantito.
+* Il job elimina il proprio flag di cancellazione nel `finally`, anche in caso
+  di errore durante enumerazione o finalizzazione, prima del rilascio del lock.
+* Le Promise rifiutate senza gestione producono un log strutturato
+  `server.unhandled_rejection`, senza uscita esplicita del processo.
+* Le eccezioni non gestite producono un log fatal `server.uncaught_exception`
+  seguito da uscita con codice 1; il riavvio resta responsabilità di systemd.
+
 ---
 
 # 58. Logging

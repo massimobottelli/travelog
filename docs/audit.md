@@ -55,7 +55,9 @@ Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitigno
 
 ## P2 — Lifecycle delle scansioni  `PRIORITÀ: MEDIA-ALTA (affidabilità)`
 
-**Problema.**
+**Esito P2 — 2026-09-17.** Completato: recupero delle scansioni atteso prima di `listen`, con log e prosecuzione dell'avvio se il recupero fallisce; pulizia di `cancelledScans` nel `finally` del job; handler process-level con log per `unhandledRejection` e log fatal seguito da uscita con codice 1 per `uncaughtException`. Aggiornati i test in `backend/src/index.test.ts` (ordine avvio, fallimento recupero, handler senza emettere errori globali nel runner) e aggiunto `backend/src/__tests__/scan-lifecycle.integration.test.ts` (recupero running/pending, preservazione completed, cancellazione ed errori di enumerazione/finalizzazione, pulizia flag e rilascio lock verificato da una sessione PostgreSQL distinta). Database dedicato `travelog_test` ricreato e migrato: integrazione lifecycle 4/4; suite completa backend 219/219, frontend 153/153. Type check e build backend/frontend riusciti; Prettier sui file TypeScript P2 e `git diff --check` OK. Nessuna modifica a OpenAPI, schema DB o agli altri task.
+
+**Problema originale (risolto).**
 - `backend/src/index.ts`: `failStaleRunningScans()` è fire-and-forget prima di `listen` → breve finestra in cui lo storico mostra `running` di un processo morto.
 - `backend/src/services/scans.service.ts`: `this.cancelledScans.delete(scanId)` non è garantito se `runScan` esce durante l'enumerazione (flag di cancellazione residuo).
 - Nessun handler per `unhandledRejection` / `uncaughtException`.
@@ -143,7 +145,7 @@ Protocollo per ogni task:
 | Atomicità foto/presenza | ✅ Completato | 201/201 test backend, verificato su `travelog_test` ricreato |
 | Chiarimento Geoapify/PostGIS su documenti | ✅ Completato | `.clinerules`, `clinerules`, `doc/functional-requirements-mvp1.md` §6.4 |
 | P1 Confinamento filesystem | ✅ Completato 2026-09-17 | Policy D2 applicata su richiesta di eseguire P1; backend 213/213, frontend 153/153; type check e build OK |
-| P2 Lifecycle scansioni | ⬜ Da fare | — |
+| P2 Lifecycle scansioni | ✅ Completato 2026-09-17 | PostgreSQL test ricreato e migrato; backend 219/219, frontend 153/153; type check, build e verifiche diff OK |
 | P3 Robustezza React | ⬜ Da fare | — |
 | P4 Validazione AJV | ⬜ Da fare | Fase separata; dipende da D3 |
 | Igiene I1–I5 | ⬜ Da fare | I5 (codici 404) dipende da D1; I3 da D4; I4 da D5 |

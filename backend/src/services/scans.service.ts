@@ -189,11 +189,11 @@ class ScansService {
           logger.error({ err, scanId }, "scan.trip.generation.failed");
         }
       }
-      this.cancelledScans.delete(scanId);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Fatal error";
       await this.finalizeWithError(scanId, msg);
     } finally {
+      this.cancelledScans.delete(scanId);
       await scansRepository.releaseLock(this.lockID).catch(() => undefined);
     }
   }
