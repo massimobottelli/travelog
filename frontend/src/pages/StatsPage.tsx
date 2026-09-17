@@ -151,7 +151,10 @@ export default function StatsPage() {
                         {month}
                       </th>
                     ))}
-                    <th scope="col">Totale anno</th>
+                    <th scope="col" className="stats-total-col">
+                      <span className="stats-total-label-full">Totale anno</span>
+                      <span className="stats-total-label-short">Tot.</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

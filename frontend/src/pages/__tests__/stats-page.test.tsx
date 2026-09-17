@@ -34,6 +34,7 @@ describe("StatsPage", () => {
     expect(
       screen.getByLabelText("2024: 2 viaggi").querySelector(".stats-bar-trips"),
     ).not.toBeNull();
+    expect(screen.getByRole("columnheader", { name: /Totale anno/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Giorni" }));
     expect(screen.getByRole("heading", { name: "Giorni di viaggio per anno" })).toBeTruthy();
     expect(

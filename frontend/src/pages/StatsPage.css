@@ -8,8 +8,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
+  /* The toggle stays on the same row as the heading, pinned right:
+     only the heading text may wrap, never the controls. */
+  flex-wrap: nowrap;
+}
+.stats-section-heading h2 {
+  min-width: 0;
 }
 .stats-page h1,
 .stats-page h2 {
@@ -55,10 +60,11 @@
   position: relative;
   background: none;
   border: none;
-  padding: 0.35rem 1rem;
-  min-width: 96px;
+  padding: 0.3rem 0.8rem;
+  min-width: 72px;
   color: #1f2933;
   font-weight: 600;
+  font-size: 0.85rem;
   white-space: nowrap;
 }
 .stats-toggle-option:hover:not(:disabled) {
@@ -83,11 +89,14 @@
 .stats-chart {
   display: flex;
   padding-top: 28px;
+  /* Fluid chart height: all years stay visible, the track shrinks on
+     small screens (see the media query below). */
+  --stats-chart-height: 220px;
 }
 .stats-y-axis {
   width: 45px;
   flex-shrink: 0;
-  height: 220px;
+  height: var(--stats-chart-height);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -106,17 +115,18 @@
   text-align: center;
 }
 .stats-bar-track {
-  height: 220px;
+  height: var(--stats-chart-height);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   border-bottom: 1px solid #cbd5ce;
+  /* Quarter gridlines, proportional to the fluid track height. */
   background: repeating-linear-gradient(
     to top,
     transparent 0,
-    transparent 54px,
-    #edf2ee 54px,
-    #edf2ee 55px
+    transparent calc(25% - 1px),
+    #edf2ee calc(25% - 1px),
+    #edf2ee 25%
   );
 }
 .stats-bar {
@@ -182,8 +192,81 @@
   background: #f3f6f4;
   font-weight: 700;
 }
+/* The mobile layout swaps this for the short "Tot." label. */
+.stats-total-label-short {
+  display: none;
+}
 @media (max-width: 640px) {
   .stats-page .panel:not(.page-header-card) {
     padding: 1rem;
+  }
+  /* Compact chart: shorter fluid track, tighter axis and labels. */
+  .stats-chart {
+    --stats-chart-height: 150px;
+  }
+  .stats-y-axis {
+    width: 28px;
+    font-size: 0.7rem;
+  }
+  .stats-bar-value {
+    top: -18px;
+    font-size: 0.7rem;
+  }
+  .stats-year-label {
+    margin-top: 0.4rem;
+    font-size: 0.7rem;
+  }
+  /* Many years on a narrow screen: let columns shrink below their label
+     width and rotate the year labels vertically so every year stays
+     visible without scrolling. */
+  .stats-bars li {
+    min-width: 0;
+  }
+  .stats-year-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    margin: 0.5rem auto 0;
+    height: 38px;
+    font-size: 0.65rem;
+  }
+  .stats-toggle {
+    padding: 3px;
+  }
+  .stats-toggle-option {
+    min-width: 50px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  /* Compact heatmap: fixed column widths so all 14 columns share the
+     portrait viewport with no horizontal scrolling. */
+  .stats-heatmap {
+    min-width: 0;
+    table-layout: fixed;
+    border-spacing: 2px;
+  }
+  .stats-heatmap th,
+  .stats-heatmap td {
+    padding: 0.25rem 0;
+    font-size: 0.65rem;
+  }
+  .stats-heatmap thead th:first-child,
+  .stats-heatmap thead th:last-child {
+    width: 34px;
+  }
+  /* Month and total headers read bottom-to-top (like the chart year
+     labels) so narrow columns stay readable. */
+  .stats-heatmap thead th:not(:first-child) {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    padding: 0.4rem 0;
+  }
+  .stats-total-label-full {
+    display: none;
+  }
+  .stats-total-label-short {
+    display: inline;
+  }
+  .stats-gradient {
+    width: 90px;
   }
 }
