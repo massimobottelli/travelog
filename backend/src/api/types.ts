@@ -607,7 +607,10 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         ApiError: {
-            /** @example TRIP_NOT_FOUND */
+            /**
+             * @description Stable machine-readable error code in uppercase snake case. Missing resources use TRIP_NOT_FOUND, SCAN_NOT_FOUND, LOCALITY_NOT_FOUND or EXCLUSION_ZONE_NOT_FOUND as appropriate.
+             * @example TRIP_NOT_FOUND
+             */
             code: string;
             /** @example Trip not found */
             message: string;

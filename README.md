@@ -8,6 +8,10 @@ Analizza le foto conservate su qualsiasi cartella del filesystem, legge data e c
 
 ---
 
+![Travelog](https://massimobottelli.it/wp-content/uploads/2026/09/travelog-01.jpeg)
+
+
+
 ## ✨ Cosa fa Travelog
 
 - **Scansiona l'archivio fotografico** — analisi ricorsiva della cartella configurata (JPEG/JPG e HEIC/HEIF), incrementale e idempotente: le foto già importate vengono riconosciute e mai duplicate.

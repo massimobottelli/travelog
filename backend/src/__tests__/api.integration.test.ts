@@ -218,8 +218,30 @@ describe("GET /api/scans/:scanId/errors", () => {
   it("returns 404 with the error contract for an unknown scan", async () => {
     const res = await request(server).get("/api/scans/999999/errors");
     expect(res.status).toBe(404);
-    expect(res.body.code).toBe("scan_not_found");
+    expect(res.body.code).toBe("SCAN_NOT_FOUND");
     expect(typeof res.body.message).toBe("string");
+  });
+});
+
+describe("Canonical resource-not-found codes", () => {
+  it("returns TRIP_NOT_FOUND for a missing trip", async () => {
+    const res = await request(server).get("/api/trips/999999");
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ code: "TRIP_NOT_FOUND", details: {} });
+  });
+
+  it("returns LOCALITY_NOT_FOUND for a missing exclusion locality", async () => {
+    const res = await request(server)
+      .post("/api/exclusion-zones")
+      .send({ localityId: 999999, scope: "locality" });
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ code: "LOCALITY_NOT_FOUND", details: {} });
+  });
+
+  it("returns EXCLUSION_ZONE_NOT_FOUND for a missing exclusion zone", async () => {
+    const res = await request(server).delete("/api/exclusion-zones/999999");
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ code: "EXCLUSION_ZONE_NOT_FOUND", details: {} });
   });
 });
 

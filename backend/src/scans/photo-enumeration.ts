@@ -29,11 +29,6 @@ export interface ScanEntry {
   mtime: number;
 }
 
-export interface EnumerationResult {
-  /** Supported new photos ready for import */
-  supported: ScanEntry[];
-}
-
 /**
  * Check whether a file has a supported photo format.
  * Case-insensitive extension matching.

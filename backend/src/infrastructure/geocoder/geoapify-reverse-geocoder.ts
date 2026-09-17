@@ -3,6 +3,7 @@
  */
 
 import type { Locality, ReverseGeocoder } from "../../domain/reverse-geocoder.js";
+import logger from "../../config/logger.js";
 
 interface GeoapifyResult {
   city?: string;
@@ -41,7 +42,7 @@ export class GeoapifyReverseGeocoder implements ReverseGeocoder {
       });
 
       if (!response.ok) {
-        console.warn(`[Geoapify] HTTP ${response.status} for (${latitude}, ${longitude})`);
+        logger.warn({ status: response.status, latitude, longitude }, "geoapify.http_error");
         return null;
       }
 
@@ -72,8 +73,10 @@ export class GeoapifyReverseGeocoder implements ReverseGeocoder {
         parentName: result.state ?? null,
         parentCountryCode: countryCode,
       };
-    } catch (err) {
-      console.warn(`[Geoapify] Request failed for (${latitude}, ${longitude}):`, err);
+    } catch {
+      // Fetch errors may contain the request URL (including the API key).
+      // Keep diagnostics structured without serializing the raw error.
+      logger.warn({ latitude, longitude }, "geoapify.request_failed");
       return null;
     }
   }

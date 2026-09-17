@@ -668,6 +668,12 @@ Formato concettuale:
 
 `code` è stabile e destinato anche al consumo programmatico del frontend.
 
+Dall'audit igiene I5 (2026-09-17), con cambio contrattuale autorizzato,
+`NotFoundError` usa un mapping tipizzato: `TRIP_NOT_FOUND`, `SCAN_NOT_FOUND`,
+`LOCALITY_NOT_FOUND` e `EXCLUSION_ZONE_NOT_FOUND`. Questi codici maiuscoli
+sostituiscono quelli minuscoli derivati dal nome dell'entità; status 404 e
+messaggi restano invariati.
+
 `message` è informativo.
 
 `details` è opzionale.

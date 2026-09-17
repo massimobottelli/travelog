@@ -21,6 +21,7 @@ export type ErrorCode =
   | "SPLIT_VIOLATION"
   | "MERGE_INVALID"
   | "ADMIN_AREA_NOT_FOUND"
+  | "LOCALITY_NOT_FOUND"
   | "EXCLUSION_ZONE_NOT_FOUND"
   | "GEOAPIFY_NOT_CONFIGURED"
   | "PLACE_NOT_FOUND"
@@ -72,13 +73,20 @@ export class ValidationError extends AppError {
   }
 }
 
+const NOT_FOUND_CODES = {
+  Trip: "TRIP_NOT_FOUND",
+  Scan: "SCAN_NOT_FOUND",
+  Locality: "LOCALITY_NOT_FOUND",
+  "Exclusion zone": "EXCLUSION_ZONE_NOT_FOUND",
+} as const satisfies Record<string, ErrorCode>;
+
 /**
  * Not found error (404).
  */
 export class NotFoundError extends AppError {
-  constructor(entity: string, id?: string | number) {
+  constructor(entity: keyof typeof NOT_FOUND_CODES, id?: string | number) {
     const message = id !== undefined ? `${entity} with id ${id} not found` : `${entity} not found`;
-    super(`${entity.toLowerCase()}_not_found` as any, message, 404);
+    super(NOT_FOUND_CODES[entity], message, 404);
     this.name = "NotFoundError";
   }
 }
@@ -90,42 +98,5 @@ export class ConflictError extends AppError {
   constructor(message: string, code: ErrorCode = "BANK_NOT_FOUND") {
     super(code, message, 409);
     this.name = "ConflictError";
-  }
-}
-
-/**
- * Internal server error (500).
- */
-export class InternalError extends AppError {
-  constructor(cause?: Error) {
-    const message = cause?.message ?? "An unexpected internal error occurred";
-    super("INTERNAL_ERROR", message, 500, {
-      details: cause ? { originalMessage: cause.message } : {},
-    });
-    this.name = "InternalError";
-  }
-}
-
-/**
- * Factory function to create HTTP errors from any Error instance.
- */
-export function httpError(
-  statusCode: number,
-  code: ErrorCode,
-  message: string,
-  details?: Record<string, unknown>,
-): AppError {
-  switch (statusCode) {
-    case 400:
-      return new ValidationError(message, details);
-    case 404:
-      return new NotFoundError(
-        code.split("_")[0] ?? "Entity",
-        details ? String(details.id) : undefined,
-      );
-    case 409:
-      return new ConflictError(message, code);
-    default:
-      return new InternalError();
   }
 }

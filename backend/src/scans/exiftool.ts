@@ -13,6 +13,7 @@
 
 import { spawn } from "node:child_process";
 import { env } from "../utils/env.js";
+import logger from "../config/logger.js";
 
 const EXIFTOOL_TIMEOUT_MS = 5000; // 5 seconds per file
 
@@ -89,7 +90,7 @@ export async function readExif(filePath: string): Promise<RawExifData | null> {
       // Timeout: kill the process after EXIFTOOL_TIMEOUT_MS
       const timer = setTimeout(() => {
         if (!resolved) {
-          console.warn(`[exiftool] Timeout (${EXIFTOOL_TIMEOUT_MS}ms) for ${filePath}`);
+          logger.warn({ filePath, timeoutMs: EXIFTOOL_TIMEOUT_MS }, "exiftool.timeout");
           proc.kill("SIGTERM");
           setResolved(null);
         }

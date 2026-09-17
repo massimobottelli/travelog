@@ -37,7 +37,7 @@ pids
 
 # Temporary files
 .tmp
-.tsbuildinfo
+*.tsbuildinfo
 test/
 
 # Database export dumps

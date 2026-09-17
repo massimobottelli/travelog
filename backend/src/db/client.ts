@@ -35,15 +35,3 @@ process.on("SIGTERM", () => {
   pool.end();
   process.exit(0);
 });
-
-/**
- * Create an in-memory Drizzle client for testing against a test database
- * without requiring the global pool. Useful for integration tests.
- */
-export function createTestDb(connectionString?: string) {
-  const testPool = new Pool({
-    connectionString: connectionString ?? process.env.DATABASE_URL,
-    max: 5,
-  });
-  return drizzle(testPool, { logger: false });
-}

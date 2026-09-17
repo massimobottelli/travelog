@@ -14,7 +14,7 @@ La correzione seguente è **già applicata** nel working tree e non va rifatta:
 - ✅ **Atomicità foto/presenza (fatto).** `backend/src/repositories/photos.repository.ts` (`upsertPhoto` ora riceve il `PoolClient` transazionale, conflitto gestito con `ON CONFLICT`), `backend/src/services/scans.service.ts` (passaggio del client), test `backend/src/__tests__/photo-transaction.integration.test.ts` (2 test su PostgreSQL reale, con verifica negativa eseguita).
 - Verifica effettuata: suite backend **201/201** su `travelog_test` ricreato da zero, type check OK, Prettier OK, nessuna modifica frontend nel diff.
 
-Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitignore` (artefatto di build): vedere igiene I4.
+All'inizio dell'audit `backend/tsconfig.tsbuildinfo` era tracciato; il pattern `.tsbuildinfo` non lo ignorava. Corretto in igiene I4 con `*.tsbuildinfo` e rimozione dal tracking, conservando il file locale.
 
 ---
 
@@ -127,6 +127,10 @@ Il file `backend/tsconfig.tsbuildinfo` è tracciato in git anche se in `.gitigno
 
 ## Igiene (opzionale, interventi piccoli)
 
+**Esito I1–I5 — 2026-09-17.** Completati con conferma esplicita dell'utente per D1, D4 e D5. Rimosso il codice morto I1; warning ExifTool/Geoapify convertiti al logger Pino condiviso (senza URL, chiave API o errore grezzo Geoapify); eliminato `openapi/openapi.yaml.fixed`; artefatto `backend/tsconfig.tsbuildinfo` rimosso dal tracking e conservato localmente, con pattern corretto `*.tsbuildinfo`. I codici 404 sono ora `TRIP_NOT_FOUND`, `SCAN_NOT_FOUND`, `LOCALITY_NOT_FOUND`, `EXCLUSION_ZONE_NOT_FOUND`, tramite mapping tipizzato senza `as any`; messaggi e status HTTP invariati. Contratto documentato e tipi rigenerati. Aggiunti 5 test unitari errori, 3 logging e 3 integrazioni API; aggiornata l'asserzione dello scan. Verifica negativa: i quattro mapping fallivano prima della correzione. `travelog_test` ricreato e migrato; suite complete backend **240/240**, frontend **161/161**, build e type check backend/frontend riusciti. Nessuna nuova dipendenza o modifica dello schema DB. La modifica preesistente a `README.md` resta estranea al task.
+
+**Interventi originali (completati; D1/D4/D5 risolte con conferma esplicita):**
+
 - **I1 — Codice morto.** Rimuovere `EnumerationResult` (`backend/src/scans/photo-enumeration.ts`, nessun riferimento), `httpError`/`InternalError` (`backend/src/models/errors.ts`, inutilizzati), `createTestDb` (`backend/src/db/client.ts`, nessun riferimento).
 - **I2 — Logging.** Sostituire i `console.warn` in `backend/src/scans/exiftool.ts` (timeout) e `backend/src/infrastructure/geocoder/geoapify-reverse-geocoder.ts` (HTTP error, request failed) con il logger pino condiviso (eventi: `exiftool.timeout`, `geoapify.http_error`, `geoapify.request_failed`).
 - **I3 — File non referenziato.** `openapi/openapi.yaml.fixed` non è referenziato da codice/script/config: candidato all'eliminazione. **D4 (decisione):** confermare la cancellazione.
@@ -160,4 +164,4 @@ Protocollo per ogni task:
 | P2 Lifecycle scansioni                    | ✅ Completato 2026-09-17 | PostgreSQL test ricreato e migrato; backend 219/219, frontend 153/153; type check, build e verifiche diff OK                                |
 | P3 Robustezza React                       | ✅ Completato 2026-09-17 | Backend 219/219, frontend 161/161; regressioni verificate anche in negativo; type check, build, Prettier e diff check OK                    |
 | P4 Validazione AJV                        | ✅ Completato 2026-09-17 | Backend 229/229, frontend 161/161; 13 test di validazione; correzioni contrattuali autorizzate; type check, build, Prettier e diff check OK |
-| Igiene I1–I5                              | ⬜ Da fare               | I5 (codici 404) dipende da D1; I3 da D4; I4 da D5                                                                                           |
+| Igiene I1–I5                              | ✅ Completato 2026-09-17 | D1/D4/D5 confermate; PostgreSQL test ricreato e migrato; backend 240/240, frontend 161/161; build e type check OK                           |

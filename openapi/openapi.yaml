@@ -1040,6 +1040,10 @@ components:
       properties:
         code:
           type: string
+          description: >-
+            Stable machine-readable error code in uppercase snake case.
+            Missing resources use TRIP_NOT_FOUND, SCAN_NOT_FOUND,
+            LOCALITY_NOT_FOUND or EXCLUSION_ZONE_NOT_FOUND as appropriate.
           example: TRIP_NOT_FOUND
         message:
           type: string
